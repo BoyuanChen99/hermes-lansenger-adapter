@@ -152,6 +152,15 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 - `websockets` — WebSocket 长连接客户端
 - `httpx` — HTTP 客户端，用于 API 调用（媒体工具也使用）
 
+## 升级
+
+升级到最新版本：
+
+```bash
+hermes plugins update hermes-lansenger-adapter
+hermes gateway restart
+```
+
 ## 更新日志
 
 ### v2.2.0 (2026-05-11)

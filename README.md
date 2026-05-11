@@ -154,6 +154,15 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 - `websockets` — WebSocket client for long-connection
 - `httpx` — HTTP client for API calls (also used by media tools)
 
+## Upgrade
+
+To update to the latest version:
+
+```bash
+hermes plugins update hermes-lansenger-adapter
+hermes gateway restart
+```
+
 ## Changelog
 
 ### v2.2.0 (2026-05-11)
