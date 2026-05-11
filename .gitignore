@@ -9,6 +9,7 @@ build/
 *.egg-info/
 *.egg
 *.whl
+*.tar.gz
 
 # Environment
 .env
