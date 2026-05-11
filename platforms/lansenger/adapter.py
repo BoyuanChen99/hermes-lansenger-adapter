@@ -495,18 +495,28 @@ class LansengerAdapter(BasePlatformAdapter):
         """Send typing indicator (not supported by Lansenger)."""
         pass  # Lansenger doesn't support typing indicators
 
-    async def send_text(self, chat_id: str, content: str) -> SendResult:
-        """Send a plain text message."""
+    async def send_text(self, chat_id: str, content: str, reminder: dict = None) -> SendResult:
+        """Send a plain text message, optionally with @mentions (group/staff chat only).
+        
+        Args:
+            chat_id: Recipient user ID or chat ID
+            content: Text content
+            reminder: Optional dict with 'all' (bool) and 'userIds' (list) for @mentions.
+                      Only works in group/staff chat; private chat does not support @mentions.
+        """
         token = await self._get_app_token()
         if not token:
             return SendResult(success=False, error="No access token")
 
         try:
             url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            text_data = {"content": content}
+            if reminder:
+                text_data["reminder"] = reminder
             payload = {
                 "userIdList": [chat_id],
                 "msgType": "text",
-                "msgData": {"text": {"content": content}}
+                "msgData": {"text": text_data}
             }
 
             response = await self._http_client.post(url, json=payload)
@@ -560,14 +570,16 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.error("[Lansenger] Send formatText error: %s", e, exc_info=True)
             return SendResult(success=False, error=str(e), retryable=True)
 
-    async def send_text_with_media(self, chat_id: str, content: str, media_type: int, media_ids: List[str]) -> SendResult:
-        """Send a text message with media attachment (file/image/video).
+    async def send_text_with_media(self, chat_id: str, content: str, media_type: int, media_ids: List[str], reminder: dict = None) -> SendResult:
+        """Send a text message with media attachment (file/image/video), optionally with @mentions.
         
         Args:
-            chat_id: Recipient user ID
+            chat_id: Recipient user ID or chat ID
             content: Text content (caption)
             media_type: 1=video, 2=image, 3=file
             media_ids: List of media IDs from upload_media_file()
+            reminder: Optional dict with 'all' (bool) and 'userIds' (list) for @mentions.
+                      Only works in group/staff chat; private chat does not support @mentions.
             
         Note: Uses msgType='text' (not formatText) because formatText doesn't support media.
               Markdown is NOT supported when sending media.
@@ -578,16 +590,17 @@ class LansengerAdapter(BasePlatformAdapter):
 
         try:
             url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            text_data = {
+                "content": content,
+                "mediaType": media_type,
+                "mediaIds": media_ids
+            }
+            if reminder:
+                text_data["reminder"] = reminder
             payload = {
                 "userIdList": [chat_id],
                 "msgType": "text",
-                "msgData": {
-                    "text": {
-                        "content": content,
-                        "mediaType": media_type,
-                        "mediaIds": media_ids
-                    }
-                }
+                "msgData": {"text": text_data}
             }
 
             response = await self._http_client.post(url, json=payload)

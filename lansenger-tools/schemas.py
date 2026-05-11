@@ -63,12 +63,22 @@ LANSENGER_SEND_TEXT = {
                 ),
                 "enum": [1, 2, 3],
             },
-            "at_user_ids": {
+            "reminder_all": {
+                "type": "boolean",
+                "description": (
+                    "Set to true to @mention all members in a group chat. "
+                    "Only works with msgType=text in group/staff chat. "
+                    "Private chats do not support @mentions."
+                ),
+            },
+            "reminder_user_ids": {
                 "type": "array",
                 "items": {"type": "string"},
                 "description": (
-                    "Optional list of user IDs to @mention in the message. "
-                    "Only works with msgType=text (not formatText)."
+                    "Optional list of user IDs to @mention in a group chat. "
+                    "Only works with msgType=text in group/staff chat. "
+                    "Private chats do not support @mentions. "
+                    "Matches the reminder.userIds field in the Lansenger API."
                 ),
             },
         },

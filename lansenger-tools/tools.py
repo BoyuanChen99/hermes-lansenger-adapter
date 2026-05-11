@@ -156,24 +156,33 @@ async def _create_ephemeral_adapter() -> tuple:
 
 async def _send_text_async(chat_id: str, content: str,
                             file_path: str = "", media_type: int = 3,
-                            at_user_ids: list = None) -> dict:
-    """Async: send plain text message (msgType=text), optionally with attachment."""
+                            reminder_all: bool = False,
+                            reminder_user_ids: list = None) -> dict:
+    """Async: send plain text message (msgType=text), optionally with attachment and @mentions."""
     adapter = await _create_ephemeral_adapter()
     try:
+        # Build reminder dict if any @mention params provided
+        reminder = None
+        if reminder_all or (reminder_user_ids and len(reminder_user_ids) > 0):
+            reminder = {
+                "all": reminder_all,
+                "userIds": reminder_user_ids or [],
+            }
+
         if file_path and os.path.isfile(file_path):
             # Upload media first, then send text+media
             media_id = await adapter.upload_media_file(file_path, media_type)
             if media_id:
                 result = await adapter.send_text_with_media(
-                    chat_id, content, media_type, [media_id]
+                    chat_id, content, media_type, [media_id], reminder=reminder
                 )
             else:
                 # Upload failed — fall back to pure text
                 logger.warning("[Lansenger] Media upload failed, sending plain text only")
-                result = await adapter.send_text(chat_id, content)
+                result = await adapter.send_text(chat_id, content, reminder=reminder)
         else:
             # Pure text, no attachment
-            result = await adapter.send_text(chat_id, content)
+            result = await adapter.send_text(chat_id, content, reminder=reminder)
 
         await adapter._http_client.aclose()
         return {
@@ -342,14 +351,15 @@ async def _send_link_card_async(chat_id: str, title: str, link: str,
 def lansenger_send_text(args: dict, **kwargs) -> str:
     """Send a plain text message (msgType=text) with optional file/image/video attachment.
 
-    msgType=text supports: plain text, @mentions, file/image/video attachments.
-    Does NOT support: Markdown formatting.
+    msgType=text supports: plain text, @mentions (group/staff chat only), file/image/video attachments.
+    Does NOT support: Markdown formatting. Private chats do not support @mentions.
     """
     chat_id = args.get("chat_id", "").strip()
     content = args.get("content", "").strip()
     file_path = args.get("file_path", "").strip()
     media_type = args.get("media_type")
-    at_user_ids = args.get("at_user_ids") or []
+    reminder_all = args.get("reminder_all", False)
+    reminder_user_ids = args.get("reminder_user_ids") or []
 
     if not chat_id:
         return json.dumps({"error": "chat_id is required"})
@@ -371,7 +381,7 @@ def lansenger_send_text(args: dict, **kwargs) -> str:
 
     try:
         result = _run_async(_send_text_async(chat_id, content, file_path,
-                                              media_type or 3, at_user_ids))
+                                              media_type or 3, reminder_all, reminder_user_ids))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
