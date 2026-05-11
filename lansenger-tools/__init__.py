@@ -47,7 +47,7 @@ def register(ctx):
     # Does NOT support: Markdown formatting
     ctx.register_tool(
         name="lansenger_send_text",
-        toolset="lansenger-media",
+        toolset="lansenger-tools",
         schema=schemas.LANSENGER_SEND_TEXT,
         handler=tools.lansenger_send_text,
         description="Send plain text (msgType=text) with optional file/image/video attachment. No Markdown, supports @mentions.",
@@ -59,7 +59,7 @@ def register(ctx):
     # Does NOT support: @mentions, file/image/video attachments
     ctx.register_tool(
         name="lansenger_send_markdown",
-        toolset="lansenger-media",
+        toolset="lansenger-tools",
         schema=schemas.LANSENGER_SEND_MARKDOWN,
         handler=tools.lansenger_send_markdown,
         description="Send Markdown-formatted text (msgType=formatText). No @mentions or attachments.",
@@ -69,7 +69,7 @@ def register(ctx):
     # ─── File/image/video only (msgType=text, no text body) ──────
     ctx.register_tool(
         name="lansenger_send_file",
-        toolset="lansenger-media",
+        toolset="lansenger-tools",
         schema=schemas.LANSENGER_SEND_FILE,
         handler=tools.lansenger_send_file,
         description="Send a local file/image/video (msgType=text, attachment only). Caption is plain text.",
@@ -78,7 +78,7 @@ def register(ctx):
 
     ctx.register_tool(
         name="lansenger_send_image_url",
-        toolset="lansenger-media",
+        toolset="lansenger-tools",
         schema=schemas.LANSENGER_SEND_IMAGE_URL,
         handler=tools.lansenger_send_image_url,
         description="Send an image from a URL (msgType=text, attachment only). Caption is plain text.",
@@ -88,7 +88,7 @@ def register(ctx):
     # ─── Message management ──────────────────────────────────────
     ctx.register_tool(
         name="lansenger_revoke_message",
-        toolset="lansenger-media",
+        toolset="lansenger-tools",
         schema=schemas.LANSENGER_REVOKE_MESSAGE,
         handler=tools.lansenger_revoke_message,
         description="Revoke a previously sent Lansenger (蓝信) message",
@@ -97,7 +97,7 @@ def register(ctx):
 
     ctx.register_tool(
         name="lansenger_send_link_card",
-        toolset="lansenger-media",
+        toolset="lansenger-tools",
         schema=schemas.LANSENGER_SEND_LINK_CARD,
         handler=tools.lansenger_send_link_card,
         description="Send a linkCard message to a Lansenger (蓝信) user or group",
