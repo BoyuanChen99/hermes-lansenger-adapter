@@ -52,7 +52,7 @@ hermes gateway restart
 ## Verify
 
 Check that tools are loaded:
-- `hermes tools list` should show 6 lansenger-media tools
+- `hermes tools list` should show 6 lansenger-tools
 - The skill should appear in `hermes skills list`
 
 ## Tools Overview
