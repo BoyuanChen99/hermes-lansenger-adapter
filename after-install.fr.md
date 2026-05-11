@@ -20,7 +20,7 @@ hermes setup gateway
 
 Sélectionnez **Lansenger** dans la liste des plateformes, puis collez votre App ID, App Secret, et confirmez éventuellement l'URL de la passerelle API. Les valeurs déjà configurées sont affichées (les secrets sont masqués) et peuvent être remplacées.
 
-> 💡 L'App ID et l'App Secret peuvent être trouvés dans Lansenger → Contacts → Bot personnel (pas Espace de travail)
+> 💡 L'App ID et l'App Secret se trouvent dans Lansenger desktop → Contacts → Robot intelligent → Robot personnel → icône ℹ️ (le client mobile ne permet pas de voir les identifiants)
 
 ### Option B : config.yaml
 

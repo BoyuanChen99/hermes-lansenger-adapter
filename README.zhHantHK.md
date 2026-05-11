@@ -75,7 +75,7 @@ hermes gateway restart
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
 
-**憑證路徑：** 藍信 客戶端 → 通訊錄 → 個人Bot → 建立Bot → 詳情
+**憑證路徑：** 藍信桌面端 → 通訊錄 → 智能機械人 → 個人機械人 → 點擊右側 ℹ️ 圖標查看憑證（行動端不支援查看憑證）
 
 ### 可選環境變數
 

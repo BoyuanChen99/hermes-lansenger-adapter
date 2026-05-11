@@ -75,7 +75,7 @@ hermes gateway restart
 | `LANSENGER_APP_ID` | 機器人 App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | 機器人 App Secret | `your-app-secret` |
 
-**憑證路徑：** 藍信 用戶端 → 通訊錄 → 個人機器人 → 建立機器人 → 詳情
+**憑證路徑：** 藍信桌面端 → 通訊錄 → 智能機器人 → 個人機器人 → 點擊右側 ℹ️ 圖標查看憑證（行動端不支援查看憑證）
 
 ### 可選環境變數
 

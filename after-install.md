@@ -20,7 +20,7 @@ hermes setup gateway
 
 Select **Lansenger** from the platform list, then paste your App ID, App Secret, and optionally confirm the API Gateway URL. Already-configured values are shown (secrets are masked) and can be overwritten.
 
-> 💡 App ID and App Secret can be found in Lansenger → Contacts → Personal Bot (not Workspace)
+> 💡 App ID and App Secret can be found in Lansenger desktop → Contacts → Smart Bot → Personal Bot → ℹ️ icon (mobile does not support viewing credentials)
 
 ### Option B: config.yaml
 

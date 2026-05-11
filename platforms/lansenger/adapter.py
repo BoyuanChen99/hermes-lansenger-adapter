@@ -1470,7 +1470,8 @@ def _interactive_setup():
     print(f"  {CYAN}─── 💠 Lansenger (蓝信) Setup ───{RESET}")
     print()
     print(f"  {YELLOW}Where to find your credentials:{RESET}")
-    print(f"  Lansenger → Contacts → Personal Bot (not Workspace)")
+    print(f"  Lansenger desktop → Contacts → Smart Bot → Personal Bot → ℹ️ icon")
+    print(f"  (Mobile client does not support viewing credentials)")
     print()
     
     # Read existing .env

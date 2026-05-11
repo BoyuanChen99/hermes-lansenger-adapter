@@ -75,7 +75,7 @@ hermes gateway restart
 | `LANSENGER_APP_ID` | 机器人应用 ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | 机器人应用密钥 | `your-app-secret` |
 
-**凭据路径：** 蓝信 客户端 → 通讯录 → 个人机器人 → 创建机器人 → 详情
+**凭据路径：** 蓝信桌面端 → 通讯录 → 智能机器人 → 个人机器人 → 点击右侧 ℹ️ 图标查看凭证（移动端不支持查看凭证）
 
 ### 可选环境变量
 
