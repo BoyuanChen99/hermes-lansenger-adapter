@@ -1,9 +1,21 @@
-"""Tool handlers for lansenger-media-tools — send files/images/videos and manage messages via Lansenger API.
+"""Tool handlers for lansenger-media-tools — send messages, files, images, manage messages via Lansenger API.
+
+Lansenger (蓝信) has TWO distinct message types with different capabilities:
+
+  ┌──────────────┬──────────────┬──────────────┬──────────────┐
+  │  msgType     │  Markdown    │  @mention    │  Attachments │
+  ├──────────────┼──────────────┼──────────────┼──────────────┤
+  │  text        │  ✗           │  ✓           │  ✓           │
+  │  formatText  │  ✓           │  ✗           │  ✗           │
+  └──────────────┴──────────────┴──────────────┴──────────────┘
+
+This constraint shapes handler implementations:
+- send_text:       msgType=text   → plain text + optional file/image/video attachment
+- send_markdown:   msgType=formatText → Markdown text, NO attachments
+- send_file:       msgType=text   → file/image/video only, optional plain-text caption
+- send_image_url:  msgType=text   → image from URL, optional plain-text caption
 
 Design: Uses an ephemeral LansengerAdapter instance per invocation.
-This avoids holding long-lived connections and works correctly from
-synchronous tool handlers by running async code via asyncio.run().
-
 Credentials are read from LANSENGER_APP_ID / LANSENGER_APP_SECRET env vars
 (not from load_gateway_config), which fixes the "Lansenger not configured"
 error that occurred in the old adapter-embedded handlers.
@@ -142,8 +154,66 @@ async def _create_ephemeral_adapter() -> tuple:
     return adapter
 
 
+async def _send_text_async(chat_id: str, content: str,
+                            file_path: str = "", media_type: int = 3,
+                            at_user_ids: list = None) -> dict:
+    """Async: send plain text message (msgType=text), optionally with attachment."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        if file_path and os.path.isfile(file_path):
+            # Upload media first, then send text+media
+            media_id = await adapter.upload_media_file(file_path, media_type)
+            if media_id:
+                result = await adapter.send_text_with_media(
+                    chat_id, content, media_type, [media_id]
+                )
+            else:
+                # Upload failed — fall back to pure text
+                logger.warning("[Lansenger] Media upload failed, sending plain text only")
+                result = await adapter.send_text(chat_id, content)
+        else:
+            # Pure text, no attachment
+            result = await adapter.send_text(chat_id, content)
+
+        await adapter._http_client.aclose()
+        return {
+            "success": result.success,
+            "message_id": result.message_id,
+            "error": result.error,
+            "platform": "lansenger",
+            "msg_type": "text",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
+async def _send_markdown_async(chat_id: str, content: str) -> dict:
+    """Async: send Markdown-formatted message (msgType=formatText)."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.send_format_text(chat_id, content)
+        await adapter._http_client.aclose()
+        return {
+            "success": result.success,
+            "message_id": result.message_id,
+            "error": result.error,
+            "platform": "lansenger",
+            "msg_type": "formatText",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
 async def _send_file_async(chat_id: str, file_path: str, caption: str, media_type: int) -> dict:
-    """Async: create ephemeral adapter, upload file, send, teardown."""
+    """Async: send file/image/video only (msgType=text, attachment only)."""
     adapter = await _create_ephemeral_adapter()
     try:
         result = await adapter.send_file(chat_id, file_path, caption, media_type)
@@ -270,8 +340,76 @@ async def _send_link_card_async(chat_id: str, title: str, link: str,
 # --- Synchronous handlers (called by Hermes tool registry) ---
 
 
+def lansenger_send_text(args: dict, **kwargs) -> str:
+    """Send a plain text message (msgType=text) with optional file/image/video attachment.
+
+    msgType=text supports: plain text, @mentions, file/image/video attachments.
+    Does NOT support: Markdown formatting.
+    """
+    chat_id = args.get("chat_id", "").strip()
+    content = args.get("content", "").strip()
+    file_path = args.get("file_path", "").strip()
+    media_type = args.get("media_type")
+    at_user_ids = args.get("at_user_ids") or []
+
+    if not chat_id:
+        return json.dumps({"error": "chat_id is required"})
+    if not content and not file_path:
+        return json.dumps({"error": "content or file_path is required (need at least one)"})
+
+    # Resolve file path
+    if file_path:
+        if not os.path.isabs(file_path):
+            file_path = os.path.abspath(file_path)
+        if not os.path.isfile(file_path):
+            return json.dumps({"error": f"File not found: {file_path}"})
+        if media_type is None:
+            media_type = _media_type_from_path(file_path)
+        file_size = os.path.getsize(file_path)
+        if file_size > 2 * 1024 * 1024:
+            return json.dumps({
+                "error": f"File too large: {file_size} bytes (Lansenger limit: 2MB)",
+            })
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_send_text_async(chat_id, content, file_path,
+                                              media_type or 3, at_user_ids))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_send_markdown(args: dict, **kwargs) -> str:
+    """Send a Markdown-formatted message (msgType=formatText).
+
+    msgType=formatText supports: Markdown formatting.
+    Does NOT support: @mentions, file/image/video attachments.
+    """
+    chat_id = args.get("chat_id", "").strip()
+    content = args.get("content", "").strip()
+
+    if not chat_id:
+        return json.dumps({"error": "chat_id is required"})
+    if not content:
+        return json.dumps({"error": "content is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_send_markdown_async(chat_id, content))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
 def lansenger_send_file(args: dict, **kwargs) -> str:
-    """Send a local file to a Lansenger user/group."""
+    """Send a local file/image/video only (msgType=text, no text body)."""
     chat_id = args.get("chat_id", "").strip()
     file_path = args.get("file_path", "").strip()
     caption = args.get("caption", "").strip()
@@ -334,8 +472,7 @@ def lansenger_send_image_url(args: dict, **kwargs) -> str:
 def lansenger_revoke_message(args: dict, **kwargs) -> str:
     """撤回已发送的蓝信消息。
 
-    Fixed: uses env vars for credentials instead of load_gateway_config(),
-    which returned "Lansenger not configured" in Agent subprocess.
+    Uses env vars for credentials (fixes "Lansenger not configured" error).
     """
     message_ids = args.get("message_ids", [])
     chat_type = args.get("chat_type", "bot")
@@ -362,11 +499,7 @@ def lansenger_revoke_message(args: dict, **kwargs) -> str:
 
 
 def lansenger_send_link_card(args: dict, **kwargs) -> str:
-    """发送蓝信 linkCard 卡片消息。
-
-    Fixed: uses env vars for credentials instead of load_gateway_config().
-    Also calls adapter.send_link_card() which is now implemented.
-    """
+    """发送蓝信 linkCard 卡片消息。"""
     chat_id = args.get("chat_id", "").strip()
     title = args.get("title", "").strip()
     link = args.get("link", "").strip()

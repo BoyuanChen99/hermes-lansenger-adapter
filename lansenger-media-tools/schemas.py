@@ -1,13 +1,36 @@
-"""Tool schemas for lansenger-media-tools — what the LLM sees."""
+"""Tool schemas for lansenger-media-tools — what the LLM sees.
 
-LANSENGER_SEND_FILE = {
-    "name": "lansenger_send_file",
+Lansenger (蓝信) has TWO distinct message types with different capabilities:
+
+  ┌──────────────┬──────────────┬──────────────┬──────────────┐
+  │  msgType     │  Markdown    │  @mention    │  Attachments │
+  ├──────────────┼──────────────┼──────────────┼──────────────┤
+  │  text        │  ✗           │  ✓           │  ✓           │
+  │  formatText  │  ✓           │  ✗           │  ✗           │
+  └──────────────┴──────────────┴──────────────┴──────────────┘
+
+This constraint shapes all tool designs below:
+- send_text:       msgType=text   → plain text + optional file/image/video attachment
+- send_markdown:   msgType=formatText → Markdown text, NO attachments
+- send_file:       msgType=text   → file/image/video only, optional plain-text caption
+- send_image_url:  msgType=text   → image from URL, optional plain-text caption
+- revoke_message:  retracts previously sent messages
+- send_link_card:  msgType=linkCard → rich link preview card
+"""
+
+# ─── Text message (msgType=text) ───────────────────────────────────────────
+# Supports: plain text, @mentions, file/image/video attachments
+# Does NOT support: Markdown formatting
+
+LANSENGER_SEND_TEXT = {
+    "name": "lansenger_send_text",
     "description": (
-        "Send a local file, image, or video directly to a Lansenger (蓝信) user or group. "
-        "Use this when you need to deliver a generated file, report, image, or video to a specific "
-        "recipient on Lansenger. The file must exist on the local filesystem. "
-        "Supported types: images (jpg/png/gif/webp), videos (mp4/mov/avi), documents (pdf/xlsx/docx/zip etc). "
-        "For sending an image from a URL, use lansenger_send_image_url instead."
+        "Send a text message to a Lansenger (蓝信) user or group. "
+        "Uses msgType=text: supports plain text, @mentions, and optional "
+        "file/image/video attachments. Does NOT support Markdown formatting. "
+        "If you need Markdown, use lansenger_send_markdown instead. "
+        "If you need both Markdown AND a file, send them as two separate messages "
+        "(lansenger_send_markdown for the formatted text, then lansenger_send_file for the attachment)."
     ),
     "parameters": {
         "type": "object",
@@ -19,26 +42,115 @@ LANSENGER_SEND_FILE = {
                     "For private messages, use the user's UID. For groups, use the group chat ID."
                 ),
             },
+            "content": {
+                "type": "string",
+                "description": "Plain text content. No Markdown support. For Markdown, use lansenger_send_markdown.",
+            },
             "file_path": {
                 "type": "string",
                 "description": (
-                    "Absolute or relative path to the local file to send. "
-                    "The file must exist on disk."
-                ),
-            },
-            "caption": {
-                "type": "string",
-                "description": (
-                    "Optional caption or description text for the file. "
-                    "Note: Lansenger media messages use plain text for captions (no Markdown). "
-                    "For Markdown-formatted text, send it separately before or after the file."
+                    "Optional local file/image/video to attach. "
+                    "If provided, the text serves as a caption for the attachment. "
+                    "Supported: images (jpg/png/gif/webp), videos (mp4/mov), documents (pdf/xlsx/docx/zip etc). "
+                    "Max 2MB per file."
                 ),
             },
             "media_type": {
                 "type": "integer",
                 "description": (
-                    "Media type hint: 1=video, 2=image, 3=file/document (default: 3). "
-                    "Set to 2 for images, 1 for videos, 3 for anything else."
+                    "Media type hint for the attachment: 1=video, 2=image, 3=file/document. "
+                    "Auto-detected from file_path extension if omitted."
+                ),
+                "enum": [1, 2, 3],
+            },
+            "at_user_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Optional list of user IDs to @mention in the message. "
+                    "Only works with msgType=text (not formatText)."
+                ),
+            },
+        },
+        "required": ["chat_id", "content"],
+    },
+}
+
+# ─── Markdown message (msgType=formatText) ──────────────────────────────────
+# Supports: Markdown formatting
+# Does NOT support: @mentions, file/image/video attachments
+
+LANSENGER_SEND_MARKDOWN = {
+    "name": "lansenger_send_markdown",
+    "description": (
+        "Send a Markdown-formatted message to a Lansenger (蓝信) user or group. "
+        "Uses msgType=formatText: supports Markdown formatting (headings, bold, italic, "
+        "code blocks, lists, links, etc). "
+        "Does NOT support @mentions or file/image/video attachments. "
+        "If you need to @mention someone, use lansenger_send_text instead. "
+        "If you need both Markdown AND a file, send them as two separate messages "
+        "(this tool for the formatted text, then lansenger_send_file for the attachment)."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "chat_id": {
+                "type": "string",
+                "description": (
+                    "Recipient user ID or group chat ID on Lansenger."
+                ),
+            },
+            "content": {
+                "type": "string",
+                "description": (
+                    "Markdown-formatted content. "
+                    "Supports: headings, bold, italic, code blocks, inline code, "
+                    "lists, links, tables. "
+                    "Does NOT support: @mentions or attachments."
+                ),
+            },
+        },
+        "required": ["chat_id", "content"],
+    },
+}
+
+# ─── File/image/video only (msgType=text, no text body) ────────────────────
+
+LANSENGER_SEND_FILE = {
+    "name": "lansenger_send_file",
+    "description": (
+        "Send a local file, image, or video to a Lansenger (蓝信) user or group. "
+        "Uses msgType=text with attachment only (no text body). "
+        "For text+attachment combo, use lansenger_send_text instead. "
+        "Supported: images (jpg/png/gif/webp), videos (mp4/mov/avi), documents (pdf/xlsx/docx/zip etc). "
+        "Max 2MB per file. "
+        "For sending an image from a URL, use lansenger_send_image_url instead."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "chat_id": {
+                "type": "string",
+                "description": (
+                    "Recipient user ID or group chat ID on Lansenger."
+                ),
+            },
+            "file_path": {
+                "type": "string",
+                "description": "Absolute or relative path to the local file. Must exist on disk.",
+            },
+            "caption": {
+                "type": "string",
+                "description": (
+                    "Optional plain-text caption for the file (no Markdown). "
+                    "If you need Markdown text alongside a file, "
+                    "use lansenger_send_markdown first, then this tool separately."
+                ),
+            },
+            "media_type": {
+                "type": "integer",
+                "description": (
+                    "Media type hint: 1=video, 2=image, 3=file/document (default: auto-detect from extension)."
                 ),
                 "enum": [1, 2, 3],
             },
@@ -50,20 +162,18 @@ LANSENGER_SEND_FILE = {
 LANSENGER_SEND_IMAGE_URL = {
     "name": "lansenger_send_image_url",
     "description": (
-        "Send an image from a URL directly to a Lansenger (蓝信) user or group. "
-        "Use this when you have an image URL (from web search, API response, etc.) "
-        "and need to deliver it as a native Lansenger image message. "
+        "Send an image from a URL to a Lansenger (蓝信) user or group. "
+        "Uses msgType=text with image attachment only. "
         "The image is downloaded first, then uploaded to Lansenger's media server. "
-        "For sending a local file, use lansenger_send_file instead."
+        "For a local file, use lansenger_send_file instead. "
+        "For text+image combo, use lansenger_send_text instead."
     ),
     "parameters": {
         "type": "object",
         "properties": {
             "chat_id": {
                 "type": "string",
-                "description": (
-                    "Recipient user ID or group chat ID on Lansenger."
-                ),
+                "description": "Recipient user ID or group chat ID on Lansenger.",
             },
             "image_url": {
                 "type": "string",
@@ -71,18 +181,20 @@ LANSENGER_SEND_IMAGE_URL = {
             },
             "caption": {
                 "type": "string",
-                "description": "Optional caption text (plain text, no Markdown support for media).",
+                "description": "Optional plain-text caption (no Markdown).",
             },
         },
         "required": ["chat_id", "image_url"],
     },
 }
 
+# ─── Message management ────────────────────────────────────────────────────
+
 LANSENGER_REVOKE_MESSAGE = {
     "name": "lansenger_revoke_message",
     "description": (
         "撤回已发送的蓝信消息。"
-        "Use this to retract a message that was previously sent via Lansenger. "
+        "Use this to retract a message previously sent via Lansenger. "
         "You need the message ID(s) to revoke. "
         "For staff/group chat types, sender_id is required."
     ),
