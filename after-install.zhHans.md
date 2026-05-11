@@ -10,15 +10,17 @@
 
 ## 配置
 
-### 方式 A：一行命令设置（推荐）
+### 方式 A：交互式设置向导（推荐）
 
-将 `YOUR_APP_ID` 和 `YOUR_APP_SECRET` 替换为您的实际凭据，然后运行：
+运行内置的设置向导——它会逐步引导您完成每个凭据的配置：
 
 ```bash
-grep -q "^LANSENGER_APP_ID=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_ID=YOUR_APP_ID" >> ~/.hermes/.env && \
-grep -q "^LANSENGER_APP_SECRET=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_SECRET=YOUR_APP_SECRET" >> ~/.hermes/.env && \
-grep -q "^LANSENGER_API_GATEWAY_URL=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw" >> ~/.hermes/.env
+hermes setup gateway
 ```
+
+从平台列表中选择 **Lansenger**，然后粘贴您的 App ID、App Secret，并可选择确认 API 网关 URL。已配置的值会显示出来（密钥会被遮掩），可以覆盖修改。
+
+> 💡 应用 ID 和应用密钥可在 蓝信 → 通讯录 → 个人机器人（非工作空间）中找到
 
 ### 方式 B：config.yaml
 
@@ -41,8 +43,6 @@ LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
-
-> 💡 应用 ID 和应用密钥可在 蓝信 → 通讯录 → 个人机器人（非工作空间）中找到
 
 ## 技能安装
 

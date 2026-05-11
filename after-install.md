@@ -10,15 +10,17 @@ Two plugins and one skill were installed:
 
 ## Configuration
 
-### Option A: One-line setup (recommended)
+### Option A: Interactive setup wizard (recommended)
 
-Replace `YOUR_APP_ID` and `YOUR_APP_SECRET` with your actual credentials, then run:
+Run the built-in setup wizard — it guides you through each credential step by step:
 
 ```bash
-grep -q "^LANSENGER_APP_ID=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_ID=YOUR_APP_ID" >> ~/.hermes/.env && \
-grep -q "^LANSENGER_APP_SECRET=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_SECRET=YOUR_APP_SECRET" >> ~/.hermes/.env && \
-grep -q "^LANSENGER_API_GATEWAY_URL=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw" >> ~/.hermes/.env
+hermes setup gateway
 ```
+
+Select **Lansenger** from the platform list, then paste your App ID, App Secret, and optionally confirm the API Gateway URL. Already-configured values are shown (secrets are masked) and can be overwritten.
+
+> 💡 App ID and App Secret can be found in Lansenger → Contacts → Personal Bot (not Workspace)
 
 ### Option B: config.yaml
 
@@ -41,8 +43,6 @@ LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
-
-> 💡 App ID and App Secret can be found in Lansenger → Contacts → Personal Bot (not Workspace)
 
 ## Skill Installation
 

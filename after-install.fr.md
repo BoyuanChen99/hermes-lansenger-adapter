@@ -10,15 +10,17 @@ Deux plugins et une compétence ont été installés :
 
 ## Configuration
 
-### Option A : Configuration en une ligne (recommandée)
+### Option A : Assistant de configuration interactif (recommandé)
 
-Remplacez `YOUR_APP_ID` et `YOUR_APP_SECRET` par vos identifiants réels, puis exécutez :
+Exécutez l'assistant de configuration intégré — il vous guide étape par étape pour chaque identifiant :
 
 ```bash
-grep -q "^LANSENGER_APP_ID=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_ID=YOUR_APP_ID" >> ~/.hermes/.env && \
-grep -q "^LANSENGER_APP_SECRET=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_SECRET=YOUR_APP_SECRET" >> ~/.hermes/.env && \
-grep -q "^LANSENGER_API_GATEWAY_URL=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw" >> ~/.hermes/.env
+hermes setup gateway
 ```
+
+Sélectionnez **Lansenger** dans la liste des plateformes, puis collez votre App ID, App Secret, et confirmez éventuellement l'URL de la passerelle API. Les valeurs déjà configurées sont affichées (les secrets sont masqués) et peuvent être remplacées.
+
+> 💡 L'App ID et l'App Secret peuvent être trouvés dans Lansenger → Contacts → Bot personnel (pas Espace de travail)
 
 ### Option B : config.yaml
 
@@ -41,8 +43,6 @@ LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
-
-> 💡 L'App ID et l'App Secret peuvent être trouvés dans Lansenger → Contacts → Bot personnel (pas Espace de travail)
 
 ## Installation de la compétence
 
