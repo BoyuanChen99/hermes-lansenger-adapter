@@ -1,8 +1,12 @@
-"""Tool handlers for lansenger-media-tools — send files/images/videos via Lansenger API.
+"""Tool handlers for lansenger-media-tools — send files/images/videos and manage messages via Lansenger API.
 
 Design: Uses an ephemeral LansengerAdapter instance per invocation.
 This avoids holding long-lived connections and works correctly from
 synchronous tool handlers by running async code via asyncio.run().
+
+Credentials are read from LANSENGER_APP_ID / LANSENGER_APP_SECRET env vars
+(not from load_gateway_config), which fixes the "Lansenger not configured"
+error that occurred in the old adapter-embedded handlers.
 """
 
 import asyncio
@@ -101,16 +105,46 @@ def _make_config(env_config: dict) -> dict:
     }
 
 
-async def _send_file_async(chat_id: str, file_path: str, caption: str, media_type: int) -> dict:
-    """Async implementation: create ephemeral adapter, upload, send, teardown."""
-    # Import the adapter — Hermes runtime provides the gateway module;
-    # the platform plugin is already loaded when this tool plugin runs.
+def _run_async(coro):
+    """Run an async coroutine from a synchronous context.
+
+    Uses asyncio.run() in a fresh event loop, with a thread-pool fallback
+    for cases where an event loop is already running (e.g. in gateway mode).
+    """
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        # asyncio.run() fails inside an existing event loop
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result(timeout=30)
+
+
+# --- Async implementations (shared by all handlers) ---
+
+
+async def _create_ephemeral_adapter() -> tuple:
+    """Create an ephemeral LansengerAdapter with env-based config.
+
+    Returns (adapter, http_client) tuple. Caller must close http_client.
+    """
+    import httpx
+
     LansengerAdapter = _get_adapter_class()
+    env_config = _check_env()
+    if "error" in env_config:
+        raise ValueError(env_config["error"])
 
-    config = _make_config(_check_env())
+    config = _make_config(env_config)
     adapter = LansengerAdapter(config)
-    adapter._http_client = __import__("httpx").AsyncClient(timeout=30.0)
+    adapter._http_client = httpx.AsyncClient(timeout=30.0)
+    return adapter
 
+
+async def _send_file_async(chat_id: str, file_path: str, caption: str, media_type: int) -> dict:
+    """Async: create ephemeral adapter, upload file, send, teardown."""
+    adapter = await _create_ephemeral_adapter()
     try:
         result = await adapter.send_file(chat_id, file_path, caption, media_type)
         await adapter._http_client.aclose()
@@ -135,17 +169,15 @@ async def _send_file_async(chat_id: str, file_path: str, caption: str, media_typ
 
 
 async def _send_image_url_async(chat_id: str, image_url: str, caption: str) -> dict:
-    """Async implementation: download image from URL, then send via send_image."""
+    """Async: download image from URL, then send via send_file."""
     import httpx as _httpx
 
-    # Download image to temp file
     try:
         async with _httpx.AsyncClient() as client:
             resp = await client.get(image_url, timeout=30, follow_redirects=True)
             resp.raise_for_status()
             image_bytes = resp.content
 
-        # Guess extension from URL or content-type
         ct = resp.headers.get("content-type", "")
         if "png" in ct:
             suffix = ".png"
@@ -162,10 +194,8 @@ async def _send_image_url_async(chat_id: str, image_url: str, caption: str) -> d
     except Exception as e:
         return {"success": False, "error": f"Failed to download image: {e}"}
 
-    # Send via send_file (media_type=2 for image)
     try:
         result = await _send_file_async(chat_id, temp_path, caption, media_type=2)
-        # Clean up temp file
         try:
             os.remove(temp_path)
         except OSError:
@@ -179,15 +209,69 @@ async def _send_image_url_async(chat_id: str, image_url: str, caption: str) -> d
         return {"success": False, "error": str(e)}
 
 
+async def _revoke_async(message_ids: list, chat_type: str, sender_id: str, sys_msg_content: str) -> dict:
+    """Async: create ephemeral adapter, revoke messages, teardown."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.revoke_message(
+            message_ids=message_ids,
+            chat_type=chat_type,
+            sender_id=sender_id,
+            sys_msg_content=sys_msg_content,
+        )
+        await adapter._http_client.aclose()
+        return {
+            "success": result.success,
+            "error": result.error,
+            "platform": "lansenger",
+            "operation": "revoke",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
+async def _send_link_card_async(chat_id: str, title: str, link: str,
+                                 description: str = "", icon_link: str = "",
+                                 pc_link: str = "", from_name: str = "",
+                                 from_icon_link: str = "") -> dict:
+    """Async: create ephemeral adapter, send linkCard, teardown."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.send_link_card(
+            chat_id=chat_id,
+            title=title,
+            link=link,
+            description=description,
+            icon_link=icon_link,
+            pc_link=pc_link,
+            from_name=from_name,
+            from_icon_link=from_icon_link,
+        )
+        await adapter._http_client.aclose()
+        return {
+            "success": result.success,
+            "message_id": result.message_id,
+            "error": result.error,
+            "platform": "lansenger",
+            "operation": "linkCard",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
 # --- Synchronous handlers (called by Hermes tool registry) ---
 
 
 def lansenger_send_file(args: dict, **kwargs) -> str:
-    """Send a local file to a Lansenger user/group.
-
-    Handler contract: receive args dict, return JSON string.
-    Never raise — catch all exceptions, return error JSON.
-    """
+    """Send a local file to a Lansenger user/group."""
     chat_id = args.get("chat_id", "").strip()
     file_path = args.get("file_path", "").strip()
     caption = args.get("caption", "").strip()
@@ -198,24 +282,19 @@ def lansenger_send_file(args: dict, **kwargs) -> str:
     if not file_path:
         return json.dumps({"error": "file_path is required"})
 
-    # Resolve relative paths
     if not os.path.isabs(file_path):
         file_path = os.path.abspath(file_path)
 
-    # Check file exists
     if not os.path.isfile(file_path):
         return json.dumps({"error": f"File not found: {file_path}"})
 
-    # Auto-detect media_type if not specified
     if media_type is None:
         media_type = _media_type_from_path(file_path)
 
-    # Check env vars
     env_result = _check_env()
     if "error" in env_result:
         return json.dumps(env_result)
 
-    # Check file size (2MB limit per Lansenger API)
     file_size = os.path.getsize(file_path)
     if file_size > 2 * 1024 * 1024:
         return json.dumps({
@@ -223,32 +302,15 @@ def lansenger_send_file(args: dict, **kwargs) -> str:
             "file_path": file_path,
         })
 
-    # Run async code in a fresh event loop
     try:
-        result = asyncio.run(
-            _send_file_async(chat_id, file_path, caption, media_type)
-        )
-        return json.dumps(result)
-    except RuntimeError as e:
-        # asyncio.run() can fail if called from within an existing event loop
-        # Fallback: use a thread
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(
-                asyncio.run,
-                _send_file_async(chat_id, file_path, caption, media_type),
-            )
-            result = future.result(timeout=30)
+        result = _run_async(_send_file_async(chat_id, file_path, caption, media_type))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
 
 
 def lansenger_send_image_url(args: dict, **kwargs) -> str:
-    """Send an image from a URL to a Lansenger user/group.
-
-    Handler contract: receive args dict, return JSON string.
-    """
+    """Send an image from a URL to a Lansenger user/group."""
     chat_id = args.get("chat_id", "").strip()
     image_url = args.get("image_url", "").strip()
     caption = args.get("caption", "").strip()
@@ -258,25 +320,78 @@ def lansenger_send_image_url(args: dict, **kwargs) -> str:
     if not image_url:
         return json.dumps({"error": "image_url is required"})
 
-    # Check env vars
     env_result = _check_env()
     if "error" in env_result:
         return json.dumps(env_result)
 
-    # Run async code
     try:
-        result = asyncio.run(
-            _send_image_url_async(chat_id, image_url, caption)
-        )
+        result = _run_async(_send_image_url_async(chat_id, image_url, caption))
         return json.dumps(result)
-    except RuntimeError:
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(
-                asyncio.run,
-                _send_image_url_async(chat_id, image_url, caption),
-            )
-            result = future.result(timeout=30)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_revoke_message(args: dict, **kwargs) -> str:
+    """撤回已发送的蓝信消息。
+
+    Fixed: uses env vars for credentials instead of load_gateway_config(),
+    which returned "Lansenger not configured" in Agent subprocess.
+    """
+    message_ids = args.get("message_ids", [])
+    chat_type = args.get("chat_type", "bot")
+    sender_id = args.get("sender_id") or ""
+    sys_msg_content = args.get("sys_msg_content") or ""
+
+    if not message_ids:
+        return json.dumps({"error": "message_ids is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    if chat_type in ("staff", "group") and not sender_id:
+        return json.dumps({
+            "error": f"chat_type='{chat_type}' requires sender_id",
+        })
+
+    try:
+        result = _run_async(_revoke_async(message_ids, chat_type, sender_id, sys_msg_content))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_send_link_card(args: dict, **kwargs) -> str:
+    """发送蓝信 linkCard 卡片消息。
+
+    Fixed: uses env vars for credentials instead of load_gateway_config().
+    Also calls adapter.send_link_card() which is now implemented.
+    """
+    chat_id = args.get("chat_id", "").strip()
+    title = args.get("title", "").strip()
+    link = args.get("link", "").strip()
+    description = args.get("description") or ""
+    icon_link = args.get("icon_link") or ""
+    pc_link = args.get("pc_link") or ""
+    from_name = args.get("from_name") or ""
+    from_icon_link = args.get("from_icon_link") or ""
+
+    if not chat_id:
+        return json.dumps({"error": "chat_id is required"})
+    if not title:
+        return json.dumps({"error": "title is required"})
+    if not link:
+        return json.dumps({"error": "link is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(
+            _send_link_card_async(chat_id, title, link, description,
+                                  icon_link, pc_link, from_name, from_icon_link)
+        )
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})

@@ -77,3 +77,84 @@ LANSENGER_SEND_IMAGE_URL = {
         "required": ["chat_id", "image_url"],
     },
 }
+
+LANSENGER_REVOKE_MESSAGE = {
+    "name": "lansenger_revoke_message",
+    "description": (
+        "撤回已发送的蓝信消息。"
+        "Use this to retract a message that was previously sent via Lansenger. "
+        "You need the message ID(s) to revoke. "
+        "For staff/group chat types, sender_id is required."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "message_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "要撤回的消息 ID 列表",
+            },
+            "chat_type": {
+                "type": "string",
+                "description": "消息类型: staff, group, notification, account, bot (default: bot)",
+                "default": "bot",
+            },
+            "sender_id": {
+                "type": "string",
+                "description": "发送者 ID（私聊/群聊时必填）",
+            },
+            "sys_msg_content": {
+                "type": "string",
+                "description": "撤回后显示的系统提示内容（默认：'该消息已撤回'）",
+            },
+        },
+        "required": ["message_ids"],
+    },
+}
+
+LANSENGER_SEND_LINK_CARD = {
+    "name": "lansenger_send_link_card",
+    "description": (
+        "发送蓝信 linkCard 卡片消息。"
+        "Use this to send a rich link preview card to a Lansenger user or group. "
+        "The card displays a title, description, icon, and clickable link."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "chat_id": {
+                "type": "string",
+                "description": "接收者用户 ID 或群聊 ID",
+            },
+            "title": {
+                "type": "string",
+                "description": "卡片标题（必填）",
+            },
+            "link": {
+                "type": "string",
+                "description": "卡片点击链接（必填）",
+            },
+            "description": {
+                "type": "string",
+                "description": "卡片描述文本",
+            },
+            "icon_link": {
+                "type": "string",
+                "description": "卡片图标图片链接",
+            },
+            "pc_link": {
+                "type": "string",
+                "description": "PC 端跳转链接",
+            },
+            "from_name": {
+                "type": "string",
+                "description": "卡片来源名称",
+            },
+            "from_icon_link": {
+                "type": "string",
+                "description": "来源图标图片链接",
+            },
+        },
+        "required": ["chat_id", "title", "link"],
+    },
+}

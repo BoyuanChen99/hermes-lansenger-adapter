@@ -3,44 +3,40 @@
 Two plugins were installed:
 
 1. **lansenger-platform** — Gateway channel adapter
-2. **lansenger-media-tools** — Agent tools for sending files/images/videos
+2. **lansenger-media-tools** — Agent tools for sending files/images, revoking messages, sending linkCard cards
 
-## Next Steps
+## Step 1: Configure Credentials
 
-1. **Add credentials** to `~/.hermes/.env`:
-   ```
-   LANSENGER_APP_ID=your-app-id
-   LANSENGER_APP_SECRET=your-app-secret
-   ```
+Add these to `~/.hermes/.env`:
 
-   Get these from: 蓝信客户端 → 通讯录 → 个人机器人 → 创建机器人 → 详情页
+```
+LANSENGER_APP_ID=your-app-id
+LANSENGER_APP_SECRET=your-app-secret
+```
 
-2. **Optional: set API Gateway** (if using Qianxin internal network):
-   ```
-   LANSENGER_API_GATEWAY_URL=https://apigw.lx.qianxin.com
-   ```
+Get these from: 蓝信客户端 → 通讯录 → 个人机器人 → 创建机器人 → 详情页
 
-   | Environment | Gateway URL |
-   |-------------|-------------|
-   | Default (public) | `https://open.e.lanxin.cn/open/apigw` |
-   | Qianxin internal | `https://apigw.lx.qianxin.com` |
+## Step 2: Optional Configuration
 
-3. **Enable both plugins**:
-   ```bash
-   hermes plugins enable lansenger-platform
-   hermes plugins enable lansenger-media-tools
-   ```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LANSENGER_API_GATEWAY_URL` | API Gateway URL (default: https://open.e.lanxin.cn/open/apigw) | — |
+| `LANSENGER_HOME_CHANNEL` | Default cron delivery chat ID | Auto-detected |
+| `LANSENGER_ALLOWED_USERS` | Allowed user IDs (comma-separated) | — |
 
-4. **Restart gateway**:
-   ```bash
-   hermes gateway restart
-   ```
+## Step 3: Enable & Restart
 
-## Available Tools
+```bash
+hermes plugins enable lansenger-platform
+hermes plugins enable lansenger-media-tools
+hermes gateway restart
+```
 
-| Tool | Plugin | Description |
-|------|--------|-------------|
-| `lansenger_revoke_message` | platform | 撤回已发送的蓝信消息 🗑️ |
-| `lansenger_send_link_card` | platform | 发送蓝信 linkCard 卡片消息 🔗 |
-| `lansenger_send_file` | media-tools | Send local file/image/video to a user or group |
-| `lansenger_send_image_url` | media-tools | Send image from URL to a user or group |
+## Available Agent Tools
+
+After enabling `lansenger-media-tools`, the Agent can call:
+
+- `lansenger_send_file` — send local files/images/videos
+- `lansenger_send_image_url` — send images from URLs
+- `lansenger_revoke_message` — 撤回已发送的消息
+- `lansenger_send_link_card` — 发送链接卡片

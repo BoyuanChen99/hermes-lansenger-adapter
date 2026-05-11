@@ -1,9 +1,11 @@
 name: lansenger-media-tools
 version: 2.1.0
-description: Lansenger (蓝信) file/image/video sending tools — send media to any user or group directly from the Agent
+description: Lansenger (蓝信) media and message management tools — send files/images/videos, revoke messages, send linkCard cards
 provides_tools:
   - lansenger_send_file
   - lansenger_send_image_url
+  - lansenger_revoke_message
+  - lansenger_send_link_card
 requires_env:
   - name: LANSENGER_APP_ID
     description: "蓝信机器人 App ID (from 通讯录 → 个人机器人)"

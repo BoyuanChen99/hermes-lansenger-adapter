@@ -793,6 +793,71 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.error("[Lansenger] Revoke error: %s", e, exc_info=True)
             return SendResult(success=False, error=str(e), retryable=True)
 
+    async def send_link_card(
+        self,
+        chat_id: str,
+        title: str,
+        link: str,
+        description: Optional[str] = None,
+        icon_link: Optional[str] = None,
+        pc_link: Optional[str] = None,
+        from_name: Optional[str] = None,
+        from_icon_link: Optional[str] = None,
+    ) -> SendResult:
+        """发送 linkCard 卡片消息。
+
+        Args:
+            chat_id: 接收者用户 ID
+            title: 卡片标题
+            link: 卡片点击链接
+            description: 卡片描述
+            icon_link: 卡片图标图片链接
+            pc_link: PC 端跳转链接
+            from_name: 来源名称
+            from_icon_link: 来源图标图片链接
+        """
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="Failed to get token")
+
+        try:
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            payload = {
+                "userIdList": [chat_id],
+                "msgType": "linkCard",
+                "msgData": {
+                    "linkCard": {
+                        "title": title,
+                        "link": link,
+                        "description": description or "",
+                        "iconLink": icon_link or "",
+                        "pcLink": pc_link or "",
+                        "fromName": from_name or "",
+                        "fromIconLink": from_icon_link or "",
+                    }
+                }
+            }
+
+            response = await self._http_client.post(url, json=payload)
+            response.raise_for_status()
+
+            if not response.text or len(response.text.strip()) == 0:
+                return SendResult(success=False, error="Empty API response", retryable=True)
+
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                logger.error("[Lansenger] LinkCard API error: errCode=%s, errMsg=%s",
+                             data.get("errCode"), data.get("errMsg"))
+                return SendResult(success=False, error=data.get("errMsg", "Unknown error"))
+
+            msg_id = data.get("data", {}).get("msgId")
+            logger.info("[Lansenger] LinkCard sent to %s, msgId=%s", chat_id, msg_id)
+            return SendResult(success=True, message_id=msg_id, raw_response=data)
+        except Exception as e:
+            logger.error("[Lansenger] Send linkCard error: %s", e, exc_info=True)
+            return SendResult(success=False, error=str(e), retryable=True)
+
     async def send_to_owner(self, content: str, format: str = "text") -> SendResult:
         """Send a text message to the bot owner (or home_channel if owner not set).
         
@@ -1336,85 +1401,6 @@ async def _standalone_send(pconfig, chat_id, message, *, thread_id=None,
         return {"error": f"Lansenger standalone send failed: {e}"}
 
 
-async def _revoke_handler(args, **kw):
-    """Handler for lansenger_revoke_message tool."""
-    import json
-    params = json.loads(args) if isinstance(args, str) else args
-    message_ids = params.get("message_ids", [])
-    chat_type = params.get("chat_type", "bot")
-    sender_id = params.get("sender_id")
-    sys_msg_content = params.get("sys_msg_content")
-
-    try:
-        from gateway.config import load_gateway_config
-        config = load_gateway_config()
-        pconfig = config.platforms.get("lansenger")
-        if not pconfig:
-            return json.dumps({"success": False, "error": "Lansenger not configured"})
-        adapter = LansengerAdapter(pconfig)
-        adapter._http_client = httpx.AsyncClient(timeout=30.0)
-        result = await adapter.revoke_message(
-            message_ids=message_ids,
-            chat_type=chat_type,
-            sender_id=sender_id,
-            sys_msg_content=sys_msg_content,
-        )
-        await adapter._http_client.aclose()
-        return json.dumps({
-            "success": result.success,
-            "error": result.error,
-            "platform": "lansenger",
-            "operation": "revoke",
-        })
-    except Exception as e:
-        logger.error("[Lansenger] Revoke handler error: %s", e, exc_info=True)
-        return json.dumps({"success": False, "error": str(e)})
-
-
-async def _link_card_handler(args, **kw):
-    """Handler for lansenger_send_link_card tool."""
-    import json
-    params = json.loads(args) if isinstance(args, str) else args
-    chat_id = params.get("chat_id", "")
-    title = params.get("title", "")
-    link = params.get("link", "")
-    description = params.get("description")
-    icon_link = params.get("icon_link")
-    pc_link = params.get("pc_link")
-    from_name = params.get("from_name")
-    from_icon_link = params.get("from_icon_link")
-
-    try:
-        from gateway.config import load_gateway_config
-        config = load_gateway_config()
-        pconfig = config.platforms.get("lansenger")
-        if not pconfig:
-            return json.dumps({"success": False, "error": "Lansenger not configured"})
-        adapter = LansengerAdapter(pconfig)
-        adapter._http_client = httpx.AsyncClient(timeout=30.0)
-        result = await adapter.send_link_card(
-            chat_id=chat_id,
-            title=title,
-            link=link,
-            description=description,
-            icon_link=icon_link,
-            pc_link=pc_link,
-            from_name=from_name,
-            from_icon_link=from_icon_link,
-        )
-        await adapter._http_client.aclose()
-        return json.dumps({
-            "success": result.success,
-            "message_id": result.message_id,
-            "error": result.error,
-            "platform": "lansenger",
-            "operation": "linkCard",
-        })
-    except Exception as e:
-        logger.error("[Lansenger] LinkCard handler error: %s", e, exc_info=True)
-        return json.dumps({"success": False, "error": str(e)})
-
-
 def register(ctx):
     """Plugin entry point: called by the Hermes plugin system."""
     ctx.register_platform(
@@ -1450,99 +1436,4 @@ def register(ctx):
             "Messages have a ~4000 character limit.  i18nAppCard is available for "
             "approval workflows.  Keep responses concise and professional."
         ),
-    )
-
-    # Register platform-specific tools via ctx.register_tool()
-    ctx.register_tool(
-        name="lansenger_revoke_message",
-        toolset="lansenger",
-        schema={
-            "type": "function",
-            "function": {
-                "name": "lansenger_revoke_message",
-                "description": "撤回已发送的蓝信消息。Requires LANSENGER_APP_ID and LANSENGER_APP_SECRET.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "message_ids": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "消息 ID 列表",
-                        },
-                        "chat_type": {
-                            "type": "string",
-                            "description": "消息类型 (staff/group/notification/account/bot)",
-                            "default": "bot",
-                        },
-                        "sender_id": {
-                            "type": "string",
-                            "description": "发送者 ID (私聊/群聊时必填)",
-                        },
-                        "sys_msg_content": {
-                            "type": "string",
-                            "description": "撤回后显示的系统消息内容",
-                        },
-                    },
-                    "required": ["message_ids"],
-                },
-            },
-        },
-        handler=_revoke_handler,
-        is_async=True,
-        requires_env=["LANSENGER_APP_ID", "LANSENGER_APP_SECRET"],
-        emoji="🗑️",
-    )
-
-    ctx.register_tool(
-        name="lansenger_send_link_card",
-        toolset="lansenger",
-        schema={
-            "type": "function",
-            "function": {
-                "name": "lansenger_send_link_card",
-                "description": "发送蓝信 linkCard 卡片消息。Requires LANSENGER_APP_ID and LANSENGER_APP_SECRET.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "chat_id": {
-                            "type": "string",
-                            "description": "接收者用户 ID",
-                        },
-                        "title": {
-                            "type": "string",
-                            "description": "卡片标题 (必填)",
-                        },
-                        "link": {
-                            "type": "string",
-                            "description": "卡片链接 (必填)",
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "卡片描述",
-                        },
-                        "icon_link": {
-                            "type": "string",
-                            "description": "卡片图片链接",
-                        },
-                        "pc_link": {
-                            "type": "string",
-                            "description": "PC 端跳转链接",
-                        },
-                        "from_name": {
-                            "type": "string",
-                            "description": "卡片来源名称",
-                        },
-                        "from_icon_link": {
-                            "type": "string",
-                            "description": "来源图片链接",
-                        },
-                    },
-                    "required": ["chat_id", "title", "link"],
-                },
-            },
-        },
-        handler=_link_card_handler,
-        is_async=True,
-        requires_env=["LANSENGER_APP_ID", "LANSENGER_APP_SECRET"],
-        emoji="🔗",
     )

@@ -1,6 +1,6 @@
 # Hermes Lansenger (蓝信) Adapter
 
-> 💠 Lansenger gateway adapter + media tools plugin for Hermes Agent.
+> 💠 Lansenger gateway adapter + media & message tools plugin for Hermes Agent.
 
 Connects Hermes Agent to Lansenger (蓝信) — the enterprise messaging platform by Qianxin (奇安信) — via WebSocket long-connection for real-time message reception and HTTP API for message delivery.
 
@@ -9,7 +9,7 @@ This repo contains **two plugins**:
 | Plugin | Kind | What it does |
 |--------|------|-------------|
 | `platforms/lansenger/` | platform | Gateway channel adapter — receive & send messages |
-| `lansenger-media-tools/` | standalone (tool) | Agent-callable tools for sending files/images/videos to specific users |
+| `lansenger-media-tools/` | standalone (tool) | Agent-callable tools: send files/images, revoke messages, send linkCard |
 
 ## Features
 
@@ -17,16 +17,16 @@ This repo contains **two plugins**:
 - **Real-time messaging** via WebSocket long-connection
 - **Markdown support** using `formatText` msgType
 - **i18nAppCard** — interactive approval workflow cards
-- **Message revoke** — retract previously sent messages
-- **linkCard** — rich link preview cards
 - **Home channel auto-detection** — first p2p message sets the default delivery target
 - **Cron delivery** — scheduled notifications via `standalone_sender_fn`
 - **User authorization** — allowed users / allow all users via env vars
 - **Zero core modification** — pure plugin mode, `git diff HEAD` stays PRISTINE
 
-### Media Tools Plugin
+### Media & Message Tools Plugin
 - **lansenger_send_file** — Send any local file/image/video to a specific user or group
 - **lansenger_send_image_url** — Send an image from a URL to a specific user or group
+- **lansenger_revoke_message** — 撤回已发送的蓝信消息 🗑️
+- **lansenger_send_link_card** — 发送蓝信 linkCard 卡片消息 🔗
 - **Auto media type detection** — images/videos/documents classified by extension
 - **Credential gating** — tools hidden when LANSENGER_APP_ID/SECRET not set
 
@@ -92,21 +92,16 @@ platforms:
     enabled: true
 ```
 
-## Platform-Specific Tools (from adapter)
+## Media & Message Tools (from lansenger-media-tools)
 
-| Tool | Description |
-|------|-------------|
-| `lansenger_revoke_message` | 撤回已发送的蓝信消息 🗑️ |
-| `lansenger_send_link_card` | 发送蓝信 linkCard 卡片消息 🔗 |
-
-## Media Tools (from lansenger-media-tools)
-
-These tools let the Agent send files, images, and videos to any Lansenger user or group on demand — independent of the gateway's automatic MEDIA: tag extraction.
+These tools let the Agent send files, images, and videos, revoke messages, and send linkCard cards — all independently callable from the LLM. Credentials are read from env vars (LANSENGER_APP_ID/SECRET), not from `load_gateway_config()`.
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Send a local file/image/video to a user or group |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Download image from URL and send as native image |
+| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`?, `sys_msg_content`? | 撤回已发送的蓝信消息 |
+| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | 发送蓝信 linkCard 卡片消息 |
 
 **Usage examples (Agent prompts):**
 
@@ -114,12 +109,15 @@ These tools let the Agent send files, images, and videos to any Lansenger user o
 "Send the report.pdf to user 2285568-abc123"
 "Share that chart image with the project group chat"
 "Download this URL image and send it to my colleague"
+"撤回刚才发给用户的消息"
+"发送一个链接卡片给用户，标题是项目文档，链接是 https://..."
 ```
 
 **Limitations:**
 - File size limit: 2MB (Lansenger API constraint)
 - Media captions use plain text (no Markdown) — for Markdown text, send separately
 - `lansenger_send_file` auto-detects media_type from extension if not specified
+- `lansenger_revoke_message`: for staff/group chat types, `sender_id` is required
 
 ## Architecture
 
@@ -128,8 +126,8 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           ├── platforms/lansenger/            # Gateway adapter
                           │   ├── plugin.yaml                 # manifest (kind: platform)
                           │   ├── __init__.py                  # register() → ctx.register_platform()
-                          │   └── adapter.py                   # full adapter + tools (revoke/linkCard)
-                          ├── lansenger-media-tools/           # Media sending tools
+                          │   └── adapter.py                   # full adapter (no tool handlers here)
+                          ├── lansenger-media-tools/           # Media & message tools
                           │   ├── plugin.yaml                 # manifest (kind: standalone)
                           │   ├── __init__.py                  # register() → ctx.register_tool()
                           │   ├── schemas.py                   # LLM-facing tool descriptions
@@ -153,12 +151,14 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 
 - 🔄 Migrated to plugin mode — zero core code modification
 - ✅ `ctx.register_platform()` for adapter injection
-- ✅ `ctx.register_tool()` for revoke / linkCard tools
 - ✅ `standalone_sender_fn` for cron delivery
 - ✅ Home channel auto-detection
 - ✅ User authorization via env vars
 - ✅ i18nAppCard approval workflow
-- ✅ Media tools plugin — `lansenger_send_file` + `lansenger_send_image_url`
+- ✅ Media & message tools plugin — `lansenger_send_file`, `lansenger_send_image_url`
+- ✅ `lansenger_revoke_message` and `lansenger_send_link_card` extracted from adapter to standalone tool plugin
+- ✅ Implemented `send_link_card()` method in LansengerAdapter (was previously missing)
+- ✅ Fixed revoke/linkCard "Lansenger not configured" error — now reads env vars instead of `load_gateway_config()`
 
 ## License
 
