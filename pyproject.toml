@@ -40,8 +40,8 @@ include = ["platforms*"]
 Homepage = "https://github.com/<owner>/hermes-lansenger-adapter"
 Repository = "https://github.com/<owner>/hermes-lansenger-adapter"
 
-# NOTE: The lansenger-media-tools plugin (standalone, kind: tool) lives in
-# lansenger-media-tools/ alongside this package but is NOT a Python package
+# NOTE: The lansenger-tools plugin (standalone, kind: tool) lives in
+# lansenger-tools/ alongside this package but is NOT a Python package
 # (directory name contains hyphens). It is discovered by Hermes's directory-based
 # plugin scanner when the repo is cloned via `hermes plugins install <git-url>`.
 # For pip installs, only the platform adapter is registered via entry-points.

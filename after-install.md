@@ -3,7 +3,7 @@
 Two plugins and one skill were installed:
 
 1. **lansenger-platform** — Gateway channel adapter (enables Lansenger as a messaging channel)
-2. **lansenger-media-tools** — Agent tools for sending messages, files, images, revoking messages, linkCard cards
+2. **lansenger-tools** — Agent tools for sending messages, files, images, revoking messages, linkCard cards
 3. **lansenger-messaging** — Skill that teaches the Agent how to choose the right Lansenger tool
 
 ## Configuration

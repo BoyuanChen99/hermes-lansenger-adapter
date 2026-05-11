@@ -614,17 +614,11 @@ class LansengerAdapter(BasePlatformAdapter):
         Returns:
             mediaId string on success, None on failure
             
-        Note: File size must be under 2MB
+        Note: File size limits are determined by the organization's Lansenger configuration.
         """
         token = await self._get_app_token()
         if not token:
             logger.error("[Lansenger] No access token for media upload")
-            return None
-        
-        # Check file size (2MB limit)
-        file_size = os.path.getsize(file_path)
-        if file_size > 2 * 1024 * 1024:
-            logger.error("[Lansenger] File too large: %d bytes (max 2MB)", file_size)
             return None
         
         try:
@@ -753,8 +747,7 @@ class LansengerAdapter(BasePlatformAdapter):
         self, 
         message_ids: List[str], 
         chat_type: str = "bot",
-        sender_id: Optional[str] = None,
-        sys_msg_content: Optional[str] = None
+        sender_id: Optional[str] = None
     ) -> SendResult:
         """Revoke previously sent messages.
 
@@ -762,7 +755,9 @@ class LansengerAdapter(BasePlatformAdapter):
             message_ids: List of message IDs to revoke
             chat_type: Message type enum: staff, group, notification, account, bot
             sender_id: Sender ID; required for private/group chats
-            sys_msg_content: System message content shown after revocation (default: "This message has been revoked")
+
+        Note: Lansenger displays a fixed system message after revocation.
+              The revocation prompt text cannot be customized.
         """
         # Get token
         token = await self._get_app_token()
@@ -777,8 +772,6 @@ class LansengerAdapter(BasePlatformAdapter):
             payload = {"chatType": chat_type, "messageIds": message_ids}
             if sender_id:
                 payload["senderId"] = sender_id
-            if sys_msg_content:
-                payload["sysMsg"] = {"content": sys_msg_content}
             
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()

@@ -29,7 +29,7 @@ import logging
 
 from . import schemas, tools
 
-logger = logging.getLogger("lansenger-media-tools")
+logger = logging.getLogger("lansenger-tools")
 
 
 def register(ctx):
@@ -105,7 +105,7 @@ def register(ctx):
     )
 
     logger.info(
-        "lansenger-media-tools: registered 6 tools "
+        "lansenger-tools: registered 6 tools "
         "(lansenger_send_text, lansenger_send_markdown, "
         "lansenger_send_file, lansenger_send_image_url, "
         "lansenger_revoke_message, lansenger_send_link_card) "

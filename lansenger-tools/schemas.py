@@ -1,4 +1,4 @@
-"""Tool schemas for lansenger-media-tools — what the LLM sees.
+"""Tool schemas for lansenger-tools — what the LLM sees.
 
 Lansenger (蓝信) has TWO distinct message types with different capabilities:
 
@@ -52,7 +52,7 @@ LANSENGER_SEND_TEXT = {
                     "Optional local file/image/video to attach. "
                     "If provided, the text serves as a caption for the attachment. "
                     "Supported: images (jpg/png/gif/webp), videos (mp4/mov), documents (pdf/xlsx/docx/zip etc). "
-                    "Max 2MB per file."
+                    "File size limits are determined by the organization's Lansenger configuration."
                 ),
             },
             "media_type": {
@@ -123,7 +123,7 @@ LANSENGER_SEND_FILE = {
         "Uses msgType=text with attachment only (no text body). "
         "For text+attachment combo, use lansenger_send_text instead. "
         "Supported: images (jpg/png/gif/webp), videos (mp4/mov/avi), documents (pdf/xlsx/docx/zip etc). "
-        "Max 2MB per file. "
+        "File size limits are determined by the organization's Lansenger configuration. "
         "For sending an image from a URL, use lansenger_send_image_url instead."
     ),
     "parameters": {
@@ -196,7 +196,8 @@ LANSENGER_REVOKE_MESSAGE = {
         "Revoke a previously sent Lansenger (蓝信) message. "
         "Use this to retract a message previously sent via Lansenger. "
         "You need the message ID(s) to revoke. "
-        "For staff/group chat types, sender_id is required."
+        "For staff/group chat types, sender_id is required. "
+        "Note: Lansenger displays a fixed system message after revocation — the prompt text cannot be customized."
     ),
     "parameters": {
         "type": "object",
@@ -214,10 +215,6 @@ LANSENGER_REVOKE_MESSAGE = {
             "sender_id": {
                 "type": "string",
                 "description": "Sender ID (required for staff/group chat types)",
-            },
-            "sys_msg_content": {
-                "type": "string",
-                "description": "System message shown after revocation (default: 'This message has been revoked')",
             },
         },
         "required": ["message_ids"],

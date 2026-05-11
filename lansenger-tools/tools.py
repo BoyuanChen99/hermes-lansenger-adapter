@@ -1,4 +1,4 @@
-"""Tool handlers for lansenger-media-tools — send messages, files, images, manage messages via Lansenger API.
+"""Tool handlers for lansenger-tools — send messages, files, images, manage messages via Lansenger API.
 
 Lansenger (蓝信) has TWO distinct message types with different capabilities:
 
@@ -27,7 +27,7 @@ import logging
 import os
 import tempfile
 
-logger = logging.getLogger("lansenger-media-tools")
+logger = logging.getLogger("lansenger-tools")
 
 # --- Auto-detect media_type from file extension ---
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
@@ -279,7 +279,7 @@ async def _send_image_url_async(chat_id: str, image_url: str, caption: str) -> d
         return {"success": False, "error": str(e)}
 
 
-async def _revoke_async(message_ids: list, chat_type: str, sender_id: str, sys_msg_content: str) -> dict:
+async def _revoke_async(message_ids: list, chat_type: str, sender_id: str) -> dict:
     """Async: create ephemeral adapter, revoke messages, teardown."""
     adapter = await _create_ephemeral_adapter()
     try:
@@ -287,7 +287,6 @@ async def _revoke_async(message_ids: list, chat_type: str, sender_id: str, sys_m
             message_ids=message_ids,
             chat_type=chat_type,
             sender_id=sender_id,
-            sys_msg_content=sys_msg_content,
         )
         await adapter._http_client.aclose()
         return {
@@ -365,11 +364,6 @@ def lansenger_send_text(args: dict, **kwargs) -> str:
             return json.dumps({"error": f"File not found: {file_path}"})
         if media_type is None:
             media_type = _media_type_from_path(file_path)
-        file_size = os.path.getsize(file_path)
-        if file_size > 2 * 1024 * 1024:
-            return json.dumps({
-                "error": f"File too large: {file_size} bytes (Lansenger limit: 2MB)",
-            })
 
     env_result = _check_env()
     if "error" in env_result:
@@ -433,13 +427,6 @@ def lansenger_send_file(args: dict, **kwargs) -> str:
     if "error" in env_result:
         return json.dumps(env_result)
 
-    file_size = os.path.getsize(file_path)
-    if file_size > 2 * 1024 * 1024:
-        return json.dumps({
-            "error": f"File too large: {file_size} bytes (Lansenger limit: 2MB)",
-            "file_path": file_path,
-        })
-
     try:
         result = _run_async(_send_file_async(chat_id, file_path, caption, media_type))
         return json.dumps(result)
@@ -477,7 +464,6 @@ def lansenger_revoke_message(args: dict, **kwargs) -> str:
     message_ids = args.get("message_ids", [])
     chat_type = args.get("chat_type", "bot")
     sender_id = args.get("sender_id") or ""
-    sys_msg_content = args.get("sys_msg_content") or ""
 
     if not message_ids:
         return json.dumps({"error": "message_ids is required"})
@@ -492,7 +478,7 @@ def lansenger_revoke_message(args: dict, **kwargs) -> str:
         })
 
     try:
-        result = _run_async(_revoke_async(message_ids, chat_type, sender_id, sys_msg_content))
+        result = _run_async(_revoke_async(message_ids, chat_type, sender_id))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
