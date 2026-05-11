@@ -1,10 +1,10 @@
 [English](README.md) | [简体中文](README.zhHans.md) | [繁体中文](README.zhHant.md) | [繁体中文香港](README.zhHantHK.md) | [Français](README.fr.md)
 
-# Hermes Lansenger (蓝信) Adapter
+# Hermes Lansenger Adapter
 
 > 💠 Lansenger gateway adapter + media & message tools plugin for Hermes Agent.
 
-Connects Hermes Agent to Lansenger (蓝信) — an enterprise messaging platform — via WebSocket long-connection for real-time message reception and HTTP API for message delivery.
+Connects Hermes Agent to Lansenger — an enterprise messaging platform — via WebSocket long-connection for real-time message reception and HTTP API for message delivery.
 
 This repo contains **two plugins**:
 
@@ -27,8 +27,8 @@ This repo contains **two plugins**:
 ### Media & Message Tools Plugin
 - **lansenger_send_file** — Send any local file/image/video to a specific user or group
 - **lansenger_send_image_url** — Send an image from a URL to a specific user or group
-- **lansenger_revoke_message** — Revoke a sent Lansenger (蓝信) message 🗑️
-- **lansenger_send_link_card** — Send a Lansenger (蓝信) linkCard card message 🔗
+- **lansenger_revoke_message** — Revoke a sent Lansenger message 🗑️
+- **lansenger_send_link_card** — Send a Lansenger linkCard card message 🔗
 - **Auto media type detection** — images/videos/documents classified by extension
 - **Credential gating** — tools hidden when LANSENGER_APP_ID/SECRET not set
 
@@ -75,7 +75,7 @@ Add these to `~/.hermes/.env`:
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
 
-**Credential path:** Lansenger (蓝信) client → Contacts → Personal Bot → Create Bot → Details
+**Credential path:** Lansenger client → Contacts → Personal Bot → Create Bot → Details
 
 ### Optional Environment Variables
 
@@ -102,8 +102,8 @@ These tools let the Agent send files, images, and videos, revoke messages, and s
 |------|-----------|-------------|
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Send a local file/image/video to a user or group |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Download image from URL and send as native image |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Revoke a sent Lansenger (蓝信) message (system prompt is fixed, not customizable) |
-| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Send a Lansenger (蓝信) linkCard card message |
+| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Revoke a sent Lansenger message (system prompt is fixed, not customizable) |
+| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Send a Lansenger linkCard card message |
 
 **Usage examples (Agent prompts):**
 

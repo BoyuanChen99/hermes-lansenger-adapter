@@ -1,10 +1,10 @@
 [English](README.md) | [简体中文](README.zhHans.md) | [繁体中文](README.zhHant.md) | [繁体中文香港](README.zhHantHK.md) | [Français](README.fr.md)
 
-# Adaptateur Hermes Lansenger (蓝信)
+# Adaptateur Hermes Lansenger
 
 > 💠 Adaptateur de passerelle Lansenger + plugin d'outils média & messages pour Hermes Agent.
 
-Connecte Hermes Agent à Lansenger (蓝信) — une plateforme de messagerie d'entreprise — via une connexion longue WebSocket pour la réception de messages en temps réel et via l'API HTTP pour l'envoi de messages.
+Connecte Hermes Agent à Lansenger — une plateforme de messagerie d'entreprise — via une connexion longue WebSocket pour la réception de messages en temps réel et via l'API HTTP pour l'envoi de messages.
 
 Ce dépôt contient **deux plugins** :
 
@@ -27,8 +27,8 @@ Ce dépôt contient **deux plugins** :
 ### Plugin d'outils média & messages
 - **lansenger_send_file** — Envoyer tout fichier/image/vidéo local à un utilisateur ou groupe spécifique
 - **lansenger_send_image_url** — Envoyer une image depuis une URL à un utilisateur ou groupe spécifique
-- **lansenger_revoke_message** — Révoquer un message Lansenger (蓝信) envoyé 🗑️
-- **lansenger_send_link_card** — Envoyer un message de carte linkCard Lansenger (蓝信) 🔗
+- **lansenger_revoke_message** — Révoquer un message Lansenger envoyé 🗑️
+- **lansenger_send_link_card** — Envoyer un message de carte linkCard Lansenger 🔗
 - **Détection automatique du type de média** — images/vidéos/documents classifiés par extension
 - **Contrôle des identifiants** — outils masqués lorsque LANSENGER_APP_ID/SECRET ne sont pas configurés
 
@@ -75,7 +75,7 @@ Ajoutez ces variables à `~/.hermes/.env` :
 | `LANSENGER_APP_ID` | ID App du Bot | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Secret App du Bot | `your-app-secret` |
 
-**Chemin des identifiants :** Client Lansenger (蓝信) → Contacts → Bot personnel → Créer un Bot → Détails
+**Chemin des identifiants :** Client Lansenger → Contacts → Bot personnel → Créer un Bot → Détails
 
 ### Variables d'environnement optionnelles
 
@@ -102,8 +102,8 @@ Ces outils permettent à l'Agent d'envoyer des fichiers, images et vidéos, de r
 |------|-----------|-------------|
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Envoyer un fichier/image/vidéo local à un utilisateur ou groupe |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Télécharger une image depuis une URL et l'envoyer comme image native |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message Lansenger (蓝信) envoyé (le prompt système est fixe, non personnalisable) |
-| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Envoyer un message de carte linkCard Lansenger (蓝信) |
+| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message Lansenger envoyé (le prompt système est fixe, non personnalisable) |
+| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Envoyer un message de carte linkCard Lansenger |
 
 **Exemples d'utilisation (prompts de l'Agent) :**
 

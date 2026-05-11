@@ -28,7 +28,7 @@ LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
 
-> 💡 App ID and App Secret can be found in Lansenger (蓝信) → Contacts → Personal Bot (not Workspace)
+> 💡 App ID and App Secret can be found in Lansenger → Contacts → Personal Bot (not Workspace)
 
 ## Skill Installation
 
