@@ -1418,6 +1418,7 @@ def register(ctx):
         is_connected=is_connected,
         required_env=["LANSENGER_APP_ID", "LANSENGER_APP_SECRET"],
         install_hint="pip install websockets httpx",
+        setup_fn=_interactive_setup,
         # Env-driven auto-configuration
         env_enablement_fn=_env_enablement,
         # Cron home-channel delivery support
@@ -1443,3 +1444,90 @@ def register(ctx):
             "approval workflows.  Keep responses concise and professional."
         ),
     )
+
+
+def _interactive_setup():
+    """Interactive setup wizard for Lansenger credentials.
+    
+    Called by `hermes setup gateway` when the user selects Lansenger.
+    Prompts for APP_ID, APP_SECRET, and optional API_GATEWAY_URL,
+    then writes them to ~/.hermes/.env (idempotent — won't duplicate).
+    """
+    from pathlib import Path
+    
+    hermes_home = Path.home() / ".hermes"
+    env_file = hermes_home / ".env"
+    
+    # ANSI colors for terminal output
+    CYAN = "\033[36m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+    
+    print()
+    print(f"  {CYAN}─── 💠 Lansenger (蓝信) Setup ───{RESET}")
+    print()
+    print(f"  {YELLOW}Where to find your credentials:{RESET}")
+    print(f"  Lansenger → Contacts → Personal Bot (not Workspace)")
+    print()
+    
+    # Read existing .env to check for duplicates
+    existing_lines = []
+    if env_file.exists():
+        with open(env_file) as f:
+            existing_lines = f.readlines()
+    
+    existing_keys = {line.split("=")[0].strip() for line in existing_lines if "=" in line and not line.startswith("#")}
+    
+    # Prompt for APP_ID
+    app_id = ""
+    if "LANSENGER_APP_ID" in existing_keys:
+        print(f"  {GREEN}✓ LANSENGER_APP_ID already configured{RESET}")
+    else:
+        print(f"  {BOLD}App ID:{RESET} ", end="", flush=True)
+        app_id = input().strip()
+        if not app_id:
+            print(f"  {YELLOW}Skipped — you can set it later in ~/.hermes/.env{RESET}")
+    
+    # Prompt for APP_SECRET
+    app_secret = ""
+    if "LANSENGER_APP_SECRET" in existing_keys:
+        print(f"  {GREEN}✓ LANSENGER_APP_SECRET already configured{RESET}")
+    else:
+        print(f"  {BOLD}App Secret:{RESET} ", end="", flush=True)
+        app_secret = input().strip()
+        if not app_secret:
+            print(f"  {YELLOW}Skipped — you can set it later in ~/.hermes/.env{RESET}")
+    
+    # Prompt for API_GATEWAY_URL (with default)
+    gateway_url = ""
+    default_url = "https://open.e.lanxin.cn/open/apigw"
+    if "LANSENGER_API_GATEWAY_URL" in existing_keys:
+        print(f"  {GREEN}✓ LANSENGER_API_GATEWAY_URL already configured{RESET}")
+    else:
+        print(f"  {BOLD}API Gateway URL{RESET} [default: {default_url}]: ", end="", flush=True)
+        gateway_url = input().strip()
+        if not gateway_url:
+            gateway_url = default_url
+    
+    # Write new entries to .env
+    new_entries = []
+    if app_id and "LANSENGER_APP_ID" not in existing_keys:
+        new_entries.append(f"LANSENGER_APP_ID={app_id}\n")
+    if app_secret and "LANSENGER_APP_SECRET" not in existing_keys:
+        new_entries.append(f"LANSENGER_APP_SECRET={app_secret}\n")
+    if gateway_url and "LANSENGER_API_GATEWAY_URL" not in existing_keys:
+        new_entries.append(f"LANSENGER_API_GATEWAY_URL={gateway_url}\n")
+    
+    if new_entries:
+        with open(env_file, "a") as f:
+            f.writelines(new_entries)
+        print()
+        print(f"  {GREEN}✓ Credentials saved to ~/.hermes/.env{RESET}")
+        print(f"  {GREEN}✓ Run 'hermes gateway restart' to activate{RESET}")
+    else:
+        print()
+        print(f"  {YELLOW}No new credentials to save.{RESET}")
+    
+    print()

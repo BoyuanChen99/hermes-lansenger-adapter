@@ -16,7 +16,8 @@ Replace `YOUR_APP_ID` and `YOUR_APP_SECRET` with your actual credentials, then r
 
 ```bash
 grep -q "^LANSENGER_APP_ID=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_ID=YOUR_APP_ID" >> ~/.hermes/.env && \
-grep -q "^LANSENGER_APP_SECRET=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_SECRET=YOUR_APP_SECRET" >> ~/.hermes/.env
+grep -q "^LANSENGER_APP_SECRET=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_SECRET=YOUR_APP_SECRET" >> ~/.hermes/.env && \
+grep -q "^LANSENGER_API_GATEWAY_URL=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw" >> ~/.hermes/.env
 ```
 
 ### Option B: config.yaml
