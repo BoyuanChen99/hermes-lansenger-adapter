@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hermes-lansenger-adapter"
 version = "2.1.0"
-description = "Lansenger (蓝信) gateway adapter plugin for Hermes Agent"
+description = "Lansenger (蓝信) gateway adapter + media tools plugin for Hermes Agent"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "Lansenger PM Team" },
 ]
-keywords = ["hermes", "agent", "lansenger", "蓝信", "chatbot", "messaging"]
+keywords = ["hermes", "agent", "lansenger", "蓝信", "chatbot", "messaging", "media"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -39,3 +39,10 @@ include = ["platforms*"]
 [project.urls]
 Homepage = "https://github.com/<owner>/hermes-lansenger-adapter"
 Repository = "https://github.com/<owner>/hermes-lansenger-adapter"
+
+# NOTE: The lansenger-media-tools plugin (standalone, kind: tool) lives in
+# lansenger-media-tools/ alongside this package but is NOT a Python package
+# (directory name contains hyphens). It is discovered by Hermes's directory-based
+# plugin scanner when the repo is cloned via `hermes plugins install <git-url>`.
+# For pip installs, only the platform adapter is registered via entry-points.
+# Users who want the media tools should use `hermes plugins install` instead.

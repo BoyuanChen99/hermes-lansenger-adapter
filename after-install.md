@@ -1,6 +1,9 @@
 # 💠 Lansenger Adapter — Post-Install Setup
 
-Your Lansenger (蓝信) adapter plugin is now installed!
+Two plugins were installed:
+
+1. **lansenger-platform** — Gateway channel adapter
+2. **lansenger-media-tools** — Agent tools for sending files/images/videos
 
 ## Next Steps
 
@@ -9,30 +12,35 @@ Your Lansenger (蓝信) adapter plugin is now installed!
    LANSENGER_APP_ID=your-app-id
    LANSENGER_APP_SECRET=your-app-secret
    ```
+
    Get these from: 蓝信客户端 → 通讯录 → 个人机器人 → 创建机器人 → 详情页
 
-2. **Enable the plugin** (if not already):
-   ```bash
-   hermes plugins enable lansenger-platform
+2. **Optional: set API Gateway** (if using Qianxin internal network):
+   ```
+   LANSENGER_API_GATEWAY_URL=https://apigw.lx.qianxin.com
    ```
 
-3. **Restart the gateway**:
+   | Environment | Gateway URL |
+   |-------------|-------------|
+   | Default (public) | `https://open.e.lanxin.cn/open/apigw` |
+   | Qianxin internal | `https://apigw.lx.qianxin.com` |
+
+3. **Enable both plugins**:
+   ```bash
+   hermes plugins enable lansenger-platform
+   hermes plugins enable lansenger-media-tools
+   ```
+
+4. **Restart gateway**:
    ```bash
    hermes gateway restart
    ```
 
-4. **Verify** — send a test message to your bot in Lansenger!
-
 ## Available Tools
 
-- `lansenger_revoke_message` 🗑️ — 撤回已发送的蓝信消息
-- `lansenger_send_link_card` 🔗 — 发送蓝信 linkCard 卡片消息
-
-## Optional Config
-
-| Env Var | Description |
-|---------|-------------|
-| `LANSENGER_API_GATEWAY_URL` | API Gateway URL (default: https://open.e.lanxin.cn/open/apigw) |
-| `LANSENGER_ALLOWED_USERS` | Comma-separated user IDs allowed to talk to bot |
-| `LANSENGER_ALLOW_ALL_USERS` | Allow any user (dev only, set to "true") |
-| `LANSENGER_HOME_CHANNEL` | Default cron delivery chat ID (auto-detected) |
+| Tool | Plugin | Description |
+|------|--------|-------------|
+| `lansenger_revoke_message` | platform | 撤回已发送的蓝信消息 🗑️ |
+| `lansenger_send_link_card` | platform | 发送蓝信 linkCard 卡片消息 🔗 |
+| `lansenger_send_file` | media-tools | Send local file/image/video to a user or group |
+| `lansenger_send_image_url` | media-tools | Send image from URL to a user or group |
