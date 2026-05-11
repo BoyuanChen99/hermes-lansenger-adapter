@@ -33,8 +33,11 @@ LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 After installing the plugins, copy the skill to Hermes skills directory:
 
 ```bash
-cp -r lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/lansenger-messaging.md
+mkdir -p ~/.hermes/skills/mlops/lansenger-messaging
+cp lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansenger-messaging/SKILL.md
 ```
+
+Note: Hermes requires each skill to be a directory containing a `SKILL.md` file, not a bare `.md` file.
 
 This skill teaches the Agent the Lansenger message type capability boundary (text vs formatText) and provides a decision tree for choosing the correct tool. Without it, the Agent may pick the wrong message type and lose Markdown formatting or attachment support.
 
