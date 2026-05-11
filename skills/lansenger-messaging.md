@@ -1,6 +1,6 @@
 ---
 name: lansenger-messaging
-version: 2.1.0
+version: 2.2.0
 category: mlops
 description: Lansenger messaging strategy — understand text/formatText capability boundary, token management, and credential storage
 trigger: When you need to send any message, file, image, or notification via Lansenger (蓝信), or when you see a lansenger_* tool in the available tools list.
