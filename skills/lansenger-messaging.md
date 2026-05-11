@@ -26,7 +26,7 @@ Lansenger (蓝信) has two distinct message types with different capabilities. P
 ### 1. Plain text only (no formatting needed)
 → `lansenger_send_text`
 - content = plain text
-- skip file_path and at_user_ids
+- skip file_path, reminder_all, and reminder_user_ids
 - Example: notifications, simple replies
 
 ### 2. Markdown-formatted text (code, tables, lists)
