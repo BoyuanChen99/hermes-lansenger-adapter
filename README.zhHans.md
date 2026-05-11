@@ -100,6 +100,8 @@ platforms:
 
 | 工具 | 参数 | 说明 |
 |------|-----------|-------------|
+| `lansenger_send_text` | `chat_id`, `message`, `mentions`?, `media_paths`? | 发送纯文本，支持可选 @提及和附件 |
+| `lansenger_send_markdown` | `chat_id`, `message` | 发送 Markdown 格式文本（不支持 @提及和附件） |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | 向用户或群组发送本地文件/图片/视频 |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | 从 URL 下载图片并以原生图片形式发送 |
 | `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | 撤回已发送的 蓝信 消息（系统提示为固定内容，不可自定义） |

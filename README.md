@@ -25,6 +25,8 @@ This repo contains **two plugins**:
 - **Zero core modification** — pure plugin mode, `git diff HEAD` stays PRISTINE
 
 ### Media & Message Tools Plugin
+- **lansenger_send_text** — Send plain text messages with optional @mentions and attachments
+- **lansenger_send_markdown** — Send Markdown-formatted text messages (no attachments or @mentions)
 - **lansenger_send_file** — Send any local file/image/video to a specific user or group
 - **lansenger_send_image_url** — Send an image from a URL to a specific user or group
 - **lansenger_revoke_message** — Revoke a sent Lansenger message 🗑️
@@ -100,6 +102,8 @@ These tools let the Agent send files, images, and videos, revoke messages, and s
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
+| `lansenger_send_text` | `chat_id`, `message`, `mentions`?, `media_paths`? | Send plain text with optional @mentions and attachments |
+| `lansenger_send_markdown` | `chat_id`, `message` | Send Markdown-formatted text (no @mentions, no attachments) |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Send a local file/image/video to a user or group |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Download image from URL and send as native image |
 | `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Revoke a sent Lansenger message (system prompt is fixed, not customizable) |

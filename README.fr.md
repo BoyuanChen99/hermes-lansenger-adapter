@@ -25,6 +25,8 @@ Ce dépôt contient **deux plugins** :
 - **Zéro modification du core** — mode plugin pur, `git diff HEAD` reste INTACT
 
 ### Plugin d'outils média & messages
+- **lansenger_send_text** — Envoyer des messages en texte brut avec @mentions et pièces jointes optionnelles
+- **lansenger_send_markdown** — Envoyer des messages au format Markdown (pas de @mentions ni pièces jointes)
 - **lansenger_send_file** — Envoyer tout fichier/image/vidéo local à un utilisateur ou groupe spécifique
 - **lansenger_send_image_url** — Envoyer une image depuis une URL à un utilisateur ou groupe spécifique
 - **lansenger_revoke_message** — Révoquer un message Lansenger envoyé 🗑️
