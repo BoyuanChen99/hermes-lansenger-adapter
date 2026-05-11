@@ -10,6 +10,17 @@ Deux plugins et une compétence ont été installés :
 
 ## Configuration
 
+### Option A : Configuration en une ligne (recommandée)
+
+Remplacez `YOUR_APP_ID` et `YOUR_APP_SECRET` par vos identifiants réels, puis exécutez :
+
+```bash
+grep -q "^LANSENGER_APP_ID=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_ID=YOUR_APP_ID" >> ~/.hermes/.env && \
+grep -q "^LANSENGER_APP_SECRET=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_SECRET=YOUR_APP_SECRET" >> ~/.hermes/.env
+```
+
+### Option B : config.yaml
+
 Ajoutez la configuration suivante à `~/.hermes/config.yaml` sous `platforms.lansenger` :
 
 ```yaml
@@ -20,7 +31,9 @@ platforms:
     api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # ou votre URL de passerelle personnalisée
 ```
 
-Ou définissez-les comme variables d'environnement dans `~/.hermes/.env` :
+### Option C : fichier .env (manuel)
+
+Éditez `~/.hermes/.env` et ajoutez :
 
 ```
 LANSENGER_APP_ID=YOUR_APP_ID

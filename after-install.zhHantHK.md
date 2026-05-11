@@ -10,6 +10,17 @@
 
 ## 設定
 
+### 方式 A：一行命令設定（推薦）
+
+將 `YOUR_APP_ID` 和 `YOUR_APP_SECRET` 替換為您的實際憑證，然後執行：
+
+```bash
+grep -q "^LANSENGER_APP_ID=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_ID=YOUR_APP_ID" >> ~/.hermes/.env && \
+grep -q "^LANSENGER_APP_SECRET=" ~/.hermes/.env 2>/dev/null || echo "LANSENGER_APP_SECRET=YOUR_APP_SECRET" >> ~/.hermes/.env
+```
+
+### 方式 B：config.yaml
+
 將以下內容加入 `~/.hermes/config.yaml` 的 `platforms.lansenger` 部分：
 
 ```yaml
@@ -20,7 +31,9 @@ platforms:
     api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # 或您的自訂網關URL
 ```
 
-或在 `~/.hermes/.env` 中設定為環境變數：
+### 方式 C：.env 檔案（手動）
+
+編輯 `~/.hermes/.env`，加入以下內容：
 
 ```
 LANSENGER_APP_ID=YOUR_APP_ID
