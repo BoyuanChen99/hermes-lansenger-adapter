@@ -156,16 +156,16 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 
 ### v2.1.0 (2026-05-11)
 
-- 🔄 Migrated to plugin mode — zero core code modification
-- ✅ `ctx.register_platform()` for adapter injection
-- ✅ `standalone_sender_fn` for cron delivery
-- ✅ Home channel auto-detection
-- ✅ User authorization via env vars
-- ✅ i18nAppCard approval workflow
-- ✅ Media & message tools plugin — `lansenger_send_file`, `lansenger_send_image_url`
-- ✅ `lansenger_revoke_message` and `lansenger_send_link_card` extracted from adapter to standalone tool plugin
-- ✅ Implemented `send_link_card()` method in LansengerAdapter (was previously missing)
-- ✅ Fixed revoke/linkCard "Lansenger not configured" error — now reads env vars instead of `load_gateway_config()`
+- 🔄 Migration en mode plugin — aucune modification du code core
+- ✅ `ctx.register_platform()` pour l'injection de l'adaptateur
+- ✅ `standalone_sender_fn` pour la livraison cron
+- ✅ Détection automatique du canal home
+- ✅ Autorisation des utilisateurs via variables d'environnement
+- ✅ Flux d'approbation i18nAppCard
+- ✅ Plugin d'outils média & message — `lansenger_send_file`, `lansenger_send_image_url`
+- ✅ `lansenger_revoke_message` et `lansenger_send_link_card` extraits de l'adaptateur en plugin d'outils autonome
+- ✅ Implémentation de la méthode `send_link_card()` dans LansengerAdapter (précédemment manquante)
+- ✅ Correction de l'erreur revoke/linkCard « Lansenger non configuré » — lecture des variables d'environnement au lieu de `load_gateway_config()`
 
 ## Licence
 

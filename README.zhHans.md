@@ -156,16 +156,16 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 
 ### v2.1.0 (2026-05-11)
 
-- 🔄 Migrated to plugin mode — zero core code modification
-- ✅ `ctx.register_platform()` for adapter injection
-- ✅ `standalone_sender_fn` for cron delivery
-- ✅ Home channel auto-detection
-- ✅ User authorization via env vars
-- ✅ i18nAppCard approval workflow
-- ✅ Media & message tools plugin — `lansenger_send_file`, `lansenger_send_image_url`
-- ✅ `lansenger_revoke_message` and `lansenger_send_link_card` extracted from adapter to standalone tool plugin
-- ✅ Implemented `send_link_card()` method in 蓝信Adapter (was previously missing)
-- ✅ Fixed revoke/linkCard "蓝信 not configured" error — now reads env vars instead of `load_gateway_config()`
+- 🔄 迁移至插件模式 — 零核心代码修改
+- ✅ `ctx.register_platform()` 用于适配器注入
+- ✅ `standalone_sender_fn` 用于定时任务投递
+- ✅ 主频道自动检测
+- ✅ 通过环境变量实现用户授权
+- ✅ i18nAppCard 审批流程卡片
+- ✅ 媒体与消息工具插件 — `lansenger_send_file`、`lansenger_send_image_url`
+- ✅ `lansenger_revoke_message` 和 `lansenger_send_link_card` 从适配器中提取为独立工具插件
+- ✅ 在蓝信适配器中实现 `send_link_card()` 方法（此前缺失）
+- ✅ 修复撤回/linkCard "蓝信未配置"错误 — 现从环境变量读取而非 `load_gateway_config()`
 
 ## 许可证
 
