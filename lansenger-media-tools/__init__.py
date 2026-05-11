@@ -91,7 +91,7 @@ def register(ctx):
         toolset="lansenger-media",
         schema=schemas.LANSENGER_REVOKE_MESSAGE,
         handler=tools.lansenger_revoke_message,
-        description="撤回已发送的蓝信消息",
+        description="Revoke a previously sent Lansenger (蓝信) message",
         check_fn=check_available,
     )
 
@@ -100,7 +100,7 @@ def register(ctx):
         toolset="lansenger-media",
         schema=schemas.LANSENGER_SEND_LINK_CARD,
         handler=tools.lansenger_send_link_card,
-        description="发送蓝信 linkCard 卡片消息",
+        description="Send a linkCard message to a Lansenger (蓝信) user or group",
         check_fn=check_available,
     )
 

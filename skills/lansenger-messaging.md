@@ -2,15 +2,15 @@
 name: lansenger-messaging
 version: 2.1.0
 category: mlops
-description: Lansenger (蓝信) 消息发送策略 — 理解 text/formatText 能力边界，正确选择工具
+description: Lansenger (蓝信) messaging strategy — understand text/formatText capability boundaries, choose the correct tool
 trigger: When you need to send any message, file, image, or notification via Lansenger (蓝信), or when you see a lansenger_* tool in the available tools list.
 ---
 
 # Lansenger Messaging Strategy
 
-蓝信 (Lansenger) 有两种消息类型，能力边界不同。选错类型会导致功能丢失（如附件发不出来、Markdown 渲染失败）。
+Lansenger (蓝信) has two distinct message types with different capabilities. Choosing the wrong type causes lost functionality (attachments not delivered, Markdown not rendered).
 
-## 消息类型能力矩阵
+## Message Type Capability Matrix
 
 ```
 ┌──────────────┬──────────────┬──────────────┬──────────────┐
@@ -21,70 +21,70 @@ trigger: When you need to send any message, file, image, or notification via Lan
 └──────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-## 工具选择决策树
+## Tool Selection Decision Tree
 
-### 1. 只发纯文本（不需要格式）
-→ 用 `lansenger_send_text`
-- content 写纯文本
-- 不填 file_path、at_user_ids
-- 例：通知、简单回复
+### 1. Send plain text only (no formatting needed)
+→ Use `lansenger_send_text`
+- Set `content` to plain text
+- Do not set `file_path` or `at_user_ids`
+- Example: notifications, simple replies
 
-### 2. 发 Markdown 格式文本（代码、表格、列表等）
-→ 用 `lansenger_send_markdown`
-- content 写 Markdown 内容
-- 注意：不支持 @人、不支持附件
-- 例：代码输出、结构化报告、步骤说明
+### 2. Send Markdown-formatted text (code, tables, lists, etc.)
+→ Use `lansenger_send_markdown`
+- Set `content` to Markdown content
+- Note: does NOT support @mentions or attachments
+- Example: code output, structured reports, step-by-step instructions
 
-### 3. 发文本 + 附件（文件/图片/视频）
-→ 用 `lansenger_send_text`
-- content 写纯文本说明（caption）
-- file_path 填附件路径
-- media_type 自动检测，也可手动指定（1=视频, 2=图片, 3=文件）
-- 例："这是本周的报告" + PDF 文件
+### 3. Send text + attachment (file/image/video)
+→ Use `lansenger_send_text`
+- Set `content` to a plain-text caption
+- Set `file_path` to the attachment path
+- `media_type` is auto-detected, or manually set (1=video, 2=image, 3=file/document)
+- Example: "Here is this week's report" + PDF file
 
-### 4. 需要同时发 Markdown + 附件
-→ **发两条消息：**
-1. 先用 `lansenger_send_markdown` 发格式化文本
-2. 再用 `lansenger_send_file` 发附件（caption 可简写文件名）
-- 原因：formatText 不支持附件，一条消息做不到
-- 例：发一段 Markdown 分析 + 配图
+### 4. Need both Markdown + attachment
+→ **Send two separate messages:**
+1. First use `lansenger_send_markdown` for the formatted text
+2. Then use `lansenger_send_file` for the attachment (caption can be just the file name)
+- Reason: formatText does not support attachments — a single message cannot combine both
+- Example: send a Markdown analysis + accompanying chart image
 
-### 5. 只发纯附件（不需要文本说明）
-→ 用 `lansenger_send_file`
-- file_path 填路径
-- caption 可留空或简写文件名
-- 例：发一张截图、发一个数据文件
+### 5. Send a pure attachment (no text caption needed)
+→ Use `lansenger_send_file`
+- Set `file_path` to the file path
+- `caption` can be empty or a brief file name
+- Example: share a screenshot, send a data file
 
-### 6. 发图片 URL（网上图片）
-→ 用 `lansenger_send_image_url`
-- image_url 填图片链接
-- caption 可留空或简写描述
-- 例：发一张网上的图表链接
+### 6. Send an image from a URL
+→ Use `lansenger_send_image_url`
+- Set `image_url` to the image URL
+- `caption` can be empty or a brief description
+- Example: share an online chart or photo link
 
-### 7. 发链接卡片
-→ 用 `lansenger_send_link_card`
-- title + link 必填
-- description, icon_link, from_name 可选
-- 例：分享文章链接、推荐工具
+### 7. Send a link card
+→ Use `lansenger_send_link_card`
+- `title` and `link` are required
+- `description`, `icon_link`, `from_name` are optional
+- Example: share an article link, recommend a tool
 
-### 8. 撤回消息
-→ 用 `lansenger_revoke_message`
-- message_ids 必填（之前发送返回的 message_id）
-- chat_type 默认 bot
-- staff/group 类型需要 sender_id
+### 8. Revoke a message
+→ Use `lansenger_revoke_message`
+- `message_ids` is required (use the `message_id` returned from a previous send)
+- `chat_type` defaults to `bot`
+- Staff/group chat types require `sender_id`
 
-## 常见错误
+## Common Mistakes
 
-| 错误做法 | 正确做法 |
+| Wrong Approach | Correct Approach |
 |---------|---------|
-| 用 `lansenger_send_text` 发 Markdown | 用 `lansenger_send_markdown` |
-| 用 `lansenger_send_markdown` 带 file_path | 改用两条消息：markdown + send_file |
-| 用 `lansenger_send_file` 但想要格式化 caption | caption 只支持纯文本；需要格式化就拆成两条 |
-| 忘记填 chat_id | chat_id 是所有发送工具的必填参数 |
+| Use `lansenger_send_text` for Markdown | Use `lansenger_send_markdown` |
+| Use `lansenger_send_markdown` with `file_path` | Send two messages: markdown + send_file |
+| Use `lansenger_send_file` but want a formatted caption | Captions only support plain text; need formatting → split into two messages |
+| Forget to set `chat_id` | `chat_id` is required for all send tools |
 
-## 技巧
+## Tips
 
-- 如果不确定对方是否能看 Markdown，优先用 `lansenger_send_text`（纯文本最安全）
-- 发大段 Markdown 分析时，考虑拆成多条 formatText（蓝信长消息阅读体验差）
-- 撤回时 sys_msg_content 可自定义撤回提示文字（默认"该消息已撤回"）
-- 文件大小上限 2MB，超过需提醒用户
+- If unsure whether the recipient can view Markdown, prefer `lansenger_send_text` (plain text is safest)
+- For long Markdown analyses, consider splitting into multiple `lansenger_send_markdown` messages (long messages have poor readability in Lansenger)
+- When revoking, `sys_msg_content` lets you customize the revocation notice (default: "This message has been revoked")
+- File size limit: 2MB — alert the user if their file exceeds this

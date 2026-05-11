@@ -362,8 +362,8 @@ class LansengerAdapter(BasePlatformAdapter):
                 media_bytes = await self._download_media(media_ids[0])
                 if media_bytes:
                     path = await self._save_media_temp(media_bytes, "image")
-                    return path if path else "[图片下载失败]"
-            return "[图片]"
+                    return path if path else "[Image download failed]"
+            return "[Image]"
         
         elif msg_type == "video":
             media_ids = msg_payload.get("video", {}).get("mediaIds", [])
@@ -371,8 +371,8 @@ class LansengerAdapter(BasePlatformAdapter):
                 media_bytes = await self._download_media(media_ids[0])
                 if media_bytes:
                     path = await self._save_media_temp(media_bytes, "video")
-                    return path if path else "[视频下载失败]"
-            return "[视频]"
+                    return path if path else "[Video download failed]"
+            return "[Video]"
         
         elif msg_type == "file":
             media_ids = msg_payload.get("file", {}).get("mediaIds", [])
@@ -380,8 +380,8 @@ class LansengerAdapter(BasePlatformAdapter):
                 media_bytes = await self._download_media(media_ids[0])
                 if media_bytes:
                     path = await self._save_media_temp(media_bytes, "file")
-                    return path if path else "[文件下载失败]"
-            return "[文件]"
+                    return path if path else "[File download failed]"
+            return "[File]"
         
         elif msg_type == "voice":
             media_ids = msg_payload.get("voice", {}).get("mediaIds", [])
@@ -389,22 +389,22 @@ class LansengerAdapter(BasePlatformAdapter):
                 media_bytes = await self._download_media(media_ids[0])
                 if media_bytes:
                     path = await self._save_media_temp(media_bytes, "voice")
-                    return path if path else "[语音下载失败]"
-            return "[语音]"
+                    return path if path else "[Voice download failed]"
+            return "[Voice]"
         
         elif msg_type == "position":
             pos = msg_payload.get("position", {})
             name = pos.get("name", "")
             address = pos.get("address", "")
-            return f"[位置] {name} {address}" if name or address else "[位置]"
+            return f"[Location] {name} {address}" if name or address else "[Location]"
         
         elif msg_type == "card":
             staff_id = msg_payload.get("card", {}).get("staffId", "")
-            return f"[名片] {staff_id}" if staff_id else "[名片]"
+            return f"[Contact Card] {staff_id}" if staff_id else "[Contact Card]"
         
         elif msg_type == "sticker":
             sticker_id = msg_payload.get("sticker", {}).get("stickerId", "")
-            return f"[表情] {sticker_id}" if sticker_id else "[表情]"
+            return f"[Sticker] {sticker_id}" if sticker_id else "[Sticker]"
 
         return ""
 
@@ -756,13 +756,13 @@ class LansengerAdapter(BasePlatformAdapter):
         sender_id: Optional[str] = None,
         sys_msg_content: Optional[str] = None
     ) -> SendResult:
-        """撤回已发送的消息。
-        
+        """Revoke previously sent messages.
+
         Args:
-            message_ids: 消息 ID 列表
-            chat_type: 消息类型，枚举：staff, group, notification, account, bot
-            sender_id: 发送者 ID，私聊/群聊时必填
-            sys_msg_content: 撤回后显示的系统消息内容 (默认："该消息已撤回")
+            message_ids: List of message IDs to revoke
+            chat_type: Message type enum: staff, group, notification, account, bot
+            sender_id: Sender ID; required for private/group chats
+            sys_msg_content: System message content shown after revocation (default: "This message has been revoked")
         """
         # Get token
         token = await self._get_app_token()
@@ -804,17 +804,17 @@ class LansengerAdapter(BasePlatformAdapter):
         from_name: Optional[str] = None,
         from_icon_link: Optional[str] = None,
     ) -> SendResult:
-        """发送 linkCard 卡片消息。
+        """Send a linkCard card message.
 
         Args:
-            chat_id: 接收者用户 ID
-            title: 卡片标题
-            link: 卡片点击链接
-            description: 卡片描述
-            icon_link: 卡片图标图片链接
-            pc_link: PC 端跳转链接
-            from_name: 来源名称
-            from_icon_link: 来源图标图片链接
+            chat_id: Recipient user ID
+            title: Card title
+            link: Card click-through link
+            description: Card description
+            icon_link: Card icon image link
+            pc_link: PC-side redirect link
+            from_name: Source name
+            from_icon_link: Source icon image link
         """
         token = await self._get_app_token()
         if not token:
@@ -921,7 +921,7 @@ class LansengerAdapter(BasePlatformAdapter):
             description
         )
         
-        # Build i18n head status info (待审批) - Note: i18nAppCard may not support this field
+        # Build i18n head status info (Pending Approval) - Note: i18nAppCard may not support this field
         # Keeping for future API compatibility, but it may not display
         i18n_head_status_info = self._build_i18n_obj_full(
             '待审批',  # Plain text, no HTML
@@ -1430,8 +1430,8 @@ def register(ctx):
         allow_update_command=True,
         # LLM guidance
         platform_hint=(
-            "You are chatting via Lansenger (蓝信), an enterprise messaging platform "
-            "by Qianxin (奇安信).  You can send Markdown-formatted text using the "
+            "You are chatting via Lansenger (蓝信), an enterprise messaging platform. "
+            "You can send Markdown-formatted text using the "
             "formatText msgType, and send files/images/videos via send_file().  "
             "Messages have a ~4000 character limit.  i18nAppCard is available for "
             "approval workflows.  Keep responses concise and professional."

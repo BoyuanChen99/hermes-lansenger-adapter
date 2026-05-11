@@ -2,7 +2,7 @@
 
 > 💠 Lansenger gateway adapter + media & message tools plugin for Hermes Agent.
 
-Connects Hermes Agent to Lansenger (蓝信) — the enterprise messaging platform by Qianxin (奇安信) — via WebSocket long-connection for real-time message reception and HTTP API for message delivery.
+Connects Hermes Agent to Lansenger (蓝信) — an enterprise messaging platform — via WebSocket long-connection for real-time message reception and HTTP API for message delivery.
 
 This repo contains **two plugins**:
 
@@ -25,8 +25,8 @@ This repo contains **two plugins**:
 ### Media & Message Tools Plugin
 - **lansenger_send_file** — Send any local file/image/video to a specific user or group
 - **lansenger_send_image_url** — Send an image from a URL to a specific user or group
-- **lansenger_revoke_message** — 撤回已发送的蓝信消息 🗑️
-- **lansenger_send_link_card** — 发送蓝信 linkCard 卡片消息 🔗
+- **lansenger_revoke_message** — Revoke a sent Lansenger (蓝信) message 🗑️
+- **lansenger_send_link_card** — Send a Lansenger (蓝信) linkCard card message 🔗
 - **Auto media type detection** — images/videos/documents classified by extension
 - **Credential gating** — tools hidden when LANSENGER_APP_ID/SECRET not set
 
@@ -73,7 +73,7 @@ Add these to `~/.hermes/.env`:
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
 
-**Credential path:** Lansenger client → 通讯录 → 个人机器人 → 创建机器人 → 详情页
+**Credential path:** Lansenger (蓝信) client → Contacts → Personal Bot → Create Bot → Details
 
 ### Optional Environment Variables
 
@@ -100,8 +100,8 @@ These tools let the Agent send files, images, and videos, revoke messages, and s
 |------|-----------|-------------|
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Send a local file/image/video to a user or group |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Download image from URL and send as native image |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`?, `sys_msg_content`? | 撤回已发送的蓝信消息 |
-| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | 发送蓝信 linkCard 卡片消息 |
+| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`?, `sys_msg_content`? | Revoke a sent Lansenger (蓝信) message |
+| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Send a Lansenger (蓝信) linkCard card message |
 
 **Usage examples (Agent prompts):**
 
@@ -109,8 +109,8 @@ These tools let the Agent send files, images, and videos, revoke messages, and s
 "Send the report.pdf to user 2285568-abc123"
 "Share that chart image with the project group chat"
 "Download this URL image and send it to my colleague"
-"撤回刚才发给用户的消息"
-"发送一个链接卡片给用户，标题是项目文档，链接是 https://..."
+"Revoke the message I just sent to the user"
+"Send a link card to the user with the title 'Project Documentation' and link https://..."
 ```
 
 **Limitations:**

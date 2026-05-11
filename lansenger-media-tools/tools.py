@@ -470,7 +470,7 @@ def lansenger_send_image_url(args: dict, **kwargs) -> str:
 
 
 def lansenger_revoke_message(args: dict, **kwargs) -> str:
-    """撤回已发送的蓝信消息。
+    """Revoke a previously sent Lansenger (蓝信) message.
 
     Uses env vars for credentials (fixes "Lansenger not configured" error).
     """
@@ -499,7 +499,7 @@ def lansenger_revoke_message(args: dict, **kwargs) -> str:
 
 
 def lansenger_send_link_card(args: dict, **kwargs) -> str:
-    """发送蓝信 linkCard 卡片消息。"""
+    """Send a linkCard message to a Lansenger (蓝信) user or group."""
     chat_id = args.get("chat_id", "").strip()
     title = args.get("title", "").strip()
     link = args.get("link", "").strip()

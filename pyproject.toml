@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hermes-lansenger-adapter"
 version = "2.1.0"
-description = "Lansenger (蓝信) gateway adapter + media tools plugin for Hermes Agent"
+description = "Lansenger gateway adapter + media tools plugin for Hermes Agent"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "Lansenger PM Team" },
 ]
-keywords = ["hermes", "agent", "lansenger", "蓝信", "chatbot", "messaging", "media"]
+keywords = ["hermes", "agent", "lansenger", "chatbot", "messaging", "media", "enterprise-chat"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
