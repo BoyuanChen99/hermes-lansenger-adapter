@@ -46,13 +46,21 @@ LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 
 ## Installation de la compétence
 
-Après avoir installé les plugins, copiez la compétence dans le répertoire des compétences Hermes :
+Après avoir installé les plugins, installez la compétence lansenger-messaging (enseigne à l'Agent la frontière de capacité des types de messages et l'arbre de décision des outils) :
+
+**Option A : Depuis le dépôt local cloné (Le plus rapide) :**
 
 ```bash
 mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansenger-messaging/SKILL.md
 ```
 
-Cette compétence enseigne à l'Agent la frontière de capacité des types de messages Lansenger (text vs formatText) et fournit un arbre de décision pour choisir l'outil correct. Sans elle, l'Agent peut choisir le mauvais type de message et perdre le formatage Markdown ou le support des attachments.
+**Option B : Depuis l'URL GitHub (Fonctionne sans clone local) :**
+
+```bash
+hermes skills install --force -c mlops https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
+```
+
+Sans cette compétence, l'Agent peut choisir le mauvais type de message et perdre le formatage Markdown ou le support des attachments.
 
 ## Redémarrer la passerelle
 

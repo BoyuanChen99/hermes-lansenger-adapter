@@ -46,13 +46,21 @@ LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 
 ## 技能安裝
 
-安裝插件後，將技能複製至 Hermes 技能目錄：
+安裝插件後，安裝 lansenger-messaging 技能（教導 Agent 訊息類型能力邊界與工具決策樹）：
+
+**方式 A：從本地克隆倉庫複製（最快速）：**
 
 ```bash
 mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansenger-messaging/SKILL.md
 ```
 
-此技能教導 Agent 藍信 訊息類型能力邊界（文字 vs formatText），並提供決策樹以選擇正確工具。若缺少此技能，Agent 可能選擇錯誤的訊息類型，導致失去 Markdown 格式或附件支援。
+**方式 B：從 GitHub URL 安裝（不需本地克隆）：**
+
+```bash
+hermes skills install --force -c mlops https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
+```
+
+若缺少此技能，Agent 可能選擇錯誤的訊息類型，導致失去 Markdown 格式或附件支援。
 
 ## 重啟閘道
 
