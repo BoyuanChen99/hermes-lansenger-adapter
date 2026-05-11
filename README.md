@@ -35,7 +35,7 @@ This repo contains **two plugins**:
 ### Via Hermes Plugin Manager (recommended)
 
 ```bash
-hermes plugins install <your-git-url>
+hermes plugins install lansenger-pm/hermes-lansenger-adapter
 hermes plugins enable lansenger-platform
 hermes plugins enable lansenger-tools
 hermes gateway restart
@@ -47,7 +47,7 @@ Clone this repo into `~/.hermes/plugins/`:
 
 ```bash
 cd ~/.hermes/plugins/
-git clone <your-git-url> hermes-lansenger-adapter
+git clone https://github.com/lansenger-pm/hermes-lansenger-adapter.git hermes-lansenger-adapter
 hermes plugins enable lansenger-platform
 hermes plugins enable lansenger-tools
 hermes gateway restart
