@@ -57,13 +57,13 @@ Add these to `~/.hermes/.env`:
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
 
-**Credential path:** Lansenger client → 工作台 → 个人机器人 → 创建机器人 → 详情页
+**Credential path:** Lansenger client → 通讯录 → 个人机器人 → 创建机器人 → 详情页
 
 ### Optional Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LANSENGER_API_GATEWAY_URL` | API Gateway URL | `https://apigw.lx.qianxin.com` |
+| `LANSENGER_API_GATEWAY_URL` | API Gateway URL | `https://open.e.lanxin.cn/open/apigw` |
 | `LANSENGER_ALLOWED_USERS` | Allowed user IDs (comma-separated) | — |
 | `LANSENGER_ALLOW_ALL_USERS` | Allow any user (dev only) | `false` |
 | `LANSENGER_HOME_CHANNEL` | Default cron delivery chat ID | Auto-detected |

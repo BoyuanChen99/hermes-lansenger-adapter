@@ -19,7 +19,7 @@ requires_env:
     password: true
 optional_env:
   - name: LANSENGER_API_GATEWAY_URL
-    description: "蓝信 API Gateway URL (default: https://apigw.lx.qianxin.com)"
+    description: "蓝信 API Gateway URL (default: https://open.e.lanxin.cn/open/apigw)"
     prompt: "API Gateway URL"
     password: false
   - name: LANSENGER_ALLOWED_USERS

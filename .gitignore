@@ -10,6 +10,7 @@ build/
 *.egg
 *.whl
 *.tar.gz
+hermes_lansenger_adapter.egg-info/
 
 # Environment
 .env

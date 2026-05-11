@@ -15,7 +15,7 @@ Configuration in config.yaml:
         extra:
           app_id: "your-app-id"        # or LANSENGER_APP_ID env var
           app_secret: "your-secret"    # or LANSENGER_APP_SECRET env var
-          api_gateway_url: "https://apigw.lx.qianxin.com"  # optional
+          api_gateway_url: "https://open.e.lanxin.cn/open/apigw"  # optional
 
 This is a PLUGIN adapter — registered via ctx.register_platform() in the
 register(ctx) entry point.  No modifications to core Hermes code are needed.
@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 # Constants
 MAX_MESSAGE_LENGTH = 4000
 RECONNECT_BACKOFF = [2, 5, 10, 30, 60]
-DEFAULT_API_GATEWAY_URL = "https://apigw.lx.qianxin.com"
+DEFAULT_API_GATEWAY_URL = "https://open.e.lanxin.cn/open/apigw"
 
 # API Endpoints
 API_ENDPOINTS = {
@@ -1036,11 +1036,11 @@ class LansengerAdapter(BasePlatformAdapter):
         )
 
         i18n_signature = self._build_i18n_obj_full(
-            "小信 · 蓝信 AI 助手",
-            "小信 · 藍信 AI 助手",
-            "小信 · 藍信 AI 助手",
-            "Xiaoxin · Lansenger AI",
-            "Xiaoxin · AI Lansenger"
+            "Hermes 安全审批系统",
+            "Hermes 安全審批系統",
+            "Hermes 安全審批系統",
+            "Hermes Security Approval",
+            "Système d'approbation de sécurité Hermes"
         )
 
         import time
