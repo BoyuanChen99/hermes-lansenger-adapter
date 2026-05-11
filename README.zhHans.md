@@ -154,6 +154,12 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 
 ## 更新日志
 
+### v2.2.0 (2026-05-11)
+
+- ✅ 实现了 `reminder`（@提及）功能——`reminder_all`（bool，@全体）+ `reminder_user_ids`（array，指定用户），对应蓝信 API 的 `reminder` 对象
+- ✅ @提及仅在群聊/员工群生效；私聊不支持
+- ✅ 修复 `at_user_ids` schema 字段定义了但从未传入适配器方法的问题
+
 ### v2.1.0 (2026-05-11)
 
 - 🔄 迁移至插件模式 — 零核心代码修改

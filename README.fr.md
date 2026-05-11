@@ -156,6 +156,12 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 
 ## Journal des modifications
 
+### v2.2.0 (2026-05-11)
+
+- ✅ Implémentation de `reminder` (@mentions) pour `send_text` et `send_text_with_media` — `reminder_all` (bool, @tous) + `reminder_user_ids` (array, utilisateurs spécifiés), correspondant à l'objet `reminder` de l'API Lansenger
+- ✅ Les @mentions ne fonctionnent que dans les chats de groupe/staff ; les chats privés ne les supportent pas
+- ✅ Correction du champ schema `at_user_ids` qui était défini mais jamais passé aux méthodes de l'adaptateur
+
 ### v2.1.0 (2026-05-11)
 
 - 🔄 Migration en mode plugin — aucune modification du code core
