@@ -37,8 +37,8 @@ include = ["platforms*"]
 "platforms.lansenger" = ["plugin.yaml"]
 
 [project.urls]
-Homepage = "https://github.com/<owner>/hermes-lansenger-adapter"
-Repository = "https://github.com/<owner>/hermes-lansenger-adapter"
+Homepage = "https://github.com/lansenger-pm/hermes-lansenger-adapter"
+Repository = "https://github.com/lansenger-pm/hermes-lansenger-adapter"
 
 # NOTE: The lansenger-tools plugin (standalone, kind: tool) lives in
 # lansenger-tools/ alongside this package but is NOT a Python package

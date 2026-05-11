@@ -51,9 +51,9 @@ hermes gateway restart
 
 ## Verify
 
-Check that tools are loaded:
-- `hermes tools list` should show 6 lansenger-tools
-- The skill should appear in `hermes skills list`
+Check that the plugin is loaded:
+- `hermes tools list` should show `lansenger-tools` in the Plugin toolsets section
+- `hermes plugins list` should show `hermes-lansenger-adapter` and `lansenger-tools` as enabled
 
 ## Tools Overview
 
