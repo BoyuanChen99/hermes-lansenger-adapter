@@ -1,42 +1,68 @@
 # 💠 Lansenger Adapter — Post-Install Setup
 
-Two plugins were installed:
+Two plugins and one skill were installed:
 
-1. **lansenger-platform** — Gateway channel adapter
-2. **lansenger-media-tools** — Agent tools for sending files/images, revoking messages, sending linkCard cards
+1. **lansenger-platform** — Gateway channel adapter (enables Lansenger as a messaging channel)
+2. **lansenger-media-tools** — Agent tools for sending messages, files, images, revoking messages, linkCard cards
+3. **lansenger-messaging** — Skill that teaches the Agent how to choose the right Lansenger tool
 
-## Step 1: Configure Credentials
+## Configuration
 
-Add these to `~/.hermes/.env`:
+Add the following to `~/.hermes/config.yaml` under `platforms.lansenger`:
+
+```yaml
+platforms:
+  lansenger:
+    app_id: "YOUR_APP_ID"
+    app_secret: "YOUR_APP_SECRET"
+    api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # or your custom gateway URL
+```
+
+Or set as environment variables in `~/.hermes/.env`:
 
 ```
-LANSENGER_APP_ID=your-app-id
-LANSENGER_APP_SECRET=your-app-secret
+LANSENGER_APP_ID=YOUR_APP_ID
+LANSENGER_APP_SECRET=YOUR_APP_SECRET
+LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
 
-Get these from: 蓝信客户端 → 通讯录 → 个人机器人 → 创建机器人 → 详情页
+> 💡 App ID and App Secret can be found in 蓝信 → 通讯录 → 个人机器人（not 工作台）
 
-## Step 2: Optional Configuration
+## Skill Installation
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LANSENGER_API_GATEWAY_URL` | API Gateway URL (default: https://open.e.lanxin.cn/open/apigw) | — |
-| `LANSENGER_HOME_CHANNEL` | Default cron delivery chat ID | Auto-detected |
-| `LANSENGER_ALLOWED_USERS` | Allowed user IDs (comma-separated) | — |
-
-## Step 3: Enable & Restart
+After installing the plugins, copy the skill to Hermes skills directory:
 
 ```bash
-hermes plugins enable lansenger-platform
-hermes plugins enable lansenger-media-tools
+cp -r lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/lansenger-messaging.md
+```
+
+This skill teaches the Agent the Lansenger message type capability boundary (text vs formatText) and provides a decision tree for choosing the correct tool. Without it, the Agent may pick the wrong message type and lose Markdown formatting or attachment support.
+
+## Restart Gateway
+
+After configuration, restart the Hermes gateway:
+
+```bash
 hermes gateway restart
 ```
 
-## Available Agent Tools
+## Verify
 
-After enabling `lansenger-media-tools`, the Agent can call:
+Check that tools are loaded:
+- `hermes tools list` should show 6 lansenger-media tools
+- The skill should appear in `hermes skills list`
 
-- `lansenger_send_file` — send local files/images/videos
-- `lansenger_send_image_url` — send images from URLs
-- `lansenger_revoke_message` — 撤回已发送的消息
-- `lansenger_send_link_card` — 发送链接卡片
+## Tools Overview
+
+```
+┌─────────────────────────┬──────────────┬──────────────┬──────────────┐
+│  Tool                   │  Markdown    │  @mention    │  Attachments │
+├─────────────────────────┼──────────────┼──────────────┼──────────────┤
+│  lansenger_send_text    │  ✗           │  ✓           │  ✓           │
+│  lansenger_send_markdown│  ✓           │  ✗           │  ✗           │
+│  lansenger_send_file    │  ✗           │  —           │  ✓ (only)    │
+│  lansenger_send_image_url│ ✗           │  —           │  ✓ (only)    │
+│  lansenger_revoke_message│ —           │  —           │  —           │
+│  lansenger_send_link_card│ —           │  —           │  —           │
+└─────────────────────────┴──────────────┴──────────────┴──────────────┘
+```
