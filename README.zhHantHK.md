@@ -100,7 +100,7 @@ platforms:
 
 | 工具 | 參數 | 說明 |
 |------|-----------|-------------|
-| `lansenger_send_text` | `chat_id`, `message`, `mentions`?, `media_paths`? | 傳送純文字，支援可選 @提及與附件 |
+| `lansenger_send_text` | `chat_id`, `message`, `reminder_all`?, `reminder_user_ids`?, `media_paths`? | 傳送純文字，支援可選 @提及（僅群聊/員工群）與附件 |
 | `lansenger_send_markdown` | `chat_id`, `message` | 傳送 Markdown 格式文字（不支援 @提及與附件） |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | 發送本地檔案/圖片/影片至使用者或群組 |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | 從 URL 下載圖片並以原生圖片發送 |

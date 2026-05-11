@@ -25,7 +25,7 @@ Ce dépôt contient **deux plugins** :
 - **Zéro modification du core** — mode plugin pur, `git diff HEAD` reste INTACT
 
 ### Plugin d'outils média & messages
-- **lansenger_send_text** — Envoyer des messages en texte brut avec @mentions et pièces jointes optionnelles
+- **lansenger_send_text** — Envoyer des messages en texte brut avec @mentions optionnelles (groupe/staff uniquement) et pièces jointes
 - **lansenger_send_markdown** — Envoyer des messages au format Markdown (pas de @mentions ni pièces jointes)
 - **lansenger_send_file** — Envoyer tout fichier/image/vidéo local à un utilisateur ou groupe spécifique
 - **lansenger_send_image_url** — Envoyer une image depuis une URL à un utilisateur ou groupe spécifique
@@ -102,6 +102,8 @@ Ces outils permettent à l'Agent d'envoyer des fichiers, images et vidéos, de r
 
 | Outil | Paramètres | Description |
 |------|-----------|-------------|
+| `lansenger_send_text` | `chat_id`, `message`, `reminder_all`?, `reminder_user_ids`?, `media_paths`? | Envoyer du texte brut avec @mentions optionnelles (groupe/staff uniquement) et pièces jointes |
+| `lansenger_send_markdown` | `chat_id`, `message` | Envoyer du texte Markdown (pas de @mentions ni pièces jointes) |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Envoyer un fichier/image/vidéo local à un utilisateur ou groupe |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Télécharger une image depuis une URL et l'envoyer comme image native |
 | `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message Lansenger envoyé (le prompt système est fixe, non personnalisable) |
