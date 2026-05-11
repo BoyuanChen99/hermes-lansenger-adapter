@@ -123,6 +123,7 @@ These tools let the Agent send files, images, and videos, revoke messages, and s
 
 ```
 hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
+                          ├── plugin.yaml                     # root manifest (kind: bundle)
                           ├── platforms/lansenger/            # Gateway adapter
                           │   ├── plugin.yaml                 # manifest (kind: platform)
                           │   ├── __init__.py                  # register() → ctx.register_platform()
@@ -132,6 +133,8 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           │   ├── __init__.py                  # register() → ctx.register_tool()
                           │   ├── schemas.py                   # LLM-facing tool descriptions
                           │   └── tools.py                     # handler implementations
+                          ├── skills/                          # Agent decision-making skill
+                          │   └── lansenger-messaging.md       # tool selection strategy + token docs
                           ├── README.md
                           ├── LICENSE
                           ├── VERSION
