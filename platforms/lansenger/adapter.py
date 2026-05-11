@@ -1463,6 +1463,7 @@ def _interactive_setup():
     GREEN = "\033[32m"
     YELLOW = "\033[33m"
     BOLD = "\033[1m"
+    DIM = "\033[2m"
     RESET = "\033[0m"
     
     print()
@@ -1472,62 +1473,82 @@ def _interactive_setup():
     print(f"  Lansenger → Contacts → Personal Bot (not Workspace)")
     print()
     
-    # Read existing .env to check for duplicates
+    # Read existing .env
     existing_lines = []
+    existing_values = {}
     if env_file.exists():
         with open(env_file) as f:
             existing_lines = f.readlines()
+        for line in existing_lines:
+            if "=" in line and not line.startswith("#"):
+                key, _, value = line.partition("=")
+                existing_values[key.strip()] = value.strip()
     
-    existing_keys = {line.split("=")[0].strip() for line in existing_lines if "=" in line and not line.startswith("#")}
+    def _prompt_field(env_key: str, label: str, default: str = "", sensitive: bool = False) -> str | None:
+        """Prompt for a single env var. Returns new value or None if unchanged."""
+        current = existing_values.get(env_key, "")
+        if current:
+            # Mask sensitive values for display
+            display = current if not sensitive else (current[:4] + "****" if len(current) > 4 else "****")
+            print(f"  {DIM}Current {label}: {display}{RESET}")
+            print(f"  {BOLD}New {label}{RESET} [press Enter to keep current]: ", end="", flush=True)
+            new_value = input().strip()
+            if not new_value:
+                print(f"  {GREEN}✓ Keeping current value{RESET}")
+                return None  # unchanged
+            return new_value
+        else:
+            print(f"  {BOLD}{label}:{RESET} ", end="", flush=True)
+            new_value = input().strip()
+            if not new_value:
+                if default:
+                    return default
+                print(f"  {YELLOW}Skipped — you can set it later in ~/.hermes/.env{RESET}")
+                return None
+            return new_value
     
-    # Prompt for APP_ID
-    app_id = ""
-    if "LANSENGER_APP_ID" in existing_keys:
-        print(f"  {GREEN}✓ LANSENGER_APP_ID already configured{RESET}")
-    else:
-        print(f"  {BOLD}App ID:{RESET} ", end="", flush=True)
-        app_id = input().strip()
-        if not app_id:
-            print(f"  {YELLOW}Skipped — you can set it later in ~/.hermes/.env{RESET}")
+    # Prompt for credentials
+    app_id = _prompt_field("LANSENGER_APP_ID", "App ID")
+    app_secret = _prompt_field("LANSENGER_APP_SECRET", "App Secret", sensitive=True)
+    gateway_url = _prompt_field("LANSENGER_API_GATEWAY_URL", "API Gateway URL", default="https://open.e.lanxin.cn/open/apigw")
     
-    # Prompt for APP_SECRET
-    app_secret = ""
-    if "LANSENGER_APP_SECRET" in existing_keys:
-        print(f"  {GREEN}✓ LANSENGER_APP_SECRET already configured{RESET}")
-    else:
-        print(f"  {BOLD}App Secret:{RESET} ", end="", flush=True)
-        app_secret = input().strip()
-        if not app_secret:
-            print(f"  {YELLOW}Skipped — you can set it later in ~/.hermes/.env{RESET}")
+    # Build updated .env content — replace existing keys or append new ones
+    changes = {}
+    if app_id is not None:
+        changes["LANSENGER_APP_ID"] = app_id
+    if app_secret is not None:
+        changes["LANSENGER_APP_SECRET"] = app_secret
+    if gateway_url is not None:
+        changes["LANSENGER_API_GATEWAY_URL"] = gateway_url
     
-    # Prompt for API_GATEWAY_URL (with default)
-    gateway_url = ""
-    default_url = "https://open.e.lanxin.cn/open/apigw"
-    if "LANSENGER_API_GATEWAY_URL" in existing_keys:
-        print(f"  {GREEN}✓ LANSENGER_API_GATEWAY_URL already configured{RESET}")
-    else:
-        print(f"  {BOLD}API Gateway URL{RESET} [default: {default_url}]: ", end="", flush=True)
-        gateway_url = input().strip()
-        if not gateway_url:
-            gateway_url = default_url
-    
-    # Write new entries to .env
-    new_entries = []
-    if app_id and "LANSENGER_APP_ID" not in existing_keys:
-        new_entries.append(f"LANSENGER_APP_ID={app_id}\n")
-    if app_secret and "LANSENGER_APP_SECRET" not in existing_keys:
-        new_entries.append(f"LANSENGER_APP_SECRET={app_secret}\n")
-    if gateway_url and "LANSENGER_API_GATEWAY_URL" not in existing_keys:
-        new_entries.append(f"LANSENGER_API_GATEWAY_URL={gateway_url}\n")
-    
-    if new_entries:
-        with open(env_file, "a") as f:
-            f.writelines(new_entries)
+    if changes:
+        # Rewrite .env: replace changed keys, keep others intact
+        output_lines = []
+        keys_replaced = set()
+        for line in existing_lines:
+            if "=" in line and not line.startswith("#"):
+                key = line.split("=")[0].strip()
+                if key in changes:
+                    output_lines.append(f"{key}={changes[key]}\n")
+                    keys_replaced.add(key)
+                else:
+                    output_lines.append(line)
+            else:
+                output_lines.append(line)
+        
+        # Append new keys that weren't in the file before
+        for key, value in changes.items():
+            if key not in keys_replaced:
+                output_lines.append(f"{key}={value}\n")
+        
+        with open(env_file, "w") as f:
+            f.writelines(output_lines)
+        
         print()
         print(f"  {GREEN}✓ Credentials saved to ~/.hermes/.env{RESET}")
         print(f"  {GREEN}✓ Run 'hermes gateway restart' to activate{RESET}")
     else:
         print()
-        print(f"  {YELLOW}No new credentials to save.{RESET}")
+        print(f"  {YELLOW}No changes to save.{RESET}")
     
     print()
