@@ -1,3 +1,5 @@
+[English](README.md) | [简体中文](README.zhHans.md) | [繁体中文](README.zhHant.md) | [繁体中文香港](README.zhHantHK.md) | [Français](README.fr.md)
+
 # Hermes Lansenger (蓝信) Adapter
 
 > 💠 Lansenger gateway adapter + media & message tools plugin for Hermes Agent.

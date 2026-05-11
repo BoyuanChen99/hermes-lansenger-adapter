@@ -1,26 +1,26 @@
 [English](after-install.md) | [简体中文](after-install.zhHans.md) | [繁体中文](after-install.zhHant.md) | [繁体中文香港](after-install.zhHantHK.md) | [Français](after-install.fr.md)
 
-# 💠 Lansenger Adapter — Post-Install Setup
+# 💠 Adaptateur Lansenger — Configuration post-installation
 
-Two plugins and one skill were installed:
+Deux plugins et une compétence ont été installés :
 
-1. **lansenger-platform** — Gateway channel adapter (enables Lansenger as a messaging channel)
-2. **lansenger-tools** — Agent tools for sending messages, files, images, revoking messages, linkCard cards
-3. **lansenger-messaging** — Skill that teaches the Agent how to choose the right Lansenger tool
+1. **lansenger-platform** — Adaptateur de canal de passerelle (active Lansenger comme canal de messagerie)
+2. **lansenger-tools** — Outils de l'Agent pour envoyer des messages, fichiers, images, révoquer des messages, cartes linkCard
+3. **lansenger-messaging** — Compétence qui enseigne à l'Agent comment choisir le bon outil Lansenger
 
 ## Configuration
 
-Add the following to `~/.hermes/config.yaml` under `platforms.lansenger`:
+Ajoutez la configuration suivante à `~/.hermes/config.yaml` sous `platforms.lansenger` :
 
 ```yaml
 platforms:
   lansenger:
     app_id: "YOUR_APP_ID"
     app_secret: "YOUR_APP_SECRET"
-    api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # or your custom gateway URL
+    api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # ou votre URL de passerelle personnalisée
 ```
 
-Or set as environment variables in `~/.hermes/.env`:
+Ou définissez-les comme variables d'environnement dans `~/.hermes/.env` :
 
 ```
 LANSENGER_APP_ID=YOUR_APP_ID
@@ -28,36 +28,36 @@ LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
 
-> 💡 App ID and App Secret can be found in Lansenger (蓝信) → Contacts → Personal Bot (not Workspace)
+> 💡 L'App ID et l'App Secret peuvent être trouvés dans Lansenger (蓝信) → Contacts → Bot personnel (pas Espace de travail)
 
-## Skill Installation
+## Installation de la compétence
 
-After installing the plugins, copy the skill to Hermes skills directory:
+Après avoir installé les plugins, copiez la compétence dans le répertoire des compétences Hermes :
 
 ```bash
 mkdir -p ~/.hermes/skills/mlops/lansenger-messaging
 cp lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansenger-messaging/SKILL.md
 ```
 
-Note: Hermes requires each skill to be a directory containing a `SKILL.md` file, not a bare `.md` file.
+Note : Hermes requiert que chaque compétence soit un répertoire contenant un fichier `SKILL.md`, et non un simple fichier `.md`.
 
-This skill teaches the Agent the Lansenger message type capability boundary (text vs formatText) and provides a decision tree for choosing the correct tool. Without it, the Agent may pick the wrong message type and lose Markdown formatting or attachment support.
+Cette compétence enseigne à l'Agent la frontière de capacité des types de messages Lansenger (text vs formatText) et fournit un arbre de décision pour choisir l'outil correct. Sans elle, l'Agent peut choisir le mauvais type de message et perdre le formatage Markdown ou le support des attachments.
 
-## Restart Gateway
+## Redémarrer la passerelle
 
-After configuration, restart the Hermes gateway:
+Après la configuration, redémarrez la passerelle Hermes :
 
 ```bash
 hermes gateway restart
 ```
 
-## Verify
+## Vérification
 
-Check that the plugin is loaded:
-- `hermes tools list` should show `lansenger-tools` in the Plugin toolsets section
-- `hermes plugins list` should show `hermes-lansenger-adapter` and `lansenger-tools` as enabled
+Vérifiez que le plugin est chargé :
+- `hermes tools list` devrait afficher `lansenger-tools` dans la section Plugin toolsets
+- `hermes plugins list` devrait afficher `hermes-lansenger-adapter` et `lansenger-tools` comme activés
 
-## Tools Overview
+## Vue d'ensemble des outils
 
 ```
 ┌─────────────────────────┬──────────────┬──────────────┬──────────────┐
