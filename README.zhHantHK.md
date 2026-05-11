@@ -1,10 +1,10 @@
 [English](README.md) | [简体中文](README.zhHans.md) | [繁体中文](README.zhHant.md) | [繁体中文香港](README.zhHantHK.md) | [Français](README.fr.md)
 
-# Hermes Lansenger (蓝信) 轉接器
+# Hermes 藍信轉接器
 
-> 💠 Lansenger 網關轉接器 + 媒體與訊息工具插件，供 Hermes Agent 使用。
+> 💠 藍信 網關轉接器 + 媒體與訊息工具插件，供 Hermes Agent 使用。
 
-透過 WebSocket 長連線接收即時訊息，並透過 HTTP API 發送訊息，將 Hermes Agent 連接至 Lansenger (蓝信) — 一個企業訊息平台。
+透過 WebSocket 長連線接收即時訊息，並透過 HTTP API 發送訊息，將 Hermes Agent 連接至 藍信 — 一個企業訊息平台。
 
 本repo包含**兩個插件**：
 
@@ -27,8 +27,8 @@
 ### 媒體與訊息工具插件
 - **lansenger_send_file** — 發送任何本地檔案/圖片/影片至指定使用者或群組
 - **lansenger_send_image_url** — 從 URL 發送圖片至指定使用者或群組
-- **lansenger_revoke_message** — 撤回已發送的 Lansenger (蓝信) 訊息 🗑️
-- **lansenger_send_link_card** — 發送 Lansenger (蓝信) linkCard 卡片訊息 🔗
+- **lansenger_revoke_message** — 撤回已發送的 藍信 訊息 🗑️
+- **lansenger_send_link_card** — 發送 藍信 linkCard 卡片訊息 🔗
 - **自動媒體類型偵測** — 根據副檔名自動分類圖片/影片/文件
 - **憑證管控** — 未設定 LANSENGER_APP_ID/SECRET 時工具自動隱藏
 
@@ -75,7 +75,7 @@ hermes gateway restart
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
 
-**憑證路徑：** Lansenger (蓝信) 客戶端 → 通訊錄 → 個人Bot → 建立Bot → 詳情
+**憑證路徑：** 藍信 客戶端 → 通訊錄 → 個人Bot → 建立Bot → 詳情
 
 ### 可選環境變數
 
@@ -102,8 +102,8 @@ platforms:
 |------|-----------|-------------|
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | 發送本地檔案/圖片/影片至使用者或群組 |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | 從 URL 下載圖片並以原生圖片發送 |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | 撤回已發送的 Lansenger (蓝信) 訊息（系統提示為固定內容，不可自訂） |
-| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | 發送 Lansenger (蓝信) linkCard 卡片訊息 |
+| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | 撤回已發送的 藍信 訊息（系統提示為固定內容，不可自訂） |
+| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | 發送 藍信 linkCard 卡片訊息 |
 
 **使用範例（Agent 提示）：**
 
@@ -116,7 +116,7 @@ platforms:
 ```
 
 **限制：**
-- 檔案大小上限由組織的 Lansenger 設定決定（無固定上限）
+- 檔案大小上限由組織的 藍信 設定決定（無固定上限）
 - 媒體說明文字使用純文字（不支援 Markdown）— 如需 Markdown 格式文字，請另行發送
 - `lansenger_send_file` 若未指定 media_type，會根據副檔名自動偵測
 - `lansenger_revoke_message`：針對員工/群組聊天類型，必須提供 `sender_id`
@@ -162,8 +162,8 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 - ✅ i18nAppCard approval workflow
 - ✅ Media & message tools plugin — `lansenger_send_file`, `lansenger_send_image_url`
 - ✅ `lansenger_revoke_message` and `lansenger_send_link_card` extracted from adapter to standalone tool plugin
-- ✅ Implemented `send_link_card()` method in LansengerAdapter (was previously missing)
-- ✅ Fixed revoke/linkCard "Lansenger not configured" error — now reads env vars instead of `load_gateway_config()`
+- ✅ Implemented `send_link_card()` method in 藍信轉接器 (was previously missing)
+- ✅ Fixed revoke/linkCard "藍信 not configured" error — now reads env vars instead of `load_gateway_config()`
 
 ## 授权
 

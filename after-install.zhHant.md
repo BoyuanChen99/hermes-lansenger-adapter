@@ -1,12 +1,12 @@
 [English](after-install.md) | [简体中文](after-install.zhHans.md) | [繁体中文](after-install.zhHant.md) | [繁体中文香港](after-install.zhHantHK.md) | [Français](after-install.fr.md)
 
-# 💠 Lansenger Adapter — 安裝後設定
+# 💠 藍信 Adapter — 安裝後設定
 
 已安裝兩個插件與一個技能：
 
-1. **lansenger-platform**——閘道通道適配器（啟用 Lansenger 作為訊息通道）
+1. **lansenger-platform**——閘道通道適配器（啟用 藍信 作為訊息通道）
 2. **lansenger-tools**——Agent 工具，用於傳送訊息、檔案、圖片、撤回訊息、linkCard 卡片
-3. **lansenger-messaging**——教導 Agent 如何選擇正確 Lansenger 工具的技能
+3. **lansenger-messaging**——教導 Agent 如何選擇正確 藍信 工具的技能
 
 ## 設定
 
@@ -28,7 +28,7 @@ LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
 
-> 💡 App ID 與 App Secret 可在 Lansenger (蓝信) → 通訊錄 → 個人機器人（非工作空間）中找到
+> 💡 App ID 與 App Secret 可在 藍信 → 通訊錄 → 個人機器人（非工作空間）中找到
 
 ## 技能安裝
 
@@ -41,7 +41,7 @@ cp lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansen
 
 注意：Hermes 要求每個技能為包含 `SKILL.md` 檔案的目錄，而非單獨的 `.md` 檔案。
 
-此技能教導 Agent Lansenger 訊息類型能力邊界（文字 vs formatText），並提供決策樹以選擇正確工具。若缺少此技能，Agent 可能選擇錯誤的訊息類型，導致失去 Markdown 格式或附件支援。
+此技能教導 Agent 藍信 訊息類型能力邊界（文字 vs formatText），並提供決策樹以選擇正確工具。若缺少此技能，Agent 可能選擇錯誤的訊息類型，導致失去 Markdown 格式或附件支援。
 
 ## 重啟閘道
 
