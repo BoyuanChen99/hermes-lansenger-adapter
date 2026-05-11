@@ -49,11 +49,8 @@ LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 安装插件后，将技能复制到 Hermes 技能目录：
 
 ```bash
-mkdir -p ~/.hermes/skills/mlops/lansenger-messaging
-cp lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansenger-messaging/SKILL.md
+hermes skills install --force -c mlops https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
 ```
-
-注意：Hermes 要求每个技能为一个包含 `SKILL.md` 文件的目录，而非单独的 `.md` 文件。
 
 此技能教会 Agent 蓝信 消息类型的能力边界（text 与 formatText），并提供选择正确工具的决策树。没有此技能，Agent 可能选择错误的消息类型，从而丢失 Markdown 格式或附件支持。
 
