@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-lansenger-adapter"
+version = "2.1.0"
+description = "Lansenger (蓝信) gateway adapter plugin for Hermes Agent"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Lansenger PM Team" },
+]
+keywords = ["hermes", "agent", "lansenger", "蓝信", "chatbot", "messaging"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+]
+
+dependencies = [
+    "websockets>=10.0",
+    "httpx>=0.24",
+]
+
+[project.entry-points."hermes_agent.plugins"]
+lansenger-platform = "platforms.lansenger:register"
+
+[tool.setuptools.packages.find]
+include = ["platforms*"]
+
+[tool.setuptools.package-data]
+"platforms.lansenger" = ["plugin.yaml"]
+
+[project.urls]
+Homepage = "https://github.com/<owner>/hermes-lansenger-adapter"
+Repository = "https://github.com/<owner>/hermes-lansenger-adapter"
