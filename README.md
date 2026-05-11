@@ -158,7 +158,7 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
 
 ### v2.2.0 (2026-05-11)
 
-- ✅ Implemented `reminder` (@mentions) for `send_text` and `send_text_with_media` — `reminder_all` (bool, @全体) + `reminder_user_ids` (array), matching Lansenger API `reminder` object
+- ✅ Implemented `reminder` (@mentions) for `send_text` and `send_text_with_media` — `reminder_all` (bool, @all members) + `reminder_user_ids` (array, specific users), matching Lansenger API `reminder` object
 - ✅ @mentions only work in group/staff chat; private chat does not support them
 - ✅ Fixed `at_user_ids` schema field was defined but never passed to adapter methods
 
