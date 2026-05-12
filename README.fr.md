@@ -2,29 +2,29 @@
 
 # Adaptateur Hermes Lansenger
 
-> 💠 Adaptateur de passerelle Lansenger + plugin d'outils média & messages pour Hermes Agent.
+> 💠 Adaptateur de passerelle Lansenger + plugin d’outils média & messages pour Hermes Agent.
 
-Connecte Hermes Agent à Lansenger — une plateforme de messagerie d'entreprise — via une connexion longue WebSocket pour la réception de messages en temps réel et via l'API HTTP pour l'envoi de messages.
+Connecte Hermes Agent à Lansenger — une plateforme de messagerie d’entreprise — via une connexion longue WebSocket pour la réception de messages en temps réel et via l'API HTTP pour l’envoi de messages.
 
 Ce dépôt contient **deux plugins** :
 
 | Plugin | Type | Ce qu'il fait |
 |--------|------|---------------|
 | `platforms/lansenger/` | plateforme | Adaptateur de canal de passerelle — recevoir & envoyer des messages |
-| `lansenger-tools/` | autonome (outil) | Outils appelables par l'Agent : envoyer des fichiers/images, révoquer des messages, envoyer des linkCard |
+| `lansenger-tools/` | autonome (outil) | Outils appelables par l’Agent : envoyer des fichiers/images, révoquer des messages, envoyer des linkCard |
 
 ## Fonctionnalités
 
 ### Adaptateur de plateforme
 - **Messagerie en temps réel** via connexion longue WebSocket
 - **Support Markdown** utilisant le msgType `formatText`
-- **i18nAppCard** — cartes interactives de flux d'approbation
+- **i18nAppCard** — cartes interactives de flux d’approbation
 - **Détection automatique du canal principal** — le premier message p2p définit la cible de livraison par défaut
 - **Livraison planifiée** — notifications planifiées via `standalone_sender_fn`
-- **Autorisation des utilisateurs** — utilisateurs autorisés / autoriser tous les utilisateurs via des variables d'environnement
+- **Autorisation des utilisateurs** — utilisateurs autorisés / autoriser tous les utilisateurs via des variables d’environnement
 - **Zéro modification du core** — mode plugin pur, `git diff HEAD` reste INTACT
 
-### Plugin d'outils média & messages
+### Plugin d’outils média & messages
 - **lansenger_send_text** — Envoyer des messages en texte brut avec @mentions optionnelles (groupe/staff uniquement) et pièces jointes
 - **lansenger_send_markdown** — Envoyer des messages au format Markdown (pas de @mentions ni pièces jointes)
 - **lansenger_send_file** — Envoyer tout fichier/image/vidéo local à un utilisateur ou groupe spécifique
@@ -78,7 +78,7 @@ Ajoutez ces variables à `~/.hermes/.env` :
 
 **Chemin des identifiants :** Lansenger (client desktop) → Contacts → Rebots → Robots personnels → cliquer sur l'icône ℹ️ pour voir les identifiants (le client mobile ne permet pas de voir les identifiants)
 
-### Variables d'environnement optionnelles
+### Variables d’environnement optionnelles
 
 | Variable | Description | Valeur par défaut |
 |----------|-------------|-------------------|
@@ -97,7 +97,7 @@ platforms:
 
 ## Outils média & messages (de lansenger-tools)
 
-Ces outils permettent à l'Agent d'envoyer des fichiers, images et vidéos, de révoquer des messages et d'envoyer des cartes linkCard — tous appelables indépendamment par le LLM. Les identifiants sont lus depuis les variables d'environnement (LANSENGER_APP_ID/SECRET), et non depuis `load_gateway_config()`.
+Ces outils permettent à l’Agent d'envoyer des fichiers, images et vidéos, de révoquer des messages et d'envoyer des cartes linkCard — tous appelables indépendamment par le LLM. Les identifiants sont lus depuis les variables d’environnement (LANSENGER_APP_ID/SECRET), et non depuis `load_gateway_config()`.
 
 | Outil | Paramètres | Description |
 |------|-----------|-------------|
@@ -108,7 +108,7 @@ Ces outils permettent à l'Agent d'envoyer des fichiers, images et vidéos, de r
 | `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message Lansenger envoyé (le prompt système est fixe, non personnalisable) |
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Envoyer un message de carte linkCard Lansenger |
 
-**Exemples d'utilisation (prompts de l'Agent) :**
+**Exemples d'utilisation (prompts de l’Agent) :**
 
 ```
 "Envoyer le rapport report.pdf à l'utilisateur 2285568-abc123"
@@ -132,14 +132,14 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           ├── platforms/lansenger/            # Adaptateur de passerelle
                           │   ├── plugin.yaml                 # manifeste (type : plateforme)
                           │   ├── __init__.py                  # register() → ctx.register_platform()
-                          │   └── adapter.py                   # adaptateur complet (pas de gestionnaires d'outils ici)
+                          │   └── adapter.py                   # adaptateur complet (pas de gestionnaires d’outils ici)
                           ├── lansenger-tools/           # Outils média & messages
                           │   ├── plugin.yaml                 # manifeste (type : autonome)
                           │   ├── __init__.py                  # register() → ctx.register_tool()
-                          │   ├── schemas.py                   # descriptions d'outils pour le LLM
+                          │   ├── schemas.py                   # descriptions d’outils pour le LLM
                           │   └── tools.py                     # implémentations des gestionnaires
-                          ├── skills/                          # Compétence de décision de l'Agent
-                          │   └── lansenger-messaging.md       # stratégie de sélection d'outils + docs token
+                          ├── skills/                          # Compétence de décision de l’Agent
+                          │   └── lansenger-messaging.md       # stratégie de sélection d’outils + docs token
                           ├── README.md
                           ├── LICENSE
                           ├── VERSION
@@ -166,7 +166,7 @@ hermes gateway restart
 
 ### v2.6.0 — Approbation : i18nAppCard → appCard dynamique
 
-- **appCard dynamique (isDynamic=True)** : Les cartes d'approbation utilisent appCard au lieu de i18nAppCard, permettant les mises à jour de statut en place.
+- **appCard dynamique (isDynamic=True)** : Les cartes d’approbation utilisent appCard au lieu de i18nAppCard, permettant les mises à jour de statut en place.
 - **Détection de langue** : `_user_lang_map` détecte zh/en depuis les messages entrants. Contenu des cartes adapté automatiquement.
 
 
@@ -182,11 +182,11 @@ hermes gateway restart
 
 - **Signature d'agent dynamique**: Toutes les cartes i18nAppCard (send_update_prompt, send_exec_approval, send_slash_confirm) utilisent désormais `_build_agent_signature_i18n()` qui lit le nom de l'agent depuis `~/.hermes/SOUL.md` dynamiquement. Revient à "Hermes" si SOUL.md ne peut être lu. Fini le "Hermes 安全审批系统" codé en dur — la signature reflète maintenant le persona réel de l'agent.
 
-### v2.4.0 — Expansion au moment de l'installation + script d'expansion
+### v2.4.0 — Expansion au moment de l’installation + script d'expansion
 
 - **Expansion au niveau du module**: Les sous-plugins (`lansenger-platform`, `lansenger-tools`) sont maintenant copiés vers `~/.hermes/plugins/` au niveau supérieur lors de **l'import**, pas seulement dans `register()`. Cela signifie qu'ils sont visibles par `hermes plugins enable` même sans redémarrage du gateway (mais un redémarrage est toujours nécessaire pour les charger).
 
-- **expand_sub_plugins.py**: Script autonome pour l'expansion pré-redémarrage. Exécutez `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` après l'installation pour rendre les sous-plugins découvrables par `hermes plugins enable` avant le premier redémarrage du gateway.
+- **expand_sub_plugins.py**: Script autonome pour l'expansion pré-redémarrage. Exécutez `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` après l’installation pour rendre les sous-plugins découvrables par `hermes plugins enable` avant le premier redémarrage du gateway.
 
 - **Docs post-installation**: Les 5 versions linguistiques avertissent explicitement : *ne pas exécuter manuellement `hermes plugins enable` les sous-plugins* — le bundle auto-expand et auto-active au redémarrage. Le script d'expansion est offert comme alternative pour l'activation pré-redémarrage.
 
@@ -202,27 +202,27 @@ hermes gateway restart
 ### v2.3.0 (2026-05-12)
 
 - ✅ Expansion automatique du bundle — le `__init__.py` racine copie les sous-plugins au niveau supérieur de `~/.hermes/plugins/`, les auto-active dans `config.yaml`, et les charge en place via `importlib`
-- ✅ Flux d'installation simplifié — seul `hermes plugins enable hermes-lansenger-adapter` est nécessaire (les sous-plugins sont auto-activés au redémarrage du gateway)
+- ✅ Flux d’installation simplifié — seul `hermes plugins enable hermes-lansenger-adapter` est nécessaire (les sous-plugins sont auto-activés au redémarrage du gateway)
 - ✅ Le bundle se retire de la liste enabled après expansion (il sert uniquement de conteneur)
 
 ### v2.2.0 (2026-05-11)
 
 - ✅ Implémentation de `reminder` (@mentions) pour `send_text` et `send_text_with_media` — `reminder_all` (bool, @tous) + `reminder_user_ids` (array, utilisateurs spécifiés), correspondant à l'objet `reminder` de l'API Lansenger
 - ✅ Les @mentions ne fonctionnent que dans les chats de groupe/staff ; les chats privés ne les supportent pas
-- ✅ Correction du champ schema `at_user_ids` qui était défini mais jamais passé aux méthodes de l'adaptateur
+- ✅ Correction du champ schema `at_user_ids` qui était défini mais jamais passé aux méthodes de l’adaptateur
 
 ### v2.1.0 (2026-05-11)
 
 - 🔄 Migration en mode plugin — aucune modification du code core
-- ✅ `ctx.register_platform()` pour l'injection de l'adaptateur
+- ✅ `ctx.register_platform()` pour l'injection de l’adaptateur
 - ✅ `standalone_sender_fn` pour la livraison cron
 - ✅ Détection automatique du canal home
-- ✅ Autorisation des utilisateurs via variables d'environnement
-- ✅ Flux d'approbation i18nAppCard
-- ✅ Plugin d'outils média & message — `lansenger_send_file`, `lansenger_send_image_url`
-- ✅ `lansenger_revoke_message` et `lansenger_send_link_card` extraits de l'adaptateur en plugin d'outils autonome
+- ✅ Autorisation des utilisateurs via variables d’environnement
+- ✅ Flux d’approbation i18nAppCard
+- ✅ Plugin d’outils média & message — `lansenger_send_file`, `lansenger_send_image_url`
+- ✅ `lansenger_revoke_message` et `lansenger_send_link_card` extraits de l’adaptateur en plugin d’outils autonome
 - ✅ Implémentation de la méthode `send_link_card()` dans LansengerAdapter (précédemment manquante)
-- ✅ Correction de l'erreur revoke/linkCard « Lansenger non configuré » — lecture des variables d'environnement au lieu de `load_gateway_config()`
+- ✅ Correction de l'erreur revoke/linkCard « Lansenger non configuré » — lecture des variables d’environnement au lieu de `load_gateway_config()`
 
 ## Licence
 
