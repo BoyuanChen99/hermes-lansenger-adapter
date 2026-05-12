@@ -124,6 +124,11 @@ class LansengerAdapter(BasePlatformAdapter):
         self._owner_id_file = Path.home() / ".hermes" / "lansenger_owner.json"
         self._load_owner_id()
 
+        # Auto-sethome: first DM becomes home channel if none configured.
+        # If an existing home is a group (group:xxx), the first DM overrides it.
+        _existing_home = self._home_channel_id or ""
+        self._auto_sethome_done: bool = bool(_existing_home) and not _existing_home.startswith("group:")
+
         # Pairing state
         self._pending_pairings: Dict[str, Dict[str, Any]] = {}
 
@@ -278,6 +283,63 @@ class LansengerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error("[Lansenger] Failed to save owner ID: %s", e)
 
+    async def _auto_sethome(self, chat_id: str) -> None:
+        """Auto-designate the first DM as Lansenger home channel.
+
+        Triggers when no home_channel is configured, or when an existing
+        group home is superseded by the first DM (DM > group upgrade).
+        Silent: writes config.yaml + env, no user-facing message.
+        """
+        if self._auto_sethome_done:
+            return
+
+        # Check if we should set/upgrade
+        _cur_home = self._home_channel_id or ""
+        _should_set = (not _cur_home) or _cur_home.startswith("group:")
+
+        # DM seen — no further upgrades needed after this
+        self._auto_sethome_done = True
+
+        if not _should_set:
+            return
+
+        try:
+            from hermes_constants import get_hermes_home
+            from utils import atomic_yaml_write
+            import yaml
+
+            _home = get_hermes_home()
+            config_path = _home / "config.yaml"
+            user_config: dict = {}
+            if config_path.exists():
+                with open(config_path, encoding="utf-8") as f:
+                    user_config = yaml.safe_load(f) or {}
+
+            # Write lansenger home_channel into config.yaml
+            platforms = user_config.setdefault("platforms", {})
+            lansenger = platforms.setdefault("lansenger", {})
+            lansenger["home_channel"] = {"chat_id": chat_id}
+            atomic_yaml_write(config_path, user_config)
+
+            # Update runtime state immediately
+            self._home_channel_id = chat_id
+            os.environ["LANSENGER_HOME_CHANNEL"] = str(chat_id)
+
+            # Also update the adapter's config.home_channel for runtime
+            if hasattr(self, "config") and hasattr(self.config, "home_channel"):
+                try:
+                    from gateway.config import HomeChannel
+                    self.config.home_channel = HomeChannel(chat_id=chat_id)
+                except Exception:
+                    pass
+
+            logger.info(
+                "[Lansenger] Auto-sethome: designated %s as Lansenger home channel",
+                chat_id[:30],
+            )
+        except Exception as e:
+            logger.warning("[Lansenger] Auto-sethome failed (non-critical): %s", e)
+
     async def _on_message(self, raw_message: str) -> None:
         """Process an incoming Lansenger message."""
         import json
@@ -321,6 +383,12 @@ class LansengerAdapter(BasePlatformAdapter):
             self._owner_id = sender_id
             self._save_owner_id()
             logger.info("[Lansenger] Recorded owner ID from first message: %s", sender_id)
+
+        # Auto-sethome: designate the first DM as home channel.
+        # If no home_channel is configured, or the existing one is a group,
+        # the first DM overrides it (DM > group upgrade, same as Yuanbao).
+        if not is_group:
+            await self._auto_sethome(chat_id)
 
         source = self.build_source(
             chat_id=chat_id,

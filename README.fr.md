@@ -164,6 +164,10 @@ hermes gateway restart
 
 ## Journal des modifications
 
+### v2.4.2 — Canal d'accueil auto-amélioré
+
+- **Auto-sethome**: La première conversation DM est automatiquement désignée comme canal d'accueil Lansenger. Si aucun `home_channel` est configuré, ou si un canal existant est un groupe, le premier DM le remplace (DM > groupe). Écrit `config.yaml` et `os.environ` silencieusement. Suit le modèle AutoSetHomeMiddleware de Yuanbao.
+
 ### v2.4.1 — send_update_prompt + signature d'agent dynamique
 
 - **send_update_prompt**: Nouvelle méthode i18nAppCard pour le watcher `/update` du gateway. Affiche le texte de la demande avec /approve et /deny comme options de réponse (i18nFields). L'intercepteur de texte du gateway route /approve → "y" et /deny → "n" vers `update_prompt.resolve()`. Lansenger ne supporte pas les callbacks de boutons inline (comme Telegram/Discord), les réponses textuelles sont la seule option.

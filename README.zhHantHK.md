@@ -160,6 +160,12 @@ hermes gateway restart
 
 ## 更新日誌
 
+### v2.4.2 — Home channel 自动升級
+
+- **Home channel 自动升級**: 首次私聊对话自动设为蓝信 home channel。如果未配置 home_channel，或现有 home 是群聊，首次私聊会覆盖它（私聊 > 群聊升級）。靜默写入 config.yaml 和 os.environ，无用户提示。遵循元宝的 AutoSetHomeMiddleware 模式。
+
+- **动态 Agent 簽名**（v2.4.1 起）：所有三个 i18nAppCard 方法均使用 `_build_agent_signature_i18n()`。
+
 ### v2.4.1 — send_update_prompt + 動態 Agent 簽名
 
 - **send_update_prompt**: 新增 i18nAppCard 方法，用于 gateway `/update` watcher。卡片展示提示文本和 /approve、/deny 回复提示（i18nFields）。gateway 的文本攔截将 /approve → "y"、/deny → "n" 路由到 `update_prompt.resolve()`。蓝信没有 inline button 回调（如 Telegram/Discord），只能使用文字回覆。

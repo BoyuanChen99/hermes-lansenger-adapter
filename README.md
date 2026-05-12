@@ -164,6 +164,12 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.4.2 — Home channel auto-upgrade
+
+- **Auto-sethome**: The first DM conversation is automatically designated as the Lansenger home channel. If no `home_channel` is configured, or an existing one is a group chat, the first DM overrides it (DM > group upgrade). Writes `config.yaml` and `os.environ` silently, no user-facing message. Follows Yuanbao's `AutoSetHomeMiddleware` pattern. Initialized in `__init__` as `_auto_sethome_done: bool = bool(existing_home) and not existing_home.startswith("group:")`.
+
+- **Dynamic agent signature** (from v2.4.1): `_build_agent_signature_i18n()` now used in all three i18nAppCard methods.
+
 ### v2.4.1 — send_update_prompt + dynamic agent signature
 
 - **send_update_prompt**: New i18nAppCard method for the gateway `/update` watcher. Displays the prompt text with /approve and /deny reply hints in i18nFields. The gateway's text intercept routes /approve → "y" and /deny → "n" to `update_prompt.resolve()`. Lansenger lacks inline button callbacks (like Telegram/Discord), so text-based replies are the only option.
