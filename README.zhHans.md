@@ -191,40 +191,6 @@ hermes gateway restart
 
 - **安装后文档**: 5 个语言版本明确警告：*不要手动 `hermes plugins enable` 子插件* — Bundle 在重启时自动展开并启用。展开脚本作为重启前启用的替代方案提供。
 
-### v2.3.2 (2026-05-12)
-
-- 🐛 修复 `_make_config()` 传了无效的 `platform` 参数给 `PlatformConfig` — dataclass 没有 `platform` 字段，会导致 TypeError
-
-### v2.3.1 (2026-05-12)
-
-- 🐛 修复 `_get_adapter_class()` 硬编码路径 — 优先搜索 `lansenger-platform/`（bundle 展开位置），其次 `platforms/lansenger/`（旧布局）
-- 🐛 修复 `_make_config()` 返回普通 dict — `LansengerAdapter.__init__` 需要 `config.extra` 属性，现使用 `PlatformConfig` 或 `SimpleNamespace` fallback
-
-### v2.3.0 (2026-05-12)
-
-- ✅ Bundle 自动展开 — 根 `__init__.py` 将子插件复制到 `~/.hermes/plugins/` 根层级，自动在 `config.yaml` 中启用，并通过 `importlib` 原地加载
-- ✅ 简化安装流程 — 只需 `hermes plugins enable hermes-lansenger-adapter`（子插件在 gateway 重启时自动启用）
-- ✅ Bundle 在展开后从 enabled 列表中移除（仅作为容器）
-
-### v2.2.0 (2026-05-11)
-
-- ✅ 实现了 `reminder`（@提及）功能——`reminder_all`（bool，@全体）+ `reminder_user_ids`（array，指定用户），对应蓝信 API 的 `reminder` 对象
-- ✅ @提及仅在群聊/员工群生效；私聊不支持
-- ✅ 修复 `at_user_ids` schema 字段定义了但从未传入适配器方法的问题
-
-### v2.1.0 (2026-05-11)
-
-- 🔄 迁移至插件模式 — 零核心代码修改
-- ✅ `ctx.register_platform()` 用于适配器注入
-- ✅ `standalone_sender_fn` 用于定时任务投递
-- ✅ 主频道自动检测
-- ✅ 通过环境变量实现用户授权
-- ✅ i18nAppCard 审批流程卡片
-- ✅ 媒体与消息工具插件 — `lansenger_send_file`、`lansenger_send_image_url`
-- ✅ `lansenger_revoke_message` 和 `lansenger_send_link_card` 从适配器中提取为独立工具插件
-- ✅ 在蓝信适配器中实现 `send_link_card()` 方法（此前缺失）
-- ✅ 修复撤回/linkCard "蓝信未配置"错误 — 现从环境变量读取而非 `load_gateway_config()`
-
 ## 许可证
 
 MIT — 详情见 [LICENSE](LICENSE)。

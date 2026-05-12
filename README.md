@@ -205,40 +205,6 @@ hermes gateway restart
 
 - **After-install docs**: All 5 language versions now explicitly warn: *do NOT manually `hermes plugins enable` the sub-plugins* — the bundle auto-expands and auto-enables them on restart. The expand script is offered as an alternative for pre-restart enable.
 
-### v2.3.2 (2026-05-12)
-
-- 🐛 Fixed `_make_config()` passing invalid `platform` param to `PlatformConfig` — dataclass has no `platform` field, caused TypeError
-
-### v2.3.1 (2026-05-12)
-
-- 🐛 Fixed `_get_adapter_class()` hardcoded path — now searches `lansenger-platform/` (expanded bundle) before `platforms/lansenger/` (legacy)
-- 🐛 Fixed `_make_config()` returning plain dict — `LansengerAdapter.__init__` requires `config.extra` attribute; now uses `PlatformConfig` dataclass or `SimpleNamespace` fallback
-
-### v2.3.0 (2026-05-12)
-
-- ✅ Bundle auto-expand — root `__init__.py` copies sub-plugins to `~/.hermes/plugins/` top level, auto-enables them in `config.yaml`, and loads them in-place via `importlib`
-- ✅ Simplified install flow — only `hermes plugins enable hermes-lansenger-adapter` needed (sub-plugins auto-enabled on gateway restart)
-- ✅ Bundle self-removal from enabled set after expansion (it's just a container)
-
-### v2.2.0 (2026-05-11)
-
-- ✅ Implemented `reminder` (@mentions) for `send_text` and `send_text_with_media` — `reminder_all` (bool, @all members) + `reminder_user_ids` (array, specific users), matching Lansenger API `reminder` object
-- ✅ @mentions only work in group/staff chat; private chat does not support them
-- ✅ Fixed `at_user_ids` schema field was defined but never passed to adapter methods
-
-### v2.1.0 (2026-05-11)
-
-- 🔄 Migrated to plugin mode — zero core code modification
-- ✅ `ctx.register_platform()` for adapter injection
-- ✅ `standalone_sender_fn` for cron delivery
-- ✅ Home channel auto-detection
-- ✅ User authorization via env vars
-- ✅ i18nAppCard approval workflow
-- ✅ Media & message tools plugin — `lansenger_send_file`, `lansenger_send_image_url`
-- ✅ `lansenger_revoke_message` and `lansenger_send_link_card` extracted from adapter to standalone tool plugin
-- ✅ Implemented `send_link_card()` method in LansengerAdapter (was previously missing)
-- ✅ Fixed revoke/linkCard "Lansenger not configured" error — now reads env vars instead of `load_gateway_config()`
-
 ## License
 
 MIT — see [LICENSE](LICENSE).

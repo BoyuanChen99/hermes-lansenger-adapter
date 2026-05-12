@@ -188,40 +188,6 @@ hermes gateway restart
 
 - **安装后文档**: 5 个语言版本明確警告：*不要手動 `hermes plugins enable` 子插件* — Bundle 在重啟时自动展開并启用。展開脚本作为重啟前启用的替代方案提供。
 
-### v2.3.2 (2026-05-12)
-
-- 🐛 修復 `_make_config()` 傳了無效的 `platform` 參數給 `PlatformConfig` — dataclass 沒有 `platform` 欄位，會導致 TypeError
-
-### v2.3.1 (2026-05-12)
-
-- 🐛 修復 `_get_adapter_class()` 硬編碼路徑 — 優先搜尋 `lansenger-platform/`（bundle 展開位置），其次 `platforms/lansenger/`（舊佈局）
-- 🐛 修復 `_make_config()` 回傳普通 dict — `LansengerAdapter.__init__` 需要 `config.extra` 屬性，現使用 `PlatformConfig` 或 `SimpleNamespace` 回退
-
-### v2.3.0 (2026-05-12)
-
-- ✅ Bundle 自動展開 — 根 `__init__.py` 將子插件複製到 `~/.hermes/plugins/` 根層級，自動在 `config.yaml` 中啟用，並透過 `importlib` 原地載入
-- ✅ 簡化安裝流程 — 只需 `hermes plugins enable hermes-lansenger-adapter`（子插件在 gateway 重啟時自動啟用）
-- ✅ Bundle 在展開後從 enabled 列表中移除（僅作為容器）
-
-### v2.2.0 (2026-05-11)
-
-- ✅ 實作了 `reminder`（@提及）功能——`reminder_all`（bool，@全體）+ `reminder_user_ids`（array，指定使用者），對應藍信 API 的 `reminder` 物件
-- ✅ @提及僅在群聊/員工群生效；私聊不支援
-- ✅ 修復 `at_user_ids` schema 欄位定義了但從未傳入轉接器方法的問題
-
-### v2.1.0 (2026-05-11)
-
-- 🔄 遷移至插件模式 — 零核心程式碼修改
-- ✅ `ctx.register_platform()` 用於轉接器注入
-- ✅ `standalone_sender_fn` 用於定時任務投遞
-- ✅ 主頻道自動偵測
-- ✅ 透過環境變數實現使用者授權
-- ✅ i18nAppCard 審批流程卡片
-- ✅ 媒體與訊息工具插件 — `lansenger_send_file`、`lansenger_send_image_url`
-- ✅ `lansenger_revoke_message` 和 `lansenger_send_link_card` 從轉接器中提取為獨立工具插件
-- ✅ 在藍信轉接器中實作 `send_link_card()` 方法（此前缺失）
-- ✅ 修復撤回/linkCard「藍信未設定」錯誤 — 現從環境變數讀取而非 `load_gateway_config()`
-
 ## 授權條款
 
 MIT——詳見 [LICENSE](LICENSE)。

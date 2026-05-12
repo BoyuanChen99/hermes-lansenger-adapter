@@ -190,40 +190,6 @@ hermes gateway restart
 
 - **Docs post-installation**: Les 5 versions linguistiques avertissent explicitement : *ne pas exécuter manuellement `hermes plugins enable` les sous-plugins* — le bundle auto-expand et auto-active au redémarrage. Le script d'expansion est offert comme alternative pour l'activation pré-redémarrage.
 
-### v2.3.2 (2026-05-12)
-
-- 🐛 Correction de `_make_config()` passant un paramètre `platform` invalide à `PlatformConfig` — la dataclass n'a pas de champ `platform`, provoquant un TypeError
-
-### v2.3.1 (2026-05-12)
-
-- 🐛 Correction du chemin codé en dur dans `_get_adapter_class()` — recherche maintenant `lansenger-platform/` (bundle expandé) avant `platforms/lansenger/` (ancien layout)
-- 🐛 Correction de `_make_config()` retournant un dict simple — `LansengerAdapter.__init__` nécessite l'attribut `config.extra` ; utilise maintenant `PlatformConfig` ou `SimpleNamespace` en fallback
-
-### v2.3.0 (2026-05-12)
-
-- ✅ Expansion automatique du bundle — le `__init__.py` racine copie les sous-plugins au niveau supérieur de `~/.hermes/plugins/`, les auto-active dans `config.yaml`, et les charge en place via `importlib`
-- ✅ Flux d’installation simplifié — seul `hermes plugins enable hermes-lansenger-adapter` est nécessaire (les sous-plugins sont auto-activés au redémarrage du gateway)
-- ✅ Le bundle se retire de la liste enabled après expansion (il sert uniquement de conteneur)
-
-### v2.2.0 (2026-05-11)
-
-- ✅ Implémentation de `reminder` (@mentions) pour `send_text` et `send_text_with_media` — `reminder_all` (bool, @tous) + `reminder_user_ids` (array, utilisateurs spécifiés), correspondant à l'objet `reminder` de l'API Lansenger
-- ✅ Les @mentions ne fonctionnent que dans les chats de groupe/staff ; les chats privés ne les supportent pas
-- ✅ Correction du champ schema `at_user_ids` qui était défini mais jamais passé aux méthodes de l’adaptateur
-
-### v2.1.0 (2026-05-11)
-
-- 🔄 Migration en mode plugin — aucune modification du code core
-- ✅ `ctx.register_platform()` pour l'injection de l’adaptateur
-- ✅ `standalone_sender_fn` pour la livraison cron
-- ✅ Détection automatique du canal home
-- ✅ Autorisation des utilisateurs via variables d’environnement
-- ✅ Flux d’approbation i18nAppCard
-- ✅ Plugin d’outils média & message — `lansenger_send_file`, `lansenger_send_image_url`
-- ✅ `lansenger_revoke_message` et `lansenger_send_link_card` extraits de l’adaptateur en plugin d’outils autonome
-- ✅ Implémentation de la méthode `send_link_card()` dans LansengerAdapter (précédemment manquante)
-- ✅ Correction de l'erreur revoke/linkCard « Lansenger non configuré » — lecture des variables d’environnement au lieu de `load_gateway_config()`
-
 ## Licence
 
 MIT — voir [LICENSE](LICENSE).
