@@ -164,6 +164,18 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.5.0 — appArticles, appCard, dynamic card update, group routing, group query
+
+- **appArticles (图文卡片)**: Send multi-article cards with imgUrl/title/summary/url/pcUrl fields. New adapter method `send_app_articles()` and tool `lansenger_send_app_articles`.
+- **appCard (应用卡片)**: Send rich-format cards with div-style HTML (color, font-size, text-align, text-indent). Supports dynamic cards (is_dynamic=true) for approval workflows. New adapter method `send_app_card()` and tool `lansenger_send_app_card`.
+- **Dynamic card update**: Update dynamic appCard status via POST /v1/messages/dynamic/update. New adapter method `update_dynamic_card_status()` and tool `lansenger_update_dynamic_card`.
+- **Group message routing**: `send_text()` now routes to /v1/messages/group/create for group chats (detected from inbound chat_type_map cache), and /v1/bot/messages/create for private chats.
+- **Group ID query**: Query bot's group list via GET /v2/groups/fetch. New adapter method `query_groups()` and tool `lansenger_query_groups`.
+- **_chat_type_map**: New inbound cache that maps chat_id → "group"/"dm" for outbound routing.
+- **API_ENDPOINTS**: Added `message.dynamic_update` and `groups.fetch` entries.
+- **tools.py docstring**: Updated message type matrix with appArticles and appCard.
+
+
 ### v2.4.2 — Home channel auto-upgrade
 
 - **Auto-sethome**: The first DM conversation is automatically designated as the Lansenger home channel. If no `home_channel` is configured, or an existing one is a group chat, the first DM overrides it (DM > group upgrade). Writes `config.yaml` and `os.environ` silently, no user-facing message. Follows Yuanbao's `AutoSetHomeMiddleware` pattern. Initialized in `__init__` as `_auto_sethome_done: bool = bool(existing_home) and not existing_home.startswith("group:")`.

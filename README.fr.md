@@ -164,6 +164,8 @@ hermes gateway restart
 
 ## Journal des modifications
 
+### v2.5.0 — appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
+
 ### v2.4.2 — Canal d'accueil auto-amélioré
 
 - **Auto-sethome**: La première conversation DM est automatiquement désignée comme canal d'accueil Lansenger. Si aucun `home_channel` est configuré, ou si un canal existant est un groupe, le premier DM le remplace (DM > groupe). Écrit `config.yaml` et `os.environ` silencieusement. Suit le modèle AutoSetHomeMiddleware de Yuanbao.

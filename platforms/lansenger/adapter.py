@@ -83,6 +83,10 @@ API_ENDPOINTS = {
     },
     "message": {
         "revoke": "/v1/messages/revoke",
+        "dynamic_update": "/v1/messages/dynamic/update",
+    },
+    "groups": {
+        "fetch": "/v2/groups/fetch",
     },
 }
 
@@ -114,6 +118,10 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # Message deduplication
         self._dedup = MessageDeduplicator(max_size=1000)
+
+        # Chat type cache: maps chat_id → "group" or "dm"
+        # Populated from inbound messages so outbound can route correctly
+        self._chat_type_map: Dict[str, str] = {}
 
         # Token cache
         self._app_token: Optional[str] = None
@@ -378,6 +386,9 @@ class LansengerAdapter(BasePlatformAdapter):
         sender_id = msg_data.get("from", "")
         chat_id = msg_data.get("conversationId") or sender_id
 
+        # Cache chat type for outbound routing
+        self._chat_type_map[chat_id] = "group" if is_group else "dm"
+
         # Record owner ID on first p2p message
         if not is_group and not self._owner_id and sender_id:
             self._owner_id = sender_id
@@ -566,6 +577,9 @@ class LansengerAdapter(BasePlatformAdapter):
     async def send_text(self, chat_id: str, content: str, reminder: dict = None) -> SendResult:
         """Send a plain text message, optionally with @mentions (group/staff chat only).
         
+        Routes to /v1/messages/group/create for group chats,
+        /v1/bot/messages/create for private chats.
+        
         Args:
             chat_id: Recipient user ID or chat ID
             content: Text content
@@ -577,15 +591,30 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
-            text_data = {"content": content}
-            if reminder:
-                text_data["reminder"] = reminder
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "text",
-                "msgData": {"text": text_data}
-            }
+            is_group = self._chat_type_map.get(chat_id) == "group"
+
+            if is_group:
+                # Group message: use /v1/messages/group/create
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+                text_data = {"content": content}
+                if reminder:
+                    text_data["reminder"] = reminder
+                payload = {
+                    "groupId": chat_id,
+                    "msgType": "text",
+                    "msgData": {"text": text_data},
+                }
+            else:
+                # Private message: use /v1/bot/messages/create
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+                text_data = {"content": content}
+                if reminder:
+                    text_data["reminder"] = reminder
+                payload = {
+                    "userIdList": [chat_id],
+                    "msgType": "text",
+                    "msgData": {"text": text_data},
+                }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -595,7 +624,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] Text message sent to %s", chat_id)
+            logger.info("[Lansenger] Text message sent to %s (group=%s)", chat_id, is_group)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
         except Exception as e:
             logger.error("[Lansenger] Send text error: %s", e)
@@ -636,6 +665,254 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=True, message_id=msg_id, raw_response=data)
         except Exception as e:
             logger.error("[Lansenger] Send formatText error: %s", e, exc_info=True)
+            return SendResult(success=False, error=str(e), retryable=True)
+
+    async def query_groups(self, page_offset: int = 1, page_size: int = 100) -> Dict[str, Any]:
+        """Query the bot's group ID list via GET /v2/groups/fetch.
+
+        Args:
+            page_offset: Page number (default 1)
+            page_size: Per-page count (max 100, default 100)
+
+        Returns:
+            Dict with totalGroupIds (int) and groupIds (list of str)
+        """
+        token = await self._get_app_token()
+        if not token:
+            return {"totalGroupIds": 0, "groupIds": []}
+
+        try:
+            url = (
+                f"{self._api_gateway_url}{API_ENDPOINTS['groups']['fetch']}"
+                f"?app_token={token}&page_offset={page_offset}&page_size={page_size}"
+            )
+
+            response = await self._http_client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                logger.error("[Lansenger] Query groups error: %s", data.get("errMsg"))
+                return {"totalGroupIds": 0, "groupIds": []}
+
+            result = data.get("data", {})
+            logger.info("[Lansenger] Queried groups: total=%d", result.get("totalGroupIds", 0))
+            return result
+
+        except Exception as e:
+            logger.error("[Lansenger] Query groups error: %s", e)
+            return {"totalGroupIds": 0, "groupIds": []}
+
+    async def send_app_articles(
+        self,
+        chat_id: str,
+        articles: List[Dict[str, str]],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> SendResult:
+        """Send an appArticles (图文卡片) message with multiple article entries.
+
+        Each article dict must contain:
+            - imgUrl (required): Image URL
+            - title (required): Article title
+            - url (required): Content link URL
+            - pcUrl (required): PC content link URL
+            Optional:
+            - summary: Article summary
+            - attach: Mini-app redirect params (ignored by other apps)
+
+        Args:
+            chat_id: Recipient user ID or chat ID
+            articles: List of article dicts (1+ entries)
+            metadata: Optional metadata dict
+        """
+        if not articles:
+            return SendResult(success=False, error="No articles provided")
+
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="No access token")
+
+        try:
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            payload = {
+                "userIdList": [chat_id],
+                "msgType": "appArticles",
+                "msgData": {
+                    "appArticles": articles,
+                },
+            }
+
+            response = await self._http_client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                return SendResult(success=False, error=data.get("errMsg"))
+
+            msg_id = data.get("data", {}).get("msgId")
+            logger.info("[Lansenger] appArticles sent to %s, msgId=%s", chat_id, msg_id)
+            return SendResult(success=True, message_id=msg_id, raw_response=data)
+
+        except Exception as e:
+            logger.error("[Lansenger] Send appArticles error: %s", e)
+            return SendResult(success=False, error=str(e), retryable=True)
+
+    async def send_app_card(
+        self,
+        chat_id: str,
+        head_title: str = "",
+        body_title: str = "",
+        body_sub_title: str = "",
+        body_content: str = "",
+        signature: str = "",
+        fields: Optional[List[Dict[str, str]]] = None,
+        links: Optional[List[Dict[str, str]]] = None,
+        card_link: str = "",
+        pc_card_link: str = "",
+        is_dynamic: bool = False,
+        head_status_info: Optional[Dict[str, str]] = None,
+        staff_id: str = "",
+        head_icon_url: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> SendResult:
+        """Send an appCard (应用卡片) message with rich formatting support.
+
+        appCard supports div-style HTML formatting (color, font-size, text-align, text-indent).
+        Dynamic cards (is_dynamic=True) can be updated later via update_dynamic_card_status().
+
+        Args:
+            chat_id: Recipient user ID or chat ID
+            head_title: Card header title
+            body_title: Card body title (required, max 600 bytes). Supports div style tags.
+            body_sub_title: Card body subtitle (max 1200 bytes). Supports div style tags.
+            body_content: Card body content (max 3000 bytes). Supports div style tags.
+            signature: Card signature (max 96 bytes). Supports color style.
+            fields: List of key/value dicts (max 10 pairs). Supports color style.
+            links: List of title/url dicts (max 3 pairs). Title supports color/position.
+            card_link: Card click-through link
+            pc_card_link: PC client click-through link
+            is_dynamic: Enable dynamic card status updates (for approval workflows)
+            head_status_info: Dynamic card status info dict with iconLink/description/colour
+            staff_id: Staff ID for showing sender avatar
+            head_icon_url: Header icon URL
+            metadata: Optional metadata dict
+        """
+        if not body_title:
+            return SendResult(success=False, error="body_title is required for appCard")
+
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="No access token")
+
+        try:
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+
+            app_card_data: Dict[str, Any] = {
+                "headTitle": head_title,
+                "headIconUrl": head_icon_url,
+                "isDynamic": is_dynamic,
+                "bodyTitle": body_title,
+                "cardLink": card_link,
+                "pcCardLink": pc_card_link,
+            }
+
+            if is_dynamic and head_status_info:
+                app_card_data["headStatusInfo"] = head_status_info
+
+            if body_sub_title:
+                app_card_data["bodySubTitle"] = body_sub_title
+            if body_content:
+                app_card_data["bodyContent"] = body_content
+            if signature:
+                app_card_data["signature"] = signature
+            if staff_id:
+                app_card_data["staffId"] = staff_id
+            if fields:
+                app_card_data["fields"] = fields
+            if links:
+                app_card_data["links"] = links
+
+            payload = {
+                "userIdList": [chat_id],
+                "msgType": "appCard",
+                "msgData": {
+                    "appCard": app_card_data,
+                },
+            }
+
+            response = await self._http_client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                return SendResult(success=False, error=data.get("errMsg"))
+
+            msg_id = data.get("data", {}).get("msgId")
+            logger.info("[Lansenger] appCard sent to %s, msgId=%s, dynamic=%s", chat_id, msg_id, is_dynamic)
+            return SendResult(success=True, message_id=msg_id, raw_response=data)
+
+        except Exception as e:
+            logger.error("[Lansenger] Send appCard error: %s", e)
+            return SendResult(success=False, error=str(e), retryable=True)
+
+    async def update_dynamic_card_status(
+        self,
+        msg_id: str,
+        head_status_info: Optional[Dict[str, str]] = None,
+        links: Optional[List[Dict[str, str]]] = None,
+        is_last_update: bool = False,
+        chat_id: Optional[str] = None,
+    ) -> SendResult:
+        """Update a dynamic appCard's status (e.g. approval: pending → approved/rejected).
+
+        The card must have been sent with is_dynamic=True. Uses POST /v1/messages/dynamic/update.
+
+        Args:
+            msg_id: The message ID returned from send_app_card (when is_dynamic=True)
+            head_status_info: Updated status info dict with iconLink/description/colour
+            links: Updated links list (max 3 pairs)
+            is_last_update: True = final status update, card becomes static after this
+            chat_id: Optional chat_id for private message updates (user_token needed)
+        """
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="No access token")
+
+        try:
+            # Build URL with optional user_token for private chat updates
+            url_params = f"app_token={token}"
+            # user_token needed for private chat dynamic updates
+            # For bot messages in groups, user_token is not needed
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['message']['dynamic_update']}?{url_params}"
+
+            app_card_update: Dict[str, Any] = {
+                "isLastUpdate": is_last_update,
+            }
+            if head_status_info:
+                app_card_update["headStatusInfo"] = head_status_info
+            if links:
+                app_card_update["links"] = links
+
+            payload = {
+                "msgId": msg_id,
+                "msgType": "appCard",
+                "msgData": {
+                    "appCardUpdateMsg": app_card_update,
+                },
+            }
+
+            response = await self._http_client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                return SendResult(success=False, error=data.get("errMsg"))
+
+            logger.info("[Lansenger] Dynamic card %s updated, isLast=%s", msg_id, is_last_update)
+            return SendResult(success=True, raw_response=data)
+
+        except Exception as e:
+            logger.error("[Lansenger] Update dynamic card error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
     async def send_text_with_media(self, chat_id: str, content: str, media_type: int, media_ids: List[str], reminder: dict = None) -> SendResult:

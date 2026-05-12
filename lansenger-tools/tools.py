@@ -1,19 +1,29 @@
 """Tool handlers for lansenger-tools — send messages, files, images, manage messages via Lansenger API.
 
-Lansenger (蓝信) has TWO distinct message types with different capabilities:
+Lansenger (蓝信) has multiple message types with different capabilities:
 
   ┌──────────────┬──────────────┬──────────────┬──────────────┐
   │  msgType     │  Markdown    │  @mention    │  Attachments │
   ├──────────────┼──────────────┼──────────────┼──────────────┤
   │  text        │  ✗           │  ✓           │  ✓           │
   │  formatText  │  ✓           │  ✗           │  ✗           │
+  │  appArticles │  ✗           │  ✗           │  ✗           │
+  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │
   └──────────────┴──────────────┴──────────────┴──────────────┘
+
+  appCard supports div-style formatting (color, font-size, text-align, text-indent).
+  appArticles is a multi-article card (图文卡片) with imgUrl/title/url fields.
 
 This constraint shapes handler implementations:
 - send_text:       msgType=text   → plain text + optional file/image/video attachment
 - send_markdown:   msgType=formatText → Markdown text, NO attachments
 - send_file:       msgType=text   → file/image/video only, optional plain-text caption
 - send_image_url:  msgType=text   → image from URL, optional plain-text caption
+- send_link_card:  msgType=text   → link preview card
+- send_app_articles: msgType=appArticles → multi-article card (图文卡片)
+- send_app_card:    msgType=appCard → rich card with div-style formatting
+- update_dynamic_card: POST /v1/messages/dynamic/update → update appCard status
+- query_groups:     GET /v2/groups/fetch → list bot's groups
 
 Design: Uses an ephemeral LansengerAdapter instance per invocation.
 Credentials are read from LANSENGER_APP_ID / LANSENGER_APP_SECRET env vars
@@ -376,6 +386,105 @@ async def _send_link_card_async(chat_id: str, title: str, link: str,
         return {"success": False, "error": str(e)}
 
 
+async def _send_app_articles_async(chat_id: str, articles: list) -> dict:
+    """Async: create ephemeral adapter, send appArticles, teardown."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.send_app_articles(chat_id=chat_id, articles=articles)
+        await adapter._http_client.aclose()
+        return {
+            "success": result.success,
+            "message_id": result.message_id,
+            "error": result.error,
+            "platform": "lansenger",
+            "operation": "appArticles",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
+async def _send_app_card_async(
+    chat_id: str, head_title: str, body_title: str,
+    body_sub_title: str, body_content: str, signature: str,
+    fields: list, links: list, card_link: str, pc_card_link: str,
+    is_dynamic: bool, head_status_info: dict, staff_id: str, head_icon_url: str) -> dict:
+    """Async: create ephemeral adapter, send appCard, teardown."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.send_app_card(
+            chat_id=chat_id, head_title=head_title, body_title=body_title,
+            body_sub_title=body_sub_title, body_content=body_content,
+            signature=signature, fields=fields, links=links,
+            card_link=card_link, pc_card_link=pc_card_link,
+            is_dynamic=is_dynamic, head_status_info=head_status_info,
+            staff_id=staff_id, head_icon_url=head_icon_url,
+        )
+        await adapter._http_client.aclose()
+        return {
+            "success": result.success,
+            "message_id": result.message_id,
+            "error": result.error,
+            "platform": "lansenger",
+            "operation": "appCard",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
+async def _update_dynamic_card_async(
+    msg_id: str, head_status_info: dict, links: list,
+    is_last_update: bool) -> dict:
+    """Async: create ephemeral adapter, update dynamic card status, teardown."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.update_dynamic_card_status(
+            msg_id=msg_id, head_status_info=head_status_info,
+            links=links, is_last_update=is_last_update,
+        )
+        await adapter._http_client.aclose()
+        return {
+            "success": result.success,
+            "error": result.error,
+            "platform": "lansenger",
+            "operation": "dynamic_card_update",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
+async def _query_groups_async(page_offset: int, page_size: int) -> dict:
+    """Async: create ephemeral adapter, query groups, teardown."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.query_groups(page_offset=page_offset, page_size=page_size)
+        await adapter._http_client.aclose()
+        return {
+            "success": True,
+            "total_group_ids": result.get("totalGroupIds", 0),
+            "group_ids": result.get("groupIds", []),
+            "platform": "lansenger",
+            "operation": "query_groups",
+        }
+    except Exception as e:
+        try:
+            await adapter._http_client.aclose()
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+
 # --- Synchronous handlers (called by Hermes tool registry) ---
 
 
@@ -552,6 +661,113 @@ def lansenger_send_link_card(args: dict, **kwargs) -> str:
             _send_link_card_async(chat_id, title, link, description,
                                   icon_link, pc_link, from_name, from_icon_link)
         )
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_send_app_articles(args: dict, **kwargs) -> str:
+    """Send an appArticles (图文卡片) message with multiple article entries.
+
+    Each article must have: imgUrl, title, url, pcUrl. Optional: summary, attach.
+    """
+    chat_id = args.get("chat_id", "").strip()
+    articles = args.get("articles", [])
+
+    if not chat_id:
+        return json.dumps({"error": "chat_id is required"})
+    if not articles:
+        return json.dumps({"error": "articles is required (list of dicts with imgUrl/title/url/pcUrl)"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_send_app_articles_async(chat_id, articles))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_send_app_card(args: dict, **kwargs) -> str:
+    """Send an appCard (应用卡片) message with rich formatting.
+
+    appCard supports div-style formatting (color, font-size, text-align).
+    body_title is required. Set is_dynamic=true for approval workflows.
+    """
+    chat_id = args.get("chat_id", "").strip()
+    body_title = args.get("body_title", "").strip()
+    head_title = args.get("head_title", "").strip()
+    body_sub_title = args.get("body_sub_title", "").strip()
+    body_content = args.get("body_content", "").strip()
+    signature = args.get("signature", "").strip()
+    fields = args.get("fields") or []
+    links = args.get("links") or []
+    card_link = args.get("card_link", "").strip()
+    pc_card_link = args.get("pc_card_link", "").strip()
+    is_dynamic = args.get("is_dynamic", False)
+    head_status_info = args.get("head_status_info") or None
+    staff_id = args.get("staff_id", "").strip()
+    head_icon_url = args.get("head_icon_url", "").strip()
+
+    if not chat_id:
+        return json.dumps({"error": "chat_id is required"})
+    if not body_title:
+        return json.dumps({"error": "body_title is required for appCard"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_send_app_card_async(
+            chat_id, head_title, body_title, body_sub_title, body_content,
+            signature, fields, links, card_link, pc_card_link,
+            is_dynamic, head_status_info, staff_id, head_icon_url))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_update_dynamic_card(args: dict, **kwargs) -> str:
+    """Update a dynamic appCard's status (e.g. approval: pending -> approved/rejected).
+
+    The card must have been sent with is_dynamic=True. Uses /v1/messages/dynamic/update.
+    """
+    msg_id = args.get("msg_id", "").strip()
+    head_status_info = args.get("head_status_info") or None
+    links = args.get("links") or None
+    is_last_update = args.get("is_last_update", False)
+
+    if not msg_id:
+        return json.dumps({"error": "msg_id is required (the message ID from send_app_card)"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_update_dynamic_card_async(msg_id, head_status_info, links, is_last_update))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_query_groups(args: dict, **kwargs) -> str:
+    """Query the bot's group ID list via GET /v2/groups/fetch.
+
+    Returns totalGroupIds (int) and groupIds (list of str).
+    """
+    page_offset = args.get("page_offset", 1)
+    page_size = args.get("page_size", 100)
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_query_groups_async(page_offset, page_size))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})

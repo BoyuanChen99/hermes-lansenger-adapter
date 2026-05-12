@@ -160,6 +160,8 @@ hermes gateway restart
 
 ## 更新日誌
 
+### v2.5.0 — appArticles、appCard、動態卡片更新、群訊息路由、群ID查詢
+
 ### v2.4.2 — Home channel 自动升級
 
 - **Home channel 自动升級**: 首次私聊对话自动设为蓝信 home channel。如果未配置 home_channel，或现有 home 是群聊，首次私聊会覆盖它（私聊 > 群聊升級）。靜默写入 config.yaml 和 os.environ，无用户提示。遵循元宝的 AutoSetHomeMiddleware 模式。
