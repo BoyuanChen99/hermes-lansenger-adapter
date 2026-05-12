@@ -164,6 +164,15 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.6.0 — Approval workflow upgrade: i18nAppCard → dynamic appCard
+
+- **Dynamic appCard with isDynamic=True**: Approval, slash-confirm, and update-prompt cards now use appCard instead of i18nAppCard, enabling in-place status updates (待审批 → 已批准/已拒绝) instead of sending duplicate cards.
+- **Language detection from inbound messages**: `_user_lang_map` caches per-chat language (zh/en) from CJK heuristic. Cards auto-select Chinese or English content based on the user's recent messages. Default: Chinese.
+- **update_approval_status → appCardUpdateMsg**: Status updates now use `msgType="appCard"` + `appCardUpdateMsg` (was `i18nAppCardUpdateMsg`). The same card visually changes status in-place.
+- **New helpers**: `_detect_lang()`, `_get_lang()`, `_get_agent_signature(lang)`, `_build_status_div(text, color)`.
+- **`_build_i18n_obj_full` and `_build_agent_signature_i18n` retained** but no longer used by approval flows — preserved for potential future i18n use.
+
+
 ### v2.5.0 — appArticles, appCard, dynamic card update, group routing, group query
 
 - **appArticles (图文卡片)**: Send multi-article cards with imgUrl/title/summary/url/pcUrl fields. New adapter method `send_app_articles()` and tool `lansenger_send_app_articles`.

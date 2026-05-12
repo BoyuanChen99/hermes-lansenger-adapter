@@ -164,6 +164,12 @@ hermes gateway restart
 
 ## Journal des modifications
 
+### v2.6.0 — Approbation : i18nAppCard → appCard dynamique
+
+- **appCard dynamique (isDynamic=True)** : Les cartes d'approbation utilisent appCard au lieu de i18nAppCard, permettant les mises à jour de statut en place.
+- **Détection de langue** : `_user_lang_map` détecte zh/en depuis les messages entrants. Contenu des cartes adapté automatiquement.
+
+
 ### v2.5.0 — appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
 
 ### v2.4.2 — Canal d'accueil auto-amélioré

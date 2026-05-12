@@ -160,6 +160,15 @@ hermes gateway restart
 
 ## 更新日志
 
+### v2.6.0 — 审批流程升级：i18nAppCard → 动态 appCard
+
+- **动态 appCard (isDynamic=True)**：审批、斜杠确认、更新提示卡片改用 appCard，支持原地状态更新（待审批 → 已批准/已拒绝），不再发送重复卡片。
+- **语言检测缓存**：`_user_lang_map` 从 inbound 消息中用 CJK 启发式检测并缓存用户语言偏好（zh/en），卡片内容自动选择中/英文。默认中文。
+- **状态更新改用 appCardUpdateMsg**：`update_approval_status` 用 `msgType="appCard"` + `appCardUpdateMsg`（原为 i18nAppCardUpdateMsg），同一张卡片视觉状态原地变更。
+- **新增辅助方法**：`_detect_lang()`、`_get_lang()`、`_get_agent_signature(lang)`、`_build_status_div(text, color)`。
+- **保留 `_build_i18n_obj_full` 和 `_build_agent_signature_i18n`** 但审批流程不再使用——为未来可能的 i18n 需求保留。
+
+
 ### v2.5.0 — appArticles、appCard、动态卡片更新、群消息路由、群ID查询
 
 ### v2.4.2 — Home channel 自动升级

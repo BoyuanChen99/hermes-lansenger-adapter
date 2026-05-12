@@ -160,6 +160,12 @@ hermes gateway restart
 
 ## 更新日誌
 
+### v2.6.0 — 审批流程升級：i18nAppCard → 動態 appCard
+
+- **動態 appCard (isDynamic=True)**：審批、斜線確認、更新提示卡片改用 appCard，支持原地狀態更新（待審批 → 已批准/已拒絕），不再發送重複卡片。
+- **語言檢測緩存**：`_user_lang_map` 從 inbound 訊息中用 CJK 啟發式檢測並緩存用戶語言偏好（zh/en），卡片內容自動選擇中/英文。預設中文。
+
+
 ### v2.5.0 — appArticles、appCard、動態卡片更新、群訊息路由、群ID查詢
 
 ### v2.4.2 — Home channel 自动升級

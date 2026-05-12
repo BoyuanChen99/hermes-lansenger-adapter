@@ -123,6 +123,10 @@ class LansengerAdapter(BasePlatformAdapter):
         # Populated from inbound messages so outbound can route correctly
         self._chat_type_map: Dict[str, str] = {}
 
+        # User language cache: maps chat_id → "zh" or "en"
+        # Populated from inbound messages so approval cards use the right language
+        self._user_lang_map: Dict[str, str] = {}
+
         # Token cache
         self._app_token: Optional[str] = None
         self._token_expiry: float = 0
@@ -388,6 +392,11 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # Cache chat type for outbound routing
         self._chat_type_map[chat_id] = "group" if is_group else "dm"
+
+        # Cache user language from message text (for appCard language selection)
+        text_content = msg_data.get("text", {}).get("content", "")
+        if text_content:
+            self._user_lang_map[chat_id] = self._detect_lang(text_content)
 
         # Record owner ID on first p2p message
         if not is_group and not self._owner_id and sender_id:
@@ -1229,160 +1238,110 @@ class LansengerAdapter(BasePlatformAdapter):
         description: str = "dangerous command",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
-        """Send an i18nAppCard approval card with dynamic status support.
-        
+        """Send a dynamic appCard approval card with isDynamic=True.
+
+        Uses the user's cached language preference (from inbound messages)
+        to select card content language.  Default: Chinese.
+
+        After the user replies /approve, /approve session, /approve always,
+        or /deny, the gateway intercepts those text replies and calls
+        update_approval_status(), which uses the dynamic update API to
+        change the card status in-place (待审批 → 已批准/已拒绝).
+
         Args:
             chat_id: Recipient user ID
             command: The command to approve
             session_key: Session identifier for approval resolution
             description: Reason for approval request
             metadata: Optional metadata (not used currently)
-            
+
         Returns:
             SendResult with message_id for later status updates
         """
         logger.info("[Lansenger] send_exec_approval called for chat_id=%s", chat_id)
         token = await self._get_app_token()
-        logger.info("[Lansenger] Token obtained: %s", "yes" if token else "no")
         if not token:
             return SendResult(success=False, error="No access token")
-        
+
+        lang = self._get_lang(chat_id)
         cmd_preview = command[:300] + "..." if len(command) > 300 else command
-        
-        # Build i18n content for each language
-        i18n_head_title = self._build_i18n_obj_full(
-            "⚠️ 命令审批",  # zhHans
-            "⚠️ 命令審批",  # zhHant
-            "⚠️ 命令審批",  # zhHantHK
-            "⚠️ Command Approval",  # en
-            "⚠️ Approbation de commande"  # fr
-        )
-        i18n_body_title = self._build_i18n_obj_full(
-            "危险命令审批请求",
-            "危險命令審批請求",
-            "危險命令審批請求",
-            "Dangerous Command Approval Request",
-            "Demande d'approbation de commande dangereuse"
-        )
-        i18n_body_sub_title = self._build_i18n_obj_full(
-            description,  # User provides description, use as-is
-            description,
-            description,
-            description,
-            description
-        )
-        
-        # Build i18n head status info (Pending Approval) - Note: i18nAppCard may not support this field
-        # Keeping for future API compatibility, but it may not display
-        i18n_head_status_info = self._build_i18n_obj_full(
-            '待审批',  # Plain text, no HTML
-            '待審批',
-            '待審批',
-            'Pending',
-            'En attente'
-        )
-        
-        # Build body content with session info and command - Plain text only, no HTML
-        cmd_section = (
-            f"会话 ID: {session_key[:32]}\n"
-            f"命令:\n{cmd_preview}"
-        )
-        cmd_section_zh_hant = (
-            f"會話 ID: {session_key[:32]}\n"
-            f"命令:\n{cmd_preview}"
-        )
-        cmd_section_en = (
-            f"Session ID: {session_key[:32]}\n"
-            f"Command:\n{cmd_preview}"
-        )
-        cmd_section_fr = (
-            f"ID de session: {session_key[:32]}\n"
-            f"Commande:\n{cmd_preview}"
-        )
-        i18n_body_content = self._build_i18n_obj_full(
-            cmd_section,
-            cmd_section_zh_hant,
-            cmd_section_zh_hant,
-            cmd_section_en,
-            cmd_section_fr
-        )
-        
-        i18n_signature = self._build_agent_signature_i18n()
-        
-        # Build i18n fields for approval options
-        import time
-        timestamp = int(time.time())
-        i18n_fields = [
-            {
-                "i18nKey": self._build_i18n_obj_full("执行一次", "執行一次", "執行一次", "Execute Once", "Exécuter une fois"),
-                "i18nValue": self._build_i18n_obj_full("/approve", "/approve", "/approve", "/approve", "/approve"),
-                "timestamp": timestamp
-            },
-            {
-                "i18nKey": self._build_i18n_obj_full("本会话有效", "本會話有效", "本會話有效", "This Session", "Cette session"),
-                "i18nValue": self._build_i18n_obj_full("/approve session", "/approve session", "/approve session", "/approve session", "/approve session"),
-                "timestamp": timestamp
-            },
-            {
-                "i18nKey": self._build_i18n_obj_full("永久允许", "永久允許", "永久允許", "Always Allow", "Toujours autoriser"),
-                "i18nValue": self._build_i18n_obj_full("/approve always", "/approve always", "/approve always", "/approve always", "/approve always"),
-                "timestamp": timestamp
-            },
-            {
-                "i18nKey": self._build_i18n_obj_full("拒绝执行", "拒絕執行", "拒絕執行", "Deny", "Refuser"),
-                "i18nValue": self._build_i18n_obj_full("/deny", "/deny", "/deny", "/deny", "/deny"),
-                "timestamp": timestamp
-            }
-        ]
-        
+
+        # --- Build appCard content in the user's language ---
+        if lang == "zh":
+            head_title = "⚠️ 命令审批"
+            body_title = "危险命令审批请求"
+            body_sub_title = description
+            body_content = f"会话 ID: {session_key[:32]}\n命令:\n{cmd_preview}"
+            status_desc = "待审批"
+            signature = self._get_agent_signature("zh")
+            fields = [
+                {"key": "执行一次", "value": "/approve"},
+                {"key": "本会话有效", "value": "/approve session"},
+                {"key": "永久允许", "value": "/approve always"},
+                {"key": "拒绝执行", "value": "/deny"},
+            ]
+        else:
+            head_title = "⚠️ Command Approval"
+            body_title = "Dangerous Command Approval Request"
+            body_sub_title = description
+            body_content = f"Session ID: {session_key[:32]}\nCommand:\n{cmd_preview}"
+            status_desc = "Pending"
+            signature = self._get_agent_signature("en")
+            fields = [
+                {"key": "Execute Once", "value": "/approve"},
+                {"key": "This Session", "value": "/approve session"},
+                {"key": "Always Allow", "value": "/approve always"},
+                {"key": "Deny", "value": "/deny"},
+            ]
+
+        # Escape HTML in dynamic content to prevent accidental div parsing
+        body_content = self._escape_html(body_content)
+        body_sub_title = self._escape_html(body_sub_title)
+
+        # Dynamic card: head status info shows "待审批" (amber)
+        head_status_info = {
+            "description": self._build_status_div(status_desc, "#FFB116"),
+            "colour": "#FFB116",
+        }
+
         try:
-            url = f"{self._api_gateway_url}/v1/bot/messages/create?app_token={token}"
-            logger.info("[Lansenger] Sending i18nAppCard to %s", chat_id)
-            
-            # Build i18nAppCard payload with dynamic status support
-            # Note: i18nHeadStatusInfo may not be supported by i18nAppCard, keeping for future compatibility
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            app_card_data = {
+                "headTitle": head_title,
+                "headIconUrl": "",
+                "isDynamic": True,
+                "headStatusInfo": head_status_info,
+                "bodyTitle": f'<div style="color:#000;font-size:15pt;text-align:left">{body_title}</div>',
+                "bodySubTitle": f'<div style="color:rgba(0,0,0,.47);font-size:13pt;text-align:left">{body_sub_title}</div>',
+                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left;text-indent:0">{body_content}</div>',
+                "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
+                "fields": fields,
+                "cardLink": "",
+                "pcCardLink": "",
+            }
+
             payload = {
                 "userIdList": [chat_id],
-                "msgType": "i18nAppCard",
-                "msgData": {
-                    "i18nAppCard": {
-                        "i18nHeadTitle": i18n_head_title,
-                        "headIconId": "",
-                        "i18nBodyTitle": i18n_body_title,
-                        "i18nBodySubTitle": i18n_body_sub_title,
-                        "i18nBodyContent": i18n_body_content,
-                        "i18nSignature": i18n_signature,
-                        "i18nFields": i18n_fields,
-                        "i18nLinks": [],
-                        "cardLink": "",
-                        "pcCardLink": ""
-                    }
-                }
+                "msgType": "appCard",
+                "msgData": {"appCard": app_card_data},
             }
-            
+
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
-            
-            logger.info("[Lansenger] Response status: %s, content-length: %s", response.status_code, len(response.text))
-            logger.info("[Lansenger] Response text (first 500 chars): %s", response.text[:500] if response.text else "EMPTY")
-            
-            # Check response content - empty response is an error
+
             if not response.text or len(response.text.strip()) == 0:
-                logger.error("[Lansenger] Empty response from API - request may have failed")
                 return SendResult(success=False, error="Empty API response", retryable=True)
-            
+
             data = response.json()
-            
             if data.get("errCode") != 0:
-                logger.error("[Lansenger] API error: errCode=%s, errMsg=%s", data.get("errCode"), data.get("errMsg"))
                 return SendResult(success=False, error=data.get("errMsg"))
-            
+
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] appCard approval sent to %s, msgId=%s", chat_id, msg_id)
+            logger.info("[Lansenger] appCard approval sent to %s, msgId=%s, lang=%s", chat_id, msg_id, lang)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
-            
+
         except Exception as e:
-            logger.error("[Lansenger] Send appCard error: %s", e)
+            logger.error("[Lansenger] Send appCard approval error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
     # ------------------------------------------------------------------
@@ -1397,101 +1356,83 @@ class LansengerAdapter(BasePlatformAdapter):
         confirm_id: str,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
-        """Send an i18nAppCard slash-command confirmation card.
+        """Send a dynamic appCard slash-command confirmation card.
+
+        Uses the user's cached language preference to select content language.
 
         Used by the gateway's ``_maybe_confirm_destructive_slash`` gate for
         /new, /reset, /undo.  Lansenger does not support inline button
         callbacks like Telegram, so this card displays the confirmation
-        request with i18nFields showing the text-based reply options
-        (/approve → once, /always → always, /cancel → cancel).
+        request with fields showing the text-based reply options
+        (/approve, /always, /cancel).
 
-        The gateway's text intercept in ``_handle_message`` recognises
-        /approve, /always, /cancel replies and routes them through
-        ``slash_confirm.resolve()``.
+        The gateway's text intercept recognises /approve, /always, /cancel
+        and routes them through ``slash_confirm.resolve()``.
 
         Returns SendResult(success=True) so the gateway skips the
-        redundant text fallback (the card already contains all
-        instructions).
+        redundant text fallback.
         """
         logger.info("[Lansenger] send_slash_confirm: chat_id=%s, title=%s, confirm_id=%s", chat_id, title, confirm_id)
         token = await self._get_app_token()
         if not token:
             return SendResult(success=False, error="No access token")
 
-        # Determine the slash command name from the title (e.g. "/new")
+        lang = self._get_lang(chat_id)
         command_name = title.strip() if title else "unknown"
 
-        i18n_head_title = self._build_i18n_obj_full(
-            f"🔄 {command_name} 确认",
-            f"🔄 {command_name} 確認",
-            f"🔄 {command_name} 確認",
-            f"🔄 {command_name} Confirm",
-            f"🔄 {command_name} Confirmation"
-        )
+        if lang == "zh":
+            head_title = f"🔄 {command_name} 确认"
+            body_title = "会话操作确认请求"
+            body_content = self._escape_html(message or "此操作将修改当前会话。")
+            status_desc = "待确认"
+            signature = self._get_agent_signature("zh")
+            fields = [
+                {"key": "确认执行", "value": "/approve"},
+                {"key": "本会话免确认", "value": "/always"},
+                {"key": "取消", "value": "/cancel"},
+            ]
+        else:
+            head_title = f"🔄 {command_name} Confirm"
+            body_title = "Session Action Confirmation"
+            body_content = self._escape_html(message or "This action will modify your current session.")
+            status_desc = "Pending"
+            signature = self._get_agent_signature("en")
+            fields = [
+                {"key": "Approve Once", "value": "/approve"},
+                {"key": "Always This Session", "value": "/always"},
+                {"key": "Cancel", "value": "/cancel"},
+            ]
 
-        i18n_body_title = self._build_i18n_obj_full(
-            "会话操作确认请求",
-            "會話操作確認請求",
-            "會話操作確認請求",
-            "Session Action Confirmation",
-            "Confirmation d'action de session"
-        )
-
-        i18n_body_content = self._build_i18n_obj_full(
-            message or "This action will modify your current session.",
-            message or "This action will modify your current session.",
-            message or "This action will modify your current session.",
-            message or "This action will modify your current session.",
-            message or "This action will modify your current session."
-        )
-
-        i18n_signature = self._build_agent_signature_i18n()
-
-        import time
-        timestamp = int(time.time())
-        i18n_fields = [
-            {
-                "i18nKey": self._build_i18n_obj_full("确认执行", "確認執行", "確認執行", "Approve Once", "Approuver"),
-                "i18nValue": self._build_i18n_obj_full("/approve", "/approve", "/approve", "/approve", "/approve"),
-                "timestamp": timestamp,
-            },
-            {
-                "i18nKey": self._build_i18n_obj_full("本会话免确认", "本會話免確認", "本會話免確認", "Always This Session", "Toujours cette session"),
-                "i18nValue": self._build_i18n_obj_full("/always", "/always", "/always", "/always", "/always"),
-                "timestamp": timestamp,
-            },
-            {
-                "i18nKey": self._build_i18n_obj_full("取消", "取消", "取消", "Cancel", "Annuler"),
-                "i18nValue": self._build_i18n_obj_full("/cancel", "/cancel", "/cancel", "/cancel", "/cancel"),
-                "timestamp": timestamp,
-            },
-        ]
+        head_status_info = {
+            "description": self._build_status_div(status_desc, "#FFB116"),
+            "colour": "#FFB116",
+        }
 
         try:
-            url = f"{self._api_gateway_url}/v1/bot/messages/create?app_token={token}"
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            app_card_data = {
+                "headTitle": head_title,
+                "headIconUrl": "",
+                "isDynamic": True,
+                "headStatusInfo": head_status_info,
+                "bodyTitle": f'<div style="color:#000;font-size:15pt;text-align:left">{body_title}</div>',
+                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left">{body_content}</div>',
+                "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
+                "fields": fields,
+                "cardLink": "",
+                "pcCardLink": "",
+            }
+
             payload = {
                 "userIdList": [chat_id],
-                "msgType": "i18nAppCard",
-                "msgData": {
-                    "i18nAppCard": {
-                        "i18nHeadTitle": i18n_head_title,
-                        "headIconId": "",
-                        "i18nBodyTitle": i18n_body_title,
-                        "i18nBodyContent": i18n_body_content,
-                        "i18nSignature": i18n_signature,
-                        "i18nFields": i18n_fields,
-                        "i18nLinks": [],
-                        "cardLink": "",
-                        "pcCardLink": "",
-                    }
-                },
+                "msgType": "appCard",
+                "msgData": {"appCard": app_card_data},
             }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
 
             if not response.text or len(response.text.strip()) == 0:
-                logger.error("[Lansenger] Empty response from slash confirm card API")
                 return SendResult(success=False, error="Empty API response", retryable=True)
 
             data = response.json()
@@ -1500,93 +1441,80 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] Slash confirm card sent to %s, msgId=%s", chat_id, msg_id)
-            # Return success=True so gateway skips redundant text fallback.
-            # Users reply /approve /always /cancel → gateway intercepts them.
+            logger.info("[Lansenger] Slash confirm appCard sent to %s, msgId=%s", chat_id, msg_id)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
 
         except Exception as e:
-            logger.error("[Lansenger] Send slash confirm card error: %s", e)
+            logger.error("[Lansenger] Send slash confirm appCard error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
     async def update_approval_status(
         self, chat_id: str, message_id: str,
         status: str, user_name: str = ""
     ) -> SendResult:
-        """Update a dynamic i18nAppCard message status.
-        
+        """Update a dynamic appCard message status in-place.
+
+        Uses the user's cached language preference for status text.
+
         Args:
-            chat_id: Recipient user ID (not used for update, but kept for interface consistency)
-            message_id: The message ID to update
+            chat_id: Recipient user ID (used to determine language)
+            message_id: The message ID of the original appCard to update
             status: One of 'pending', 'approved', 'denied'
-            user_name: Name of user who made the decision (not used currently)
-            
+            user_name: Name of user who made the decision (shown in status)
+
         Returns:
             SendResult with success status
         """
         token = await self._get_app_token()
         if not token:
             return SendResult(success=False, error="No access token")
-        
+
+        lang = self._get_lang(chat_id)
+
         try:
-            # Lansenger dynamic update API
-            url = f"{self._api_gateway_url}/v1/messages/dynamic/update?app_token={token}"
-            
-            # Status configuration with i18n
-            status_config = {
-                "pending": {
-                    "color": "#FFB116", 
-                    "i18n_text": self._build_i18n_obj_full("待审批", "待審批", "待審批", "Pending", "En attente")
-                },
-                "approved": {
-                    "color": "#198754", 
-                    "i18n_text": self._build_i18n_obj_full("已批准", "已批准", "已批准", "Approved", "Approuvé")
-                },
-                "denied": {
-                    "color": "#dc3545", 
-                    "i18n_text": self._build_i18n_obj_full("已拒绝", "已拒絕", "已拒絕", "Denied", "Refusé")
-                }
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['message']['dynamic_update']}?app_token={token}"
+
+            # Status text and color based on language
+            status_map = {
+                "pending":  {"zh": "待审批",       "en": "Pending",   "color": "#FFB116"},
+                "approved": {"zh": f"已批准 · {user_name}" if user_name else "已批准",
+                             "en": f"Approved · {user_name}" if user_name else "Approved",
+                             "color": "#198754"},
+                "denied":   {"zh": f"已拒绝 · {user_name}" if user_name else "已拒绝",
+                             "en": f"Denied · {user_name}" if user_name else "Denied",
+                             "color": "#dc3545"},
             }
-            
-            config = status_config.get(status, status_config["pending"])
-            
-            # Build update payload for i18nAppCard
+
+            cfg = status_map.get(status, status_map["pending"])
+            text = cfg.get(lang, cfg["en"])
+
+            # appCardUpdateMsg — dynamic update payload
             payload = {
                 "msgId": message_id,
-                "msgType": "i18nAppCard",
+                "msgType": "appCard",
                 "msgData": {
-                    "i18nAppCardUpdateMsg": {
-                        "isLastUpdate": (status != "pending"),  # True for final state
+                    "appCardUpdateMsg": {
+                        "isLastUpdate": (status != "pending"),  # Final state locks the card
                         "headStatusInfo": {
-                            "description": f'<div style="color:{config["color"]};text-align:left">{config["i18n_text"]["zhHans"]}</div>',
-                            "colour": config["color"]
+                            "description": self._build_status_div(text, cfg["color"]),
+                            "colour": cfg["color"],
                         },
-                        "i18nHeadStatusInfo": {
-                            "description": {
-                                "zhHans": f'<div style="color:{config["color"]};text-align:left">{config["i18n_text"]["zhHans"]}</div>',
-                                "zhHant": f'<div style="color:{config["color"]};text-align:left">{config["i18n_text"]["zhHans"]}</div>',
-                                "zhHantHK": f'<div style="color:{config["color"]};text-align:left">{config["i18n_text"]["zhHans"]}</div>',
-                                "en": f'<div style="color:{config["color"]};text-align:left">{config["i18n_text"]["en"]}</div>',
-                                "fr": f'<div style="color:{config["color"]};text-align:left">{config["i18n_text"]["en"]}</div>'
-                            },
-                            "colour": config["color"]
-                        }
                     }
                 }
             }
-            
+
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             if data.get("errCode") != 0:
                 return SendResult(success=False, error=data.get("errMsg"))
-            
-            logger.info("[Lansenger] appCard status updated to %s", status)
+
+            logger.info("[Lansenger] appCard status updated to %s (lang=%s)", status, lang)
             return SendResult(success=True, raw_response=data)
-            
+
         except Exception as e:
-            logger.error("[Lansenger] Update appCard error: %s", e)
+            logger.error("[Lansenger] Update appCard status error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
     # ------------------------------------------------------------------
@@ -1600,17 +1528,18 @@ class LansengerAdapter(BasePlatformAdapter):
         session_key: str = "",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
-        """Send an i18nAppCard update prompt with /approve /deny reply hints.
+        """Send a dynamic appCard update prompt with /approve /deny reply hints.
+
+        Uses the user's cached language preference to select content language.
 
         Used by the gateway's ``/update`` watcher when ``hermes update --gateway``
         needs user input (stash restore, config migration).  Lansenger does not
         support inline button callbacks like Telegram/Discord, so this card
-        displays the prompt text with i18nFields showing the text-based reply
+        displays the prompt text with fields showing the text-based reply
         options (/approve → yes, /deny → no).
 
-        The gateway's text intercept in ``_handle_message`` recognises
-        /approve, /yes → "y" and /deny, /no → "n" replies and routes them
-        through ``update_prompt.resolve()``.
+        The gateway's text intercept recognises /approve, /yes → "y" and
+        /deny, /no → "n" and routes them through ``update_prompt.resolve()``.
 
         Returns SendResult(success=True) so the gateway skips the
         redundant text fallback.
@@ -1623,92 +1552,78 @@ class LansengerAdapter(BasePlatformAdapter):
         if not token:
             return SendResult(success=False, error="No access token")
 
+        lang = self._get_lang(chat_id)
         prompt_text = prompt or "Update needs your input."
         default_hint = f" (default: {default})" if default else ""
+        escaped_prompt = self._escape_html(prompt_text)
 
-        i18n_head_title = self._build_i18n_obj_full(
-            "⚕ 更新确认",
-            "⚕ 更新確認",
-            "⚕ 更新確認",
-            "⚕ Update Confirmation",
-            "⚕ Confirmation de mise à jour"
-        )
+        if lang == "zh":
+            head_title = "⚕ 更新确认"
+            body_title = "更新需要您的输入"
+            body_content = f"{escaped_prompt}{default_hint}"
+            status_desc = "待确认"
+            signature = self._get_agent_signature("zh")
+            fields = [
+                {"key": "确认执行", "value": "/approve"},
+                {"key": "拒绝执行", "value": "/deny"},
+            ]
+        else:
+            head_title = "⚕ Update Confirmation"
+            body_title = "Update Needs Your Input"
+            body_content = f"{escaped_prompt}{default_hint}"
+            status_desc = "Pending"
+            signature = self._get_agent_signature("en")
+            fields = [
+                {"key": "Approve (Yes)", "value": "/approve"},
+                {"key": "Deny (No)", "value": "/deny"},
+            ]
 
-        i18n_body_title = self._build_i18n_obj_full(
-            "Hermes 更新需要您的输入",
-            "Hermes 更新需要您的輸入",
-            "Hermes 更新需要您的輸入",
-            "Hermes Update Needs Your Input",
-            "Mise à jour Hermes — votre réponse est requise"
-        )
-
-        i18n_body_content = self._build_i18n_obj_full(
-            f"{self._escape_html(prompt_text)}{default_hint}",
-            f"{self._escape_html(prompt_text)}{default_hint}",
-            f"{self._escape_html(prompt_text)}{default_hint}",
-            f"{self._escape_html(prompt_text)}{default_hint}",
-            f"{self._escape_html(prompt_text)}{default_hint}"
-        )
-
-        # Dynamic signature — read agent name from SOUL.md
-        i18n_signature = self._build_agent_signature_i18n()
-
-        import time
-        timestamp = int(time.time())
-        i18n_fields = [
-            {
-                "i18nKey": self._build_i18n_obj_full("确认执行", "確認執行", "確認執行", "Approve (Yes)", "Approuver (Oui)"),
-                "i18nValue": self._build_i18n_obj_full("/approve", "/approve", "/approve", "/approve", "/approve"),
-                "timestamp": timestamp,
-            },
-            {
-                "i18nKey": self._build_i18n_obj_full("拒绝执行", "拒絕執行", "拒絕執行", "Deny (No)", "Refuser (Non)"),
-                "i18nValue": self._build_i18n_obj_full("/deny", "/deny", "/deny", "/deny", "/deny"),
-                "timestamp": timestamp,
-            },
-        ]
+        head_status_info = {
+            "description": self._build_status_div(status_desc, "#FFB116"),
+            "colour": "#FFB116",
+        }
 
         try:
-            url = f"{self._api_gateway_url}/v1/bot/messages/create?app_token={token}"
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            app_card_data = {
+                "headTitle": head_title,
+                "headIconUrl": "",
+                "isDynamic": True,
+                "headStatusInfo": head_status_info,
+                "bodyTitle": f'<div style="color:#000;font-size:15pt;text-align:left">{body_title}</div>',
+                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left">{body_content}</div>',
+                "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
+                "fields": fields,
+                "cardLink": "",
+                "pcCardLink": "",
+            }
+
             payload = {
                 "userIdList": [chat_id],
-                "msgType": "i18nAppCard",
-                "msgData": {
-                    "i18nAppCard": {
-                        "i18nHeadTitle": i18n_head_title,
-                        "headIconId": "",
-                        "i18nBodyTitle": i18n_body_title,
-                        "i18nBodyContent": i18n_body_content,
-                        "i18nSignature": i18n_signature,
-                        "i18nFields": i18n_fields,
-                        "i18nLinks": [],
-                        "cardLink": "",
-                        "pcCardLink": "",
-                    }
-                },
+                "msgType": "appCard",
+                "msgData": {"appCard": app_card_data},
             }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
 
             if not response.text or len(response.text.strip()) == 0:
-                logger.error("[Lansenger] Empty response from update prompt card API")
                 return SendResult(success=False, error="Empty API response", retryable=True)
 
             data = response.json()
             if data.get("errCode") != 0:
                 logger.error(
-                    "[Lansenger] Update prompt card API error: errCode=%s, errMsg=%s",
+                    "[Lansenger] Update prompt appCard API error: errCode=%s, errMsg=%s",
                     data.get("errCode"), data.get("errMsg"),
                 )
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] Update prompt card sent to %s, msgId=%s", chat_id, msg_id)
+            logger.info("[Lansenger] Update prompt appCard sent to %s, msgId=%s", chat_id, msg_id)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
 
         except Exception as e:
-            logger.error("[Lansenger] Send update prompt card error: %s", e)
+            logger.error("[Lansenger] Send update prompt appCard error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
     def _build_agent_signature_i18n(self) -> Dict[str, str]:
@@ -1796,6 +1711,48 @@ class LansengerAdapter(BasePlatformAdapter):
         parsed as HTML tags.
         """
         return text.replace("<", "&lt;").replace(">", "&gt;")
+
+    def _detect_lang(self, text: str) -> str:
+        """Detect language from user message text. Returns 'zh' or 'en'.
+
+        Simple heuristic: if text contains any CJK Unicode range characters,
+        treat as Chinese. Otherwise, English.
+        """
+        import unicodedata
+        for ch in text:
+            try:
+                if unicodedata.category(ch).startswith("Lo"):  # Letter, Other = CJK
+                    return "zh"
+            except Exception:
+                pass
+        # Also check for common CJK ranges directly
+        for ch in text:
+            cp = ord(ch)
+            if (0x4E00 <= cp <= 0x9FFF) or (0x3400 <= cp <= 0x4DBF) or \
+               (0xF900 <= cp <= 0xFAFF) or (0x3000 <= cp <= 0x303F):
+                return "zh"
+        return "en"
+
+    def _get_lang(self, chat_id: str) -> str:
+        """Get cached user language for chat_id, defaulting to 'zh'."""
+        return self._user_lang_map.get(chat_id, "zh")
+
+    def _get_agent_signature(self, lang: str = "zh") -> str:
+        """Build agent signature string in the given language.
+
+        Reads agent name from SOUL.md and formats it for appCard signature field.
+        """
+        agent_name = self._read_agent_name_from_soul()
+        if lang == "zh":
+            return f"{agent_name} 安全系统"
+        elif lang == "fr":
+            return f"{agent_name} Sécurité"
+        else:
+            return f"{agent_name} Security"
+
+    def _build_status_div(self, text: str, color: str) -> str:
+        """Build a div-style HTML string for appCard status display."""
+        return f'<div style="color:{color};text-align:left">{text}</div>'
 
     @property
     def owner_id(self) -> Optional[str]:
@@ -1951,8 +1908,8 @@ def register(ctx):
             "You are chatting via Lansenger (蓝信), an enterprise messaging platform. "
             "You can send Markdown-formatted text using the "
             "formatText msgType, and send files/images/videos via send_file().  "
-            "Messages have a ~4000 character limit.  i18nAppCard is available for "
-            "approval workflows.  Keep responses concise and professional."
+            "Messages have a ~4000 character limit.  Dynamic appCard is used for "
+            "approval workflows (status updates in-place).  Keep responses concise and professional."
         ),
     )
 
