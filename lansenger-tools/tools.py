@@ -50,11 +50,10 @@ _ADAPTER_CLASS = None  # lazy cache
 def _get_adapter_class():
     """Lazily import LansengerAdapter from the platform plugin.
 
-    The platform plugin is loaded before tool plugins, so the gateway
-    module is available at runtime. We try multiple import paths for
-    robustness:
-    1. Standard gateway path (Hermes runtime)
-    2. User-plugins path (fallback)
+    Tries multiple import paths for robustness:
+    1. Hermes runtime — gateway module registered in sys.modules
+    2. Direct import from ~/.hermes/plugins/lansenger-platform/ (expanded by bundle)
+    3. Fallback: ~/.hermes/plugins/platforms/lansenger/ (legacy layout)
     """
     global _ADAPTER_CLASS
     if _ADAPTER_CLASS is not None:
@@ -69,24 +68,38 @@ def _get_adapter_class():
     except ImportError:
         pass
 
-    # Path 2: Direct import from user plugins directory
-    try:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "lansenger_adapter",
-            os.path.expanduser("~/.hermes/plugins/platforms/lansenger/adapter.py"),
-        )
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        _ADAPTER_CLASS = mod.LansengerAdapter
-        logger.debug("Loaded LansengerAdapter from ~/.hermes/plugins (direct)")
-        return _ADAPTER_CLASS
-    except Exception as e:
-        logger.error("Cannot load LansengerAdapter: %s", e)
-        raise ImportError(
-            "LansengerAdapter not found. "
-            "Make sure the lansenger-platform plugin is installed and enabled."
-        )
+    # Path 2: Direct import from expanded bundle location
+    # The bundle __init__.py copies sub-plugins to ~/.hermes/plugins/<name>/,
+    # so lansenger-platform lands at ~/.hermes/plugins/lansenger-platform/
+    adapter_paths = [
+        os.path.expanduser("~/.hermes/plugins/lansenger-platform/adapter.py"),
+        # Legacy fallback: platforms/lansenger subdirectory (pre-bundle layout)
+        os.path.expanduser("~/.hermes/plugins/platforms/lansenger/adapter.py"),
+    ]
+
+    for path in adapter_paths:
+        if not os.path.isfile(path):
+            logger.debug("Adapter path not found: %s", path)
+            continue
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "lansenger_adapter", path,
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            _ADAPTER_CLASS = mod.LansengerAdapter
+            logger.debug("Loaded LansengerAdapter from %s", path)
+            return _ADAPTER_CLASS
+        except Exception as e:
+            logger.debug("Failed to load from %s: %s", path, e)
+            continue
+
+    logger.error("Cannot load LansengerAdapter from any path")
+    raise ImportError(
+        "LansengerAdapter not found. "
+        "Make sure the lansenger-platform plugin is installed and enabled."
+    )
 
 
 def _check_env() -> dict:
@@ -106,15 +119,28 @@ def _check_env() -> dict:
     return {"app_id": app_id, "app_secret": app_secret, "api_gateway_url": api_gateway}
 
 
-def _make_config(env_config: dict) -> dict:
-    """Build a PlatformConfig-like dict for the ephemeral adapter."""
-    return {
-        "extra": {
-            "app_id": env_config["app_id"],
-            "app_secret": env_config["app_secret"],
-            "api_gateway_url": env_config["api_gateway_url"],
-        }
+def _make_config(env_config: dict):
+    """Build a config object with an ``.extra`` attribute for LansengerAdapter.
+
+    LansengerAdapter.__init__ accesses ``config.extra``, so we must return
+    an object that has that attribute — a plain dict won't work.
+
+    We try to use the real PlatformConfig dataclass from the gateway;
+    if that fails (e.g. standalone / test context), we fall back to
+    a SimpleNamespace wrapper.
+    """
+    extra_data = {
+        "app_id": env_config["app_id"],
+        "app_secret": env_config["app_secret"],
+        "api_gateway_url": env_config["api_gateway_url"],
     }
+    try:
+        from gateway.config import PlatformConfig
+        return PlatformConfig(platform="lansenger", enabled=True, extra=extra_data)
+    except Exception:
+        # Gateway not available (standalone / test context) — use namespace
+        from types import SimpleNamespace
+        return SimpleNamespace(platform="lansenger", enabled=True, extra=extra_data)
 
 
 def _run_async(coro):

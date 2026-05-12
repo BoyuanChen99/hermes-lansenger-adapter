@@ -164,6 +164,11 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.3.1 (2026-05-12)
+
+- 🐛 Fixed `_get_adapter_class()` hardcoded path — now searches `lansenger-platform/` (expanded bundle) before `platforms/lansenger/` (legacy)
+- 🐛 Fixed `_make_config()` returning plain dict — `LansengerAdapter.__init__` requires `config.extra` attribute; now uses `PlatformConfig` dataclass or `SimpleNamespace` fallback
+
 ### v2.3.0 (2026-05-12)
 
 - ✅ Bundle auto-expand — root `__init__.py` copies sub-plugins to `~/.hermes/plugins/` top level, auto-enables them in `config.yaml`, and loads them in-place via `importlib`

@@ -160,6 +160,11 @@ hermes gateway restart
 
 ## 更新日志
 
+### v2.3.1 (2026-05-12)
+
+- 🐛 修复 `_get_adapter_class()` 硬编码路径 — 优先搜索 `lansenger-platform/`（bundle 展开位置），其次 `platforms/lansenger/`（旧布局）
+- 🐛 修复 `_make_config()` 返回普通 dict — `LansengerAdapter.__init__` 需要 `config.extra` 属性，现使用 `PlatformConfig` 或 `SimpleNamespace` fallback
+
 ### v2.3.0 (2026-05-12)
 
 - ✅ Bundle 自动展开 — 根 `__init__.py` 将子插件复制到 `~/.hermes/plugins/` 根层级，自动在 `config.yaml` 中启用，并通过 `importlib` 原地加载
