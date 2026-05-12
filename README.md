@@ -164,6 +164,10 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.3.2 (2026-05-12)
+
+- 🐛 Fixed `_make_config()` passing invalid `platform` param to `PlatformConfig` — dataclass has no `platform` field, caused TypeError
+
 ### v2.3.1 (2026-05-12)
 
 - 🐛 Fixed `_get_adapter_class()` hardcoded path — now searches `lansenger-platform/` (expanded bundle) before `platforms/lansenger/` (legacy)

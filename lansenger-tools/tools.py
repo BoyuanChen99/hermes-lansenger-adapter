@@ -126,8 +126,12 @@ def _make_config(env_config: dict):
     an object that has that attribute — a plain dict won't work.
 
     We try to use the real PlatformConfig dataclass from the gateway;
-    if that fails (e.g. standalone / test context), we fall back to
-    a SimpleNamespace wrapper.
+    if that fails (e.g. wrong constructor args, ImportError), we fall back
+    to a SimpleNamespace wrapper.
+
+    NOTE: PlatformConfig fields are: enabled, token, api_key, home_channel,
+    reply_to_mode, gateway_restart_notification, extra.  It does NOT have a
+    ``platform`` field — do not pass one.
     """
     extra_data = {
         "app_id": env_config["app_id"],
@@ -136,11 +140,12 @@ def _make_config(env_config: dict):
     }
     try:
         from gateway.config import PlatformConfig
-        return PlatformConfig(platform="lansenger", enabled=True, extra=extra_data)
+        return PlatformConfig(enabled=True, extra=extra_data)
     except Exception:
-        # Gateway not available (standalone / test context) — use namespace
+        # Gateway not available or PlatformConfig constructor failed
+        # (e.g. TypeError from unknown field) — use namespace
         from types import SimpleNamespace
-        return SimpleNamespace(platform="lansenger", enabled=True, extra=extra_data)
+        return SimpleNamespace(enabled=True, extra=extra_data)
 
 
 def _run_async(coro):

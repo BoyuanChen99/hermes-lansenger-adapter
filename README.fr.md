@@ -164,6 +164,10 @@ hermes gateway restart
 
 ## Journal des modifications
 
+### v2.3.2 (2026-05-12)
+
+- 🐛 Correction de `_make_config()` passant un paramètre `platform` invalide à `PlatformConfig` — la dataclass n'a pas de champ `platform`, provoquant un TypeError
+
 ### v2.3.1 (2026-05-12)
 
 - 🐛 Correction du chemin codé en dur dans `_get_adapter_class()` — recherche maintenant `lansenger-platform/` (bundle expandé) avant `platforms/lansenger/` (ancien layout)

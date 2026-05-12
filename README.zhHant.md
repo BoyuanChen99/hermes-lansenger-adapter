@@ -160,6 +160,10 @@ hermes gateway restart
 
 ## 更新日誌
 
+### v2.3.2 (2026-05-12)
+
+- 🐛 修復 `_make_config()` 傳了無效的 `platform` 參數給 `PlatformConfig` — dataclass 沒有 `platform` 欄位，會導致 TypeError
+
 ### v2.3.1 (2026-05-12)
 
 - 🐛 修復 `_get_adapter_class()` 硬編碼路徑 — 優先搜尋 `lansenger-platform/`（bundle 展開位置），其次 `platforms/lansenger/`（舊佈局）
