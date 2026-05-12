@@ -160,6 +160,12 @@ hermes gateway restart
 
 ## 更新日誌
 
+### v2.4.1 — send_update_prompt + 動態 Agent 簽名
+
+- **send_update_prompt**: 新增 i18nAppCard 方法，用于 gateway `/update` watcher。卡片展示提示文本和 /approve、/deny 回复提示（i18nFields）。gateway 的文本攔截将 /approve → "y"、/deny → "n" 路由到 `update_prompt.resolve()`。蓝信没有 inline button 回调（如 Telegram/Discord），只能使用文字回覆。
+
+- **動態 Agent 簽名**: 所有 i18nAppCard 卡片（send_update_prompt、send_exec_approval、send_slash_confirm）现在使用 `_build_agent_signature_i18n()`，从 `~/.hermes/SOUL.md` 動態读取 Agent 名称。SOUL.md 不可读时回退到 "Hermes"。不再硬編碼"Hermes 安全審批系統"——簽名现在反映實際的 Agent 人設。
+
 ### v2.4.0 — Bundle 安裝時展開 + 展開脚本
 
 - **模組級展開**: 子插件（`lansenger-platform`、`lansenger-tools`）现在在 **import 时**就被複製到 `~/.hermes/plugins/` 頂層，而不是仅在 `register()` 中。這意味著它们在 gateway 重啟之前就能被 `hermes plugins enable` 發現（但仍需重啟才能加載）。

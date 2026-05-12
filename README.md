@@ -164,6 +164,12 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.4.1 — send_update_prompt + dynamic agent signature
+
+- **send_update_prompt**: New i18nAppCard method for the gateway `/update` watcher. Displays the prompt text with /approve and /deny reply hints in i18nFields. The gateway's text intercept routes /approve → "y" and /deny → "n" to `update_prompt.resolve()`. Lansenger lacks inline button callbacks (like Telegram/Discord), so text-based replies are the only option.
+
+- **Dynamic agent signature**: All i18nAppCard cards (send_update_prompt, send_exec_approval, send_slash_confirm) now use `_build_agent_signature_i18n()` which reads the agent name from `~/.hermes/SOUL.md` dynamically. Falls back to "Hermes" if SOUL.md cannot be read. No more hardcoded "Hermes 安全审批系统" — the signature now reflects the actual agent persona.
+
 ### v2.4.0 — Bundle install-time expand + expand script
 
 - **Module-level expand**: Sub-plugins (`lansenger-platform`, `lansenger-tools`) are now copied to `~/.hermes/plugins/` top level at **import time**, not just in `register()`. This means they're visible to `hermes plugins enable` even if a gateway restart hasn't happened yet (but you still need a restart to load them).

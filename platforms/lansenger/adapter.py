@@ -962,13 +962,7 @@ class LansengerAdapter(BasePlatformAdapter):
             cmd_section_fr
         )
         
-        i18n_signature = self._build_i18n_obj_full(
-            "Hermes 安全审批系统",
-            "Hermes 安全審批系統",
-            "Hermes 安全審批系統",
-            "Hermes Security Approval",
-            "Système d'approbation de sécurité Hermes"
-        )
+        i18n_signature = self._build_agent_signature_i18n()
         
         # Build i18n fields for approval options
         import time
@@ -1106,13 +1100,7 @@ class LansengerAdapter(BasePlatformAdapter):
             message or "This action will modify your current session."
         )
 
-        i18n_signature = self._build_i18n_obj_full(
-            "Hermes 安全审批系统",
-            "Hermes 安全審批系統",
-            "Hermes 安全審批系統",
-            "Hermes Security Approval",
-            "Système d'approbation de sécurité Hermes"
-        )
+        i18n_signature = self._build_agent_signature_i18n()
 
         import time
         timestamp = int(time.time())
@@ -1255,6 +1243,184 @@ class LansengerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error("[Lansenger] Update appCard error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
+
+    # ------------------------------------------------------------------
+    # Update prompt (gateway /update watcher)
+    # ------------------------------------------------------------------
+    async def send_update_prompt(
+        self,
+        chat_id: str,
+        prompt: str,
+        default: str = "",
+        session_key: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> SendResult:
+        """Send an i18nAppCard update prompt with /approve /deny reply hints.
+
+        Used by the gateway's ``/update`` watcher when ``hermes update --gateway``
+        needs user input (stash restore, config migration).  Lansenger does not
+        support inline button callbacks like Telegram/Discord, so this card
+        displays the prompt text with i18nFields showing the text-based reply
+        options (/approve → yes, /deny → no).
+
+        The gateway's text intercept in ``_handle_message`` recognises
+        /approve, /yes → "y" and /deny, /no → "n" replies and routes them
+        through ``update_prompt.resolve()``.
+
+        Returns SendResult(success=True) so the gateway skips the
+        redundant text fallback.
+        """
+        logger.info(
+            "[Lansenger] send_update_prompt: chat_id=%s, prompt=%s, default=%s",
+            chat_id, prompt[:80], default,
+        )
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="No access token")
+
+        prompt_text = prompt or "Update needs your input."
+        default_hint = f" (default: {default})" if default else ""
+
+        i18n_head_title = self._build_i18n_obj_full(
+            "⚕ 更新确认",
+            "⚕ 更新確認",
+            "⚕ 更新確認",
+            "⚕ Update Confirmation",
+            "⚕ Confirmation de mise à jour"
+        )
+
+        i18n_body_title = self._build_i18n_obj_full(
+            "Hermes 更新需要您的输入",
+            "Hermes 更新需要您的輸入",
+            "Hermes 更新需要您的輸入",
+            "Hermes Update Needs Your Input",
+            "Mise à jour Hermes — votre réponse est requise"
+        )
+
+        i18n_body_content = self._build_i18n_obj_full(
+            f"{self._escape_html(prompt_text)}{default_hint}",
+            f"{self._escape_html(prompt_text)}{default_hint}",
+            f"{self._escape_html(prompt_text)}{default_hint}",
+            f"{self._escape_html(prompt_text)}{default_hint}",
+            f"{self._escape_html(prompt_text)}{default_hint}"
+        )
+
+        # Dynamic signature — read agent name from SOUL.md
+        i18n_signature = self._build_agent_signature_i18n()
+
+        import time
+        timestamp = int(time.time())
+        i18n_fields = [
+            {
+                "i18nKey": self._build_i18n_obj_full("确认执行", "確認執行", "確認執行", "Approve (Yes)", "Approuver (Oui)"),
+                "i18nValue": self._build_i18n_obj_full("/approve", "/approve", "/approve", "/approve", "/approve"),
+                "timestamp": timestamp,
+            },
+            {
+                "i18nKey": self._build_i18n_obj_full("拒绝执行", "拒絕執行", "拒絕執行", "Deny (No)", "Refuser (Non)"),
+                "i18nValue": self._build_i18n_obj_full("/deny", "/deny", "/deny", "/deny", "/deny"),
+                "timestamp": timestamp,
+            },
+        ]
+
+        try:
+            url = f"{self._api_gateway_url}/v1/bot/messages/create?app_token={token}"
+            payload = {
+                "userIdList": [chat_id],
+                "msgType": "i18nAppCard",
+                "msgData": {
+                    "i18nAppCard": {
+                        "i18nHeadTitle": i18n_head_title,
+                        "headIconId": "",
+                        "i18nBodyTitle": i18n_body_title,
+                        "i18nBodyContent": i18n_body_content,
+                        "i18nSignature": i18n_signature,
+                        "i18nFields": i18n_fields,
+                        "i18nLinks": [],
+                        "cardLink": "",
+                        "pcCardLink": "",
+                    }
+                },
+            }
+
+            response = await self._http_client.post(url, json=payload)
+            response.raise_for_status()
+
+            if not response.text or len(response.text.strip()) == 0:
+                logger.error("[Lansenger] Empty response from update prompt card API")
+                return SendResult(success=False, error="Empty API response", retryable=True)
+
+            data = response.json()
+            if data.get("errCode") != 0:
+                logger.error(
+                    "[Lansenger] Update prompt card API error: errCode=%s, errMsg=%s",
+                    data.get("errCode"), data.get("errMsg"),
+                )
+                return SendResult(success=False, error=data.get("errMsg"))
+
+            msg_id = data.get("data", {}).get("msgId")
+            logger.info("[Lansenger] Update prompt card sent to %s, msgId=%s", chat_id, msg_id)
+            return SendResult(success=True, message_id=msg_id, raw_response=data)
+
+        except Exception as e:
+            logger.error("[Lansenger] Send update prompt card error: %s", e)
+            return SendResult(success=False, error=str(e), retryable=True)
+
+    def _build_agent_signature_i18n(self) -> Dict[str, str]:
+        """Build the i18nSignature with the agent name from SOUL.md (dynamic).
+
+        Falls back to "Hermes" if SOUL.md cannot be read.  The signature
+        format is "{agent_name} 安全系统" / "{agent_name} Security System" etc.
+        """
+        agent_name = self._read_agent_name_from_soul()
+
+        return self._build_i18n_obj_full(
+            f"{agent_name} 安全系统",
+            f"{agent_name} 安全系統",
+            f"{agent_name} 安全系統",
+            f"{agent_name} Security",
+            f"{agent_name} Sécurité"
+        )
+
+    def _read_agent_name_from_soul(self) -> str:
+        """Read the agent display name from SOUL.md.
+
+        Looks for the **Name:** field in the YAML frontmatter or markdown
+        body of ~/.hermes/SOUL.md.  Returns "Hermes" as fallback.
+        """
+        try:
+            soul_path = Path.home() / ".hermes" / "SOUL.md"
+            if not soul_path.exists():
+                return "Hermes"
+
+            content = soul_path.read_text(encoding="utf-8")
+
+            # Try YAML frontmatter first (--- ... ---)
+            if content.startswith("---"):
+                end = content.find("---", 3)
+                if end != -1:
+                    frontmatter = content[3:end]
+                    # Look for "Name:" in frontmatter
+                    for line in frontmatter.split("\n"):
+                        line = line.strip()
+                        if line.startswith("Name:") or line.startswith("name:"):
+                            name = line.split(":", 1)[1].strip()
+                            if name:
+                                return name
+
+            # Try markdown body — look for **Name:** pattern
+            import re
+            match = re.search(r"\*?\*?Name:?\*?\*?\s*:?\s*(.+)", content, re.IGNORECASE)
+            if match:
+                name = match.group(1).strip()
+                # Strip markdown bold/italic markers
+                name = name.replace("*", "").strip()
+                if name:
+                    return name
+
+            return "Hermes"
+        except Exception:
+            return "Hermes"
 
     def _build_i18n_obj_full(self, zh_hans: str, zh_hant: str, zh_hant_hk: str, en: str, fr: str) -> Dict[str, str]:
         """Build i18n object with all 5 supported languages.
