@@ -22,6 +22,7 @@ import importlib
 import importlib.util
 import logging
 import shutil
+import sys
 from pathlib import Path
 
 logger = logging.getLogger("hermes-lansenger-adapter")
@@ -79,13 +80,17 @@ def _load_sub_plugin(name: str, directory: Path, ctx) -> None:
         logger.warning("Sub-plugin '%s' has no __init__.py — skipping load", name)
         return
 
+    # Python module names cannot contain hyphens; convert to underscores.
+    safe_mod_name = f"_bundle_sub_{name.replace('-', '_')}"
+
     try:
         spec = importlib.util.spec_from_file_location(
-            f"_bundle_sub_{name}",
+            safe_mod_name,
             str(init_file),
             submodule_search_locations=[str(directory)],
         )
         module = importlib.util.module_from_spec(spec)
+        sys.modules[safe_mod_name] = module  # prevent double-import
         spec.loader.exec_module(module)
 
         register_fn = getattr(module, "register", None)
