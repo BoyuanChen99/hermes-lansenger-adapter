@@ -166,29 +166,23 @@ hermes gateway restart
 
 ### v2.6.0 — Approbation : i18nAppCard → appCard dynamique
 
-- **appCard dynamique (isDynamic=True)** : Les cartes d’approbation utilisent appCard au lieu de i18nAppCard, permettant les mises à jour de statut en place.
-- **Détection de langue** : `_user_lang_map` détecte zh/en depuis les messages entrants. Contenu des cartes adapté automatiquement.
-
+- Mise à jour du flux d'approbation : i18nAppCard → appCard dynamique avec mises à jour de statut
 
 ### v2.5.0 — appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
 
+- appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
+
 ### v2.4.2 — Canal d'accueil auto-amélioré
 
-- **Auto-sethome**: La première conversation DM est automatiquement désignée comme canal d'accueil Lansenger. Si aucun `home_channel` est configuré, ou si un canal existant est un groupe, le premier DM le remplace (DM > groupe). Écrit `config.yaml` et `os.environ` silencieusement. Suit le modèle AutoSetHomeMiddleware de Yuanbao.
+- Canal d'accueil auto-amélioré (DM > groupe)
 
 ### v2.4.1 — send_update_prompt + signature d'agent dynamique
 
-- **send_update_prompt**: Nouvelle méthode i18nAppCard pour le watcher `/update` du gateway. Affiche le texte de la demande avec /approve et /deny comme options de réponse (i18nFields). L'intercepteur de texte du gateway route /approve → "y" et /deny → "n" vers `update_prompt.resolve()`. Lansenger ne supporte pas les callbacks de boutons inline (comme Telegram/Discord), les réponses textuelles sont la seule option.
-
-- **Signature d'agent dynamique**: Toutes les cartes i18nAppCard (send_update_prompt, send_exec_approval, send_slash_confirm) utilisent désormais `_build_agent_signature_i18n()` qui lit le nom de l'agent depuis `~/.hermes/SOUL.md` dynamiquement. Revient à "Hermes" si SOUL.md ne peut être lu. Fini le "Hermes 安全审批系统" codé en dur — la signature reflète maintenant le persona réel de l'agent.
+- send_update_prompt + signature d'agent dynamique
 
 ### v2.4.0 — Expansion au moment de l’installation + script d'expansion
 
-- **Expansion au niveau du module**: Les sous-plugins (`lansenger-platform`, `lansenger-tools`) sont maintenant copiés vers `~/.hermes/plugins/` au niveau supérieur lors de **l'import**, pas seulement dans `register()`. Cela signifie qu'ils sont visibles par `hermes plugins enable` même sans redémarrage du gateway (mais un redémarrage est toujours nécessaire pour les charger).
-
-- **expand_sub_plugins.py**: Script autonome pour l'expansion pré-redémarrage. Exécutez `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` après l’installation pour rendre les sous-plugins découvrables par `hermes plugins enable` avant le premier redémarrage du gateway.
-
-- **Docs post-installation**: Les 5 versions linguistiques avertissent explicitement : *ne pas exécuter manuellement `hermes plugins enable` les sous-plugins* — le bundle auto-expand et auto-active au redémarrage. Le script d'expansion est offert comme alternative pour l'activation pré-redémarrage.
+- Expansion automatique du bundle à l'installation
 
 ## Licence
 

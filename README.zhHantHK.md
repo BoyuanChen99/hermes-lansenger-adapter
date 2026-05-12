@@ -162,29 +162,21 @@ hermes gateway restart
 
 ### v2.6.0 — 审批流程升級：i18nAppCard → 動態 appCard
 
-- **動態 appCard (isDynamic=True)**：審批、斜線確認、更新提示卡片改用 appCard，支持原地狀態更新（待審批 → 已批准/已拒絕），不再發送重複卡片。
-- **語言檢測緩存**：`_user_lang_map` 從 inbound 訊息中用 CJK 啟發式檢測並緩存用戶語言偏好（zh/en），卡片內容自動選擇中/英文。預設中文。
-
+- 審批流程升級：i18nAppCard → 動態 appCard，支持原地狀態更新
 
 ### v2.5.0 — appArticles、appCard、動態卡片更新、群訊息路由、群ID查詢
 
+- appArticles、appCard、動態卡片更新、群消息路由、群 ID 查詢
+
 ### v2.4.2 — Home channel 自动升級
 
-- **Home channel 自动升級**: 首次私聊对话自动设为蓝信 home channel。如果未配置 home_channel，或现有 home 是群聊，首次私聊会覆盖它（私聊 > 群聊升級）。靜默写入 config.yaml 和 os.environ，无用户提示。遵循元宝的 AutoSetHomeMiddleware 模式。
-
-- **动态 Agent 簽名**（v2.4.1 起）：所有三个 i18nAppCard 方法均使用 `_build_agent_signature_i18n()`。
+- Home channel 自動升級（DM > 群）
 
 ### v2.4.1 — send_update_prompt + 動態 Agent 簽名
 
-- **send_update_prompt**: 新增 i18nAppCard 方法，用于 gateway `/update` watcher。卡片展示提示文本和 /approve、/deny 回复提示（i18nFields）。gateway 的文本攔截将 /approve → "y"、/deny → "n" 路由到 `update_prompt.resolve()`。蓝信没有 inline button 回调（如 Telegram/Discord），只能使用文字回覆。
-
-- **動態 Agent 簽名**: 所有 i18nAppCard 卡片（send_update_prompt、send_exec_approval、send_slash_confirm）现在使用 `_build_agent_signature_i18n()`，从 `~/.hermes/SOUL.md` 動態读取 Agent 名称。SOUL.md 不可读时回退到 "Hermes"。不再硬編碼"Hermes 安全審批系統"——簽名现在反映實際的 Agent 人設。
+- send_update_prompt + 動態 Agent 簽名
 
 ### v2.4.0 — Bundle 安裝時展開 + 展開脚本
 
-- **模組級展開**: 子插件（`lansenger-platform`、`lansenger-tools`）现在在 **import 时**就被複製到 `~/.hermes/plugins/` 頂層，而不是仅在 `register()` 中。這意味著它们在 gateway 重啟之前就能被 `hermes plugins enable` 發現（但仍需重啟才能加載）。
-
-- **expand_sub_plugins.py**: 用于重啟前展開的獨立腳本。安装后運行 `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py`，即可在首次 gateway 重啟前使子插件可被 `hermes plugins enable` 發現。
-
-- **安装后文档**: 5 个语言版本明確警告：*不要手動 `hermes plugins enable` 子插件* — Bundle 在重啟时自动展開并启用。展開脚本作为重啟前启用的替代方案提供。
+- Bundle 安裝時自動展開
 

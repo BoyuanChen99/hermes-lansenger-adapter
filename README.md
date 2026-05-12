@@ -166,44 +166,23 @@ hermes gateway restart
 
 ### v2.6.0 — Approval workflow upgrade: i18nAppCard → dynamic appCard
 
-- **Dynamic appCard with isDynamic=True**: Approval, slash-confirm, and update-prompt cards now use appCard instead of i18nAppCard, enabling in-place status updates (待审批 → 已批准/已拒绝) instead of sending duplicate cards.
-- **Language detection from inbound messages**: `_user_lang_map` caches per-chat language (zh/en) from CJK heuristic. Cards auto-select Chinese or English content based on the user's recent messages. Default: Chinese.
-- **update_approval_status → appCardUpdateMsg**: Status updates now use `msgType="appCard"` + `appCardUpdateMsg` (was `i18nAppCardUpdateMsg`). The same card visually changes status in-place.
-- **New helpers**: `_detect_lang()`, `_get_lang()`, `_get_agent_signature(lang)`, `_build_status_div(text, color)`.
-- **`_build_i18n_obj_full` and `_build_agent_signature_i18n` retained** but no longer used by approval flows — preserved for potential future i18n use.
-
+- Approval workflow upgrade: i18nAppCard → dynamic appCard with in-place status updates
 
 ### v2.5.0 — appArticles, appCard, dynamic card update, group routing, group query
 
-- **appArticles (图文卡片)**: Send multi-article cards with imgUrl/title/summary/url/pcUrl fields. New adapter method `send_app_articles()` and tool `lansenger_send_app_articles`.
-- **appCard (应用卡片)**: Send rich-format cards with div-style HTML (color, font-size, text-align, text-indent). Supports dynamic cards (is_dynamic=true) for approval workflows. New adapter method `send_app_card()` and tool `lansenger_send_app_card`.
-- **Dynamic card update**: Update dynamic appCard status via POST /v1/messages/dynamic/update. New adapter method `update_dynamic_card_status()` and tool `lansenger_update_dynamic_card`.
-- **Group message routing**: `send_text()` now routes to /v1/messages/group/create for group chats (detected from inbound chat_type_map cache), and /v1/bot/messages/create for private chats.
-- **Group ID query**: Query bot's group list via GET /v2/groups/fetch. New adapter method `query_groups()` and tool `lansenger_query_groups`.
-- **_chat_type_map**: New inbound cache that maps chat_id → "group"/"dm" for outbound routing.
-- **API_ENDPOINTS**: Added `message.dynamic_update` and `groups.fetch` entries.
-- **tools.py docstring**: Updated message type matrix with appArticles and appCard.
-
+- appArticles, appCard, dynamic card update, group routing, group query
 
 ### v2.4.2 — Home channel auto-upgrade
 
-- **Auto-sethome**: The first DM conversation is automatically designated as the Lansenger home channel. If no `home_channel` is configured, or an existing one is a group chat, the first DM overrides it (DM > group upgrade). Writes `config.yaml` and `os.environ` silently, no user-facing message. Follows Yuanbao's `AutoSetHomeMiddleware` pattern. Initialized in `__init__` as `_auto_sethome_done: bool = bool(existing_home) and not existing_home.startswith("group:")`.
-
-- **Dynamic agent signature** (from v2.4.1): `_build_agent_signature_i18n()` now used in all three i18nAppCard methods.
+- Home channel auto-upgrade (DM > group)
 
 ### v2.4.1 — send_update_prompt + dynamic agent signature
 
-- **send_update_prompt**: New i18nAppCard method for the gateway `/update` watcher. Displays the prompt text with /approve and /deny reply hints in i18nFields. The gateway's text intercept routes /approve → "y" and /deny → "n" to `update_prompt.resolve()`. Lansenger lacks inline button callbacks (like Telegram/Discord), so text-based replies are the only option.
-
-- **Dynamic agent signature**: All i18nAppCard cards (send_update_prompt, send_exec_approval, send_slash_confirm) now use `_build_agent_signature_i18n()` which reads the agent name from `~/.hermes/SOUL.md` dynamically. Falls back to "Hermes" if SOUL.md cannot be read. No more hardcoded "Hermes 安全审批系统" — the signature now reflects the actual agent persona.
+- send_update_prompt + dynamic agent signature
 
 ### v2.4.0 — Bundle install-time expand + expand script
 
-- **Module-level expand**: Sub-plugins (`lansenger-platform`, `lansenger-tools`) are now copied to `~/.hermes/plugins/` top level at **import time**, not just in `register()`. This means they're visible to `hermes plugins enable` even if a gateway restart hasn't happened yet (but you still need a restart to load them).
-
-- **expand_sub_plugins.py**: Standalone script for pre-restart expansion. Run `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` after install to make sub-plugins discoverable by `hermes plugins enable` before the first gateway restart.
-
-- **After-install docs**: All 5 language versions now explicitly warn: *do NOT manually `hermes plugins enable` the sub-plugins* — the bundle auto-expands and auto-enables them on restart. The expand script is offered as an alternative for pre-restart enable.
+- Bundle auto-expand on install
 
 ## License
 

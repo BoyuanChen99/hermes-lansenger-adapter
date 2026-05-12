@@ -162,34 +162,23 @@ hermes gateway restart
 
 ### v2.6.0 — 审批流程升级：i18nAppCard → 动态 appCard
 
-- **动态 appCard (isDynamic=True)**：审批、斜杠确认、更新提示卡片改用 appCard，支持原地状态更新（待审批 → 已批准/已拒绝），不再发送重复卡片。
-- **语言检测缓存**：`_user_lang_map` 从 inbound 消息中用 CJK 启发式检测并缓存用户语言偏好（zh/en），卡片内容自动选择中/英文。默认中文。
-- **状态更新改用 appCardUpdateMsg**：`update_approval_status` 用 `msgType="appCard"` + `appCardUpdateMsg`（原为 i18nAppCardUpdateMsg），同一张卡片视觉状态原地变更。
-- **新增辅助方法**：`_detect_lang()`、`_get_lang()`、`_get_agent_signature(lang)`、`_build_status_div(text, color)`。
-- **保留 `_build_i18n_obj_full` 和 `_build_agent_signature_i18n`** 但审批流程不再使用——为未来可能的 i18n 需求保留。
-
+- 审批流程升级：i18nAppCard → 动态 appCard，支持原地状态更新
 
 ### v2.5.0 — appArticles、appCard、动态卡片更新、群消息路由、群ID查询
 
+- appArticles、appCard、动态卡片更新、群消息路由、群 ID 查询
+
 ### v2.4.2 — Home channel 自动升级
 
-- **Home channel 自动升级**: 首次私聊对话自动设为蓝信 home channel。如果未配置 home_channel，或现有 home 是群聊，首次私聊会覆盖它（私聊 > 群聊升级）。静默写入 config.yaml 和 os.environ，无用户提示。遵循元宝的 AutoSetHomeMiddleware 模式。
-
-- **动态 Agent 签名**（v2.4.1 起）：所有三个 i18nAppCard 方法均使用 `_build_agent_signature_i18n()`。
+- Home channel 自动升级（DM > 群）
 
 ### v2.4.1 — send_update_prompt + 动态 Agent 签名
 
-- **send_update_prompt**: 新增 i18nAppCard 方法，用于 gateway `/update` watcher。卡片展示提示文本和 /approve、/deny 回复提示（i18nFields）。gateway 的文本拦截将 /approve → "y"、/deny → "n" 路由到 `update_prompt.resolve()`。蓝信没有 inline button 回调（如 Telegram/Discord），只能使用文字回复。
-
-- **动态 Agent 签名**: 所有 i18nAppCard 卡片（send_update_prompt、send_exec_approval、send_slash_confirm）现在使用 `_build_agent_signature_i18n()`，从 `~/.hermes/SOUL.md` 动态读取 Agent 名称。SOUL.md 不可读时回退到 "Hermes"。不再硬编码"Hermes 安全审批系统"——签名现在反映实际的 Agent 人设。
+- send_update_prompt + 动态 Agent 签名
 
 ### v2.4.0 — Bundle 安装时展开 + 展开脚本
 
-- **模块级展开**: 子插件（`lansenger-platform`、`lansenger-tools`）现在在 **import 时**就被复制到 `~/.hermes/plugins/` 顶层，而不是仅在 `register()` 中。这意味着它们在 gateway 重启之前就能被 `hermes plugins enable` 发现（但仍需重启才能加载）。
-
-- **expand_sub_plugins.py**: 用于重启前展开的独立脚本。安装后运行 `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py`，即可在首次 gateway 重启前使子插件可被 `hermes plugins enable` 发现。
-
-- **安装后文档**: 5 个语言版本明确警告：*不要手动 `hermes plugins enable` 子插件* — Bundle 在重启时自动展开并启用。展开脚本作为重启前启用的替代方案提供。
+- Bundle 安装时自动展开
 
 ## 许可证
 
