@@ -1264,27 +1264,27 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         lang = self._get_lang(chat_id)
-        cmd_preview = command[:300] + "..." if len(command) > 300 else command
+        cmd_preview = command[:200] + "..." if len(command) > 200 else command
 
         # --- Build appCard content in the user's language ---
         if lang == "zh":
             head_title = "⚠️ 命令审批"
-            body_title = "危险命令审批请求"
-            body_sub_title = description
-            body_content = f"会话 ID: {session_key[:32]}\n命令:\n{cmd_preview}"
+            body_title = cmd_preview.split("\n")[0][:50]  # First line of command
+            body_sub_title = description[:50] if description else ""
+            body_content = f"会话：{session_key[:20]}"
             status_desc = "待审批"
             signature = self._get_agent_signature("zh")
             fields = [
                 {"key": "执行一次", "value": "/approve"},
                 {"key": "本会话有效", "value": "/approve session"},
                 {"key": "永久允许", "value": "/approve always"},
-                {"key": "拒绝执行", "value": "/deny"},
+                {"key": "拒绝", "value": "/deny"},
             ]
         else:
             head_title = "⚠️ Command Approval"
-            body_title = "Dangerous Command Approval Request"
-            body_sub_title = description
-            body_content = f"Session ID: {session_key[:32]}\nCommand:\n{cmd_preview}"
+            body_title = cmd_preview.split("\n")[0][:50]  # First line of command
+            body_sub_title = description[:50] if description else ""
+            body_content = f"Session: {session_key[:20]}"
             status_desc = "Pending"
             signature = self._get_agent_signature("en")
             fields = [
@@ -1381,25 +1381,25 @@ class LansengerAdapter(BasePlatformAdapter):
         command_name = title.strip() if title else "unknown"
 
         if lang == "zh":
-            head_title = f"🔄 {command_name} 确认"
-            body_title = "会话操作确认请求"
-            body_content = self._escape_html(message or "此操作将修改当前会话。")
+            head_title = f"🔄 {command_name[:20]} 确认"
+            body_title = message[:30] if message else "会话操作"
+            body_content = ""  # Empty — fields show all options
             status_desc = "待确认"
             signature = self._get_agent_signature("zh")
             fields = [
-                {"key": "确认执行", "value": "/approve"},
+                {"key": "确认", "value": "/approve"},
                 {"key": "本会话免确认", "value": "/always"},
                 {"key": "取消", "value": "/cancel"},
             ]
         else:
-            head_title = f"🔄 {command_name} Confirm"
-            body_title = "Session Action Confirmation"
-            body_content = self._escape_html(message or "This action will modify your current session.")
+            head_title = f"🔄 {command_name[:20]} Confirm"
+            body_title = message[:30] if message else "Session Action"
+            body_content = ""  # Empty — fields show all options
             status_desc = "Pending"
             signature = self._get_agent_signature("en")
             fields = [
-                {"key": "Approve Once", "value": "/approve"},
-                {"key": "Always This Session", "value": "/always"},
+                {"key": "Approve", "value": "/approve"},
+                {"key": "No Confirm", "value": "/always"},
                 {"key": "Cancel", "value": "/cancel"},
             ]
 
