@@ -58,7 +58,7 @@ mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp ~/.hermes/plugins/herm
 **方式 B：从 GitHub URL 安装（无需本地克隆）：**
 
 ```bash
-hermes skills install --force --category mlops https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
+hermes skills install --force --category messaging https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
 ```
 
 没有此技能，Agent 可能选择错误的消息类型，从而丢失 Markdown 格式或附件支持。
