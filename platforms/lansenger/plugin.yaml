@@ -4,7 +4,7 @@ kind: platform
 version: 2.6.0
 description: >
   Lansenger (蓝信) gateway adapter for Hermes Agent.
-  Connects to Lansenger Smart Bot API via WebSocket long-connection for
+  Connects to Lansenger Bot API via WebSocket long-connection for
   real-time message reception. Responses are sent via HTTP API.
   Supports text, Markdown (formatText), and file/image/video delivery.
 author: Lansenger PM Team

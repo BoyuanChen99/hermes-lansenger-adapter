@@ -76,7 +76,7 @@ Add these to `~/.hermes/.env`:
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
 
-**Credential path:** Lansenger desktop → Contacts → Smart Bot → Personal Bot → click the ℹ️ icon to view credentials (mobile client does not support viewing credentials)
+**Credential path:** Lansenger desktop → Contacts → Bots → Personal Bots → click the ℹ️ icon to view credentials (mobile client does not support viewing credentials)
 
 ### Optional Environment Variables
 

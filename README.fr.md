@@ -76,7 +76,7 @@ Ajoutez ces variables à `~/.hermes/.env` :
 | `LANSENGER_APP_ID` | ID App du Bot | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Secret App du Bot | `your-app-secret` |
 
-**Chemin des identifiants :** Lansenger (client desktop) → Contacts → Robot intelligent → Robot personnel → cliquer sur l'icône ℹ️ pour voir les identifiants (le client mobile ne permet pas de voir les identifiants)
+**Chemin des identifiants :** Lansenger (client desktop) → Contacts → Rebots → Personal Rebots → cliquer sur l'icône ℹ️ pour voir les identifiants (le client mobile ne permet pas de voir les identifiants)
 
 ### Variables d'environnement optionnelles
 

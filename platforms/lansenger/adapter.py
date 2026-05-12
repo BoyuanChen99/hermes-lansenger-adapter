@@ -1,7 +1,7 @@
 """
 Lansenger (蓝信) platform adapter — Hermes Agent plugin version.
 
-Uses Lansenger Smart Bot API for real-time message reception via WebSocket.
+Uses Lansenger Bot API for real-time message reception via WebSocket.
 Responses are sent via Lansenger's HTTP API.
 
 Requires:
@@ -1938,7 +1938,7 @@ def _interactive_setup():
     print(f"  {CYAN}─── 💠 Lansenger (蓝信) Setup ───{RESET}")
     print()
     print(f"  {YELLOW}Where to find your credentials:{RESET}")
-    print(f"  Lansenger desktop → Contacts → Smart Bot → Personal Bot → ℹ️ icon")
+    print(f"  Lansenger desktop → Contacts → Bots → Personal Bots → ℹ️ icon")
     print(f"  (Mobile client does not support viewing credentials)")
     print()
     
