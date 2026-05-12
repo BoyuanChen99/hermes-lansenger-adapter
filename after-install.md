@@ -58,7 +58,7 @@ mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp ~/.hermes/plugins/herm
 **Option B: From GitHub URL (works without local clone):**
 
 ```bash
-hermes skills install --force -c mlops https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
+hermes skills install --force --category mlops https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
 ```
 
 Without this skill, the Agent may pick the wrong message type and lose Markdown formatting or attachment support.
