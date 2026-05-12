@@ -40,8 +40,7 @@ This repo contains **two plugins**:
 
 ```bash
 hermes plugins install lansenger-pm/hermes-lansenger-adapter
-hermes plugins enable lansenger-platform
-hermes plugins enable lansenger-tools
+hermes plugins enable hermes-lansenger-adapter
 hermes gateway restart
 ```
 
@@ -52,8 +51,7 @@ Clone this repo into `~/.hermes/plugins/`:
 ```bash
 cd ~/.hermes/plugins/
 git clone https://github.com/lansenger-pm/hermes-lansenger-adapter.git hermes-lansenger-adapter
-hermes plugins enable lansenger-platform
-hermes plugins enable lansenger-tools
+hermes plugins enable hermes-lansenger-adapter
 hermes gateway restart
 ```
 
@@ -61,10 +59,11 @@ hermes gateway restart
 
 ```bash
 pip install hermes-lansenger-adapter
-hermes plugins enable lansenger-platform
-hermes plugins enable lansenger-tools
+hermes plugins enable hermes-lansenger-adapter
 hermes gateway restart
 ```
+
+> **Note:** The bundle auto-expands on first gateway restart. Sub-plugins (`lansenger-platform` and `lansenger-tools`) are automatically copied to `~/.hermes/plugins/`, auto-enabled in `config.yaml`, and loaded in-place — no need to run separate `hermes plugins enable` commands for each sub-plugin.
 
 ## Configuration
 
@@ -164,6 +163,12 @@ hermes gateway restart
 ```
 
 ## Changelog
+
+### v2.3.0 (2026-05-12)
+
+- ✅ Bundle auto-expand — root `__init__.py` copies sub-plugins to `~/.hermes/plugins/` top level, auto-enables them in `config.yaml`, and loads them in-place via `importlib`
+- ✅ Simplified install flow — only `hermes plugins enable hermes-lansenger-adapter` needed (sub-plugins auto-enabled on gateway restart)
+- ✅ Bundle self-removal from enabled set after expansion (it's just a container)
 
 ### v2.2.0 (2026-05-11)
 

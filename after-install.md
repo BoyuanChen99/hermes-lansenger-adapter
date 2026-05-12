@@ -2,11 +2,12 @@
 
 # 💠 Lansenger Adapter — Post-Install Setup
 
-Two plugins and one skill were installed:
+A bundle plugin and one skill were installed:
 
-1. **lansenger-platform** — Gateway channel adapter (enables Lansenger as a messaging channel)
-2. **lansenger-tools** — Agent tools for sending messages, files, images, revoking messages, linkCard cards
-3. **lansenger-messaging** — Skill that teaches the Agent how to choose the right Lansenger tool
+1. **hermes-lansenger-adapter** — Bundle container (auto-expands into `lansenger-platform` + `lansenger-tools` on gateway restart)
+2. **lansenger-messaging** — Skill that teaches the Agent how to choose the right Lansenger tool
+
+> 💡 The bundle auto-expands on first gateway restart: `lansenger-platform` and `lansenger-tools` are automatically copied to `~/.hermes/plugins/`, auto-enabled in `config.yaml`, and loaded in-place.
 
 ## Configuration
 
@@ -74,7 +75,7 @@ hermes gateway restart
 
 Check that the plugin is loaded:
 - `hermes tools list` should show `lansenger-tools` in the Plugin toolsets section
-- `hermes plugins list` should show `hermes-lansenger-adapter` and `lansenger-tools` as enabled
+- `hermes plugins list` should show `lansenger-platform` and `lansenger-tools` as enabled (bundle auto-expanded)
 
 ## Tools Overview
 

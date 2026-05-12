@@ -2,11 +2,12 @@
 
 # 💠 藍信 Adapter — 安裝後設定
 
-已安裝兩個插件與一個技能：
+一個 Bundle 插件和一個技能已安裝：
 
-1. **lansenger-platform**——閘道通道適配器（啟用 藍信 作為訊息通道）
-2. **lansenger-tools**——Agent 工具，用於傳送訊息、檔案、圖片、撤回訊息、linkCard 卡片
-3. **lansenger-messaging**——教導 Agent 如何選擇正確 藍信 工具的技能
+1. **hermes-lansenger-adapter** — Bundle 容器（在 gateway 重啟時自動展開為 `lansenger-platform` + `lansenger-tools`）
+2. **lansenger-messaging** — 教 Agent 選擇正確藍信工具的技能
+
+> 💡 Bundle 在首次 gateway 重啟時自動展開：`lansenger-platform` 和 `lansenger-tools` 自動複製到 `~/.hermes/plugins/`，自動在 `config.yaml` 中啟用，並原地載入。
 
 ## 設定
 
@@ -74,7 +75,7 @@ hermes gateway restart
 
 檢查插件是否已載入：
 - `hermes tools list` 应在 Plugin toolsets 段顯示 `lansenger-tools`
-- `hermes plugins list` 应顯示 `hermes-lansenger-adapter` 與 `lansenger-tools` 已啟用
+- `hermes plugins list` 应显示 `lansenger-platform` 和 `lansenger-tools` 已启用（Bundle 自动展开）
 
 ## 工具總览
 

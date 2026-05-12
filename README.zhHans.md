@@ -38,8 +38,7 @@
 
 ```bash
 hermes plugins install lansenger-pm/hermes-lansenger-adapter
-hermes plugins enable lansenger-platform
-hermes plugins enable lansenger-tools
+hermes plugins enable hermes-lansenger-adapter
 hermes gateway restart
 ```
 
@@ -50,8 +49,7 @@ hermes gateway restart
 ```bash
 cd ~/.hermes/plugins/
 git clone https://github.com/lansenger-pm/hermes-lansenger-adapter.git hermes-lansenger-adapter
-hermes plugins enable lansenger-platform
-hermes plugins enable lansenger-tools
+hermes plugins enable hermes-lansenger-adapter
 hermes gateway restart
 ```
 
@@ -59,8 +57,7 @@ hermes gateway restart
 
 ```bash
 pip install hermes-lansenger-adapter
-hermes plugins enable lansenger-platform
-hermes plugins enable lansenger-tools
+hermes plugins enable hermes-lansenger-adapter
 hermes gateway restart
 ```
 
@@ -162,6 +159,12 @@ hermes gateway restart
 ```
 
 ## 更新日志
+
+### v2.3.0 (2026-05-12)
+
+- ✅ Bundle 自动展开 — 根 `__init__.py` 将子插件复制到 `~/.hermes/plugins/` 根层级，自动在 `config.yaml` 中启用，并通过 `importlib` 原地加载
+- ✅ 简化安装流程 — 只需 `hermes plugins enable hermes-lansenger-adapter`（子插件在 gateway 重启时自动启用）
+- ✅ Bundle 在展开后从 enabled 列表中移除（仅作为容器）
 
 ### v2.2.0 (2026-05-11)
 

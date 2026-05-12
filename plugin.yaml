@@ -1,5 +1,5 @@
 name: hermes-lansenger-adapter
-version: 2.2.0
+version: 2.3.0
 description: Lansenger (蓝信) platform adapter + messaging tools for Hermes Agent — WebSocket gateway, text/markdown/file/image/linkCard sending, message revocation
 manifest_version: 1
 kind: bundle
