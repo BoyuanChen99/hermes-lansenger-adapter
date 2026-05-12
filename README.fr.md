@@ -4,11 +4,11 @@
 
 > 💠 Adaptateur de passerelle Lansenger + plugin d’outils média & messages pour Hermes Agent.
 
-Connecte Hermes Agent à Lansenger — une plateforme de messagerie d’entreprise — via une connexion longue WebSocket pour la réception de messages en temps réel et via l'API HTTP pour l’envoi de messages.
+Connecte Hermes Agent à Lansenger — une plateforme de messagerie d’entreprise — via une connexion longue WebSocket pour la réception de messages en temps réel et via l’API HTTP pour l’envoi de messages.
 
 Ce dépôt contient **deux plugins** :
 
-| Plugin | Type | Ce qu'il fait |
+| Plugin | Type | Ce qu’il fait |
 |--------|------|---------------|
 | `platforms/lansenger/` | plateforme | Adaptateur de canal de passerelle — recevoir & envoyer des messages |
 | `lansenger-tools/` | autonome (outil) | Outils appelables par l’Agent : envoyer des fichiers/images, révoquer des messages, envoyer des linkCard |
@@ -63,7 +63,7 @@ hermes plugins enable hermes-lansenger-adapter
 hermes gateway restart
 ```
 
-> **Note :** Le bundle s'étend automatiquement au premier redémarrage du gateway. Les sous-plugins (`lansenger-platform` et `lansenger-tools`) sont automatiquement copiés dans `~/.hermes/plugins/`, auto-activés dans `config.yaml`, et chargés en place — pas besoin d'exécuter des commandes `hermes plugins enable` séparées pour chaque sous-plugin.
+> **Note :** Le bundle s’étend automatiquement au premier redémarrage du gateway. Les sous-plugins (`lansenger-platform` et `lansenger-tools`) sont automatiquement copiés dans `~/.hermes/plugins/`, auto-activés dans `config.yaml`, et chargés en place — pas besoin d’exécuter des commandes `hermes plugins enable` séparées pour chaque sous-plugin.
 
 ## Configuration
 
@@ -76,14 +76,14 @@ Ajoutez ces variables à `~/.hermes/.env` :
 | `LANSENGER_APP_ID` | ID App du Bot | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Secret App du Bot | `your-app-secret` |
 
-**Chemin des identifiants :** Lansenger (client desktop) → Contacts → Rebots → Robots personnels → cliquer sur l'icône ℹ️ pour voir les identifiants (le client mobile ne permet pas de voir les identifiants)
+**Chemin des identifiants :** Lansenger (client desktop) → Contacts → Rebots → Robots personnels → cliquer sur l’icône ℹ️ pour voir les identifiants (le client mobile ne permet pas de voir les identifiants)
 
 ### Variables d’environnement optionnelles
 
 | Variable | Description | Valeur par défaut |
 |----------|-------------|-------------------|
 | `LANSENGER_API_GATEWAY_URL` | URL de la passerelle API | `https://open.e.lanxin.cn/open/apigw` |
-| `LANSENGER_ALLOWED_USERS` | IDs d'utilisateurs autorisés (séparés par des virgules) | — |
+| `LANSENGER_ALLOWED_USERS` | IDs d’utilisateurs autorisés (séparés par des virgules) | — |
 | `LANSENGER_ALLOW_ALL_USERS` | Autoriser tous les utilisateurs (développement uniquement) | `false` |
 | `LANSENGER_HOME_CHANNEL` | ID de chat par défaut pour la livraison planifiée | Détection automatique |
 
@@ -97,31 +97,31 @@ platforms:
 
 ## Outils média & messages (de lansenger-tools)
 
-Ces outils permettent à l’Agent d'envoyer des fichiers, images et vidéos, de révoquer des messages et d'envoyer des cartes linkCard — tous appelables indépendamment par le LLM. Les identifiants sont lus depuis les variables d’environnement (LANSENGER_APP_ID/SECRET), et non depuis `load_gateway_config()`.
+Ces outils permettent à l’Agent d’envoyer des fichiers, images et vidéos, de révoquer des messages et d’envoyer des cartes linkCard — tous appelables indépendamment par le LLM. Les identifiants sont lus depuis les variables d’environnement (LANSENGER_APP_ID/SECRET), et non depuis `load_gateway_config()`.
 
 | Outil | Paramètres | Description |
 |------|-----------|-------------|
 | `lansenger_send_text` | `chat_id`, `message`, `reminder_all`?, `reminder_user_ids`?, `media_paths`? | Envoyer du texte brut avec @mentions optionnelles (groupe/staff uniquement) et pièces jointes |
 | `lansenger_send_markdown` | `chat_id`, `message` | Envoyer du texte Markdown (pas de @mentions ni pièces jointes) |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Envoyer un fichier/image/vidéo local à un utilisateur ou groupe |
-| `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Télécharger une image depuis une URL et l'envoyer comme image native |
+| `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Télécharger une image depuis une URL et l’envoyer comme image native |
 | `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message Lansenger envoyé (le prompt système est fixe, non personnalisable) |
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Envoyer un message de carte linkCard Lansenger |
 
-**Exemples d'utilisation (prompts de l’Agent) :**
+**Exemples d’utilisation (prompts de l’Agent) :**
 
 ```
-"Envoyer le rapport report.pdf à l'utilisateur 2285568-abc123"
+"Envoyer le rapport report.pdf à l’utilisateur 2285568-abc123"
 "Partager cette image du graphique avec le chat de groupe du projet"
-"Télécharger cette image URL et l'envoyer à mon collègue"
-"Révoquer le message que j'ai刚刚 envoyé à l'utilisateur"
-"Envoyer une carte link card à l'utilisateur avec le titre 'Documentation du projet' et le lien https://..."
+"Télécharger cette image URL et l’envoyer à mon collègue"
+"Révoquer le message que j’ai刚刚 envoyé à l’utilisateur"
+"Envoyer une carte link card à l’utilisateur avec le titre 'Documentation du projet' et le lien https://..."
 ```
 
 **Limitations :**
-- Les limites de taille de fichier sont déterminées par la configuration Lansenger de l'organisation (aucun plafond fixe)
+- Les limites de taille de fichier sont déterminées par la configuration Lansenger de l’organisation (aucun plafond fixe)
 - Les légendes de média utilisent du texte brut (pas de Markdown) — pour du texte Markdown, envoyer séparément
-- `lansenger_send_file` détecte automatiquement le media_type depuis l'extension si non spécifié
+- `lansenger_send_file` détecte automatiquement le media_type depuis l’extension si non spécifié
 - `lansenger_revoke_message` : pour les types de chat staff/groupe, `sender_id` est requis
 
 ## Architecture
@@ -144,7 +144,7 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           ├── LICENSE
                           ├── VERSION
                           ├── after-install.md
-                          ├── pyproject.toml                   # point d'entrée pip
+                          ├── pyproject.toml                   # point d’entrée pip
                           └── .gitignore
 ```
 
@@ -172,32 +172,32 @@ hermes gateway restart
 
 ### v2.5.0 — appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
 
-### v2.4.2 — Canal d'accueil auto-amélioré
+### v2.4.2 — Canal d’accueil auto-amélioré
 
-- **Auto-sethome**: La première conversation DM est automatiquement désignée comme canal d'accueil Lansenger. Si aucun `home_channel` est configuré, ou si un canal existant est un groupe, le premier DM le remplace (DM > groupe). Écrit `config.yaml` et `os.environ` silencieusement. Suit le modèle AutoSetHomeMiddleware de Yuanbao.
+- **Auto-sethome**: La première conversation DM est automatiquement désignée comme canal d’accueil Lansenger. Si aucun `home_channel` est configuré, ou si un canal existant est un groupe, le premier DM le remplace (DM > groupe). Écrit `config.yaml` et `os.environ` silencieusement. Suit le modèle AutoSetHomeMiddleware de Yuanbao.
 
-### v2.4.1 — send_update_prompt + signature d'agent dynamique
+### v2.4.1 — send_update_prompt + signature d’agent dynamique
 
-- **send_update_prompt**: Nouvelle méthode i18nAppCard pour le watcher `/update` du gateway. Affiche le texte de la demande avec /approve et /deny comme options de réponse (i18nFields). L'intercepteur de texte du gateway route /approve → "y" et /deny → "n" vers `update_prompt.resolve()`. Lansenger ne supporte pas les callbacks de boutons inline (comme Telegram/Discord), les réponses textuelles sont la seule option.
+- **send_update_prompt**: Nouvelle méthode i18nAppCard pour le watcher `/update` du gateway. Affiche le texte de la demande avec /approve et /deny comme options de réponse (i18nFields). L’intercepteur de texte du gateway route /approve → "y" et /deny → "n" vers `update_prompt.resolve()`. Lansenger ne supporte pas les callbacks de boutons inline (comme Telegram/Discord), les réponses textuelles sont la seule option.
 
-- **Signature d'agent dynamique**: Toutes les cartes i18nAppCard (send_update_prompt, send_exec_approval, send_slash_confirm) utilisent désormais `_build_agent_signature_i18n()` qui lit le nom de l'agent depuis `~/.hermes/SOUL.md` dynamiquement. Revient à "Hermes" si SOUL.md ne peut être lu. Fini le "Hermes 安全审批系统" codé en dur — la signature reflète maintenant le persona réel de l'agent.
+- **Signature d’agent dynamique**: Toutes les cartes i18nAppCard (send_update_prompt, send_exec_approval, send_slash_confirm) utilisent désormais `_build_agent_signature_i18n()` qui lit le nom de l’agent depuis `~/.hermes/SOUL.md` dynamiquement. Revient à "Hermes" si SOUL.md ne peut être lu. Fini le "Hermes 安全审批系统" codé en dur — la signature reflète maintenant le persona réel de l’agent.
 
-### v2.4.0 — Expansion au moment de l’installation + script d'expansion
+### v2.4.0 — Expansion au moment de l’installation + script d’expansion
 
-- **Expansion au niveau du module**: Les sous-plugins (`lansenger-platform`, `lansenger-tools`) sont maintenant copiés vers `~/.hermes/plugins/` au niveau supérieur lors de **l'import**, pas seulement dans `register()`. Cela signifie qu'ils sont visibles par `hermes plugins enable` même sans redémarrage du gateway (mais un redémarrage est toujours nécessaire pour les charger).
+- **Expansion au niveau du module**: Les sous-plugins (`lansenger-platform`, `lansenger-tools`) sont maintenant copiés vers `~/.hermes/plugins/` au niveau supérieur lors de **l’import**, pas seulement dans `register()`. Cela signifie qu’ils sont visibles par `hermes plugins enable` même sans redémarrage du gateway (mais un redémarrage est toujours nécessaire pour les charger).
 
-- **expand_sub_plugins.py**: Script autonome pour l'expansion pré-redémarrage. Exécutez `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` après l’installation pour rendre les sous-plugins découvrables par `hermes plugins enable` avant le premier redémarrage du gateway.
+- **expand_sub_plugins.py**: Script autonome pour l’expansion pré-redémarrage. Exécutez `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` après l’installation pour rendre les sous-plugins découvrables par `hermes plugins enable` avant le premier redémarrage du gateway.
 
-- **Docs post-installation**: Les 5 versions linguistiques avertissent explicitement : *ne pas exécuter manuellement `hermes plugins enable` les sous-plugins* — le bundle auto-expand et auto-active au redémarrage. Le script d'expansion est offert comme alternative pour l'activation pré-redémarrage.
+- **Docs post-installation**: Les 5 versions linguistiques avertissent explicitement : *ne pas exécuter manuellement `hermes plugins enable` les sous-plugins* — le bundle auto-expand et auto-active au redémarrage. Le script d’expansion est offert comme alternative pour l’activation pré-redémarrage.
 
 ### v2.3.2 (2026-05-12)
 
-- 🐛 Correction de `_make_config()` passant un paramètre `platform` invalide à `PlatformConfig` — la dataclass n'a pas de champ `platform`, provoquant un TypeError
+- 🐛 Correction de `_make_config()` passant un paramètre `platform` invalide à `PlatformConfig` — la dataclass n’a pas de champ `platform`, provoquant un TypeError
 
 ### v2.3.1 (2026-05-12)
 
 - 🐛 Correction du chemin codé en dur dans `_get_adapter_class()` — recherche maintenant `lansenger-platform/` (bundle expandé) avant `platforms/lansenger/` (ancien layout)
-- 🐛 Correction de `_make_config()` retournant un dict simple — `LansengerAdapter.__init__` nécessite l'attribut `config.extra` ; utilise maintenant `PlatformConfig` ou `SimpleNamespace` en fallback
+- 🐛 Correction de `_make_config()` retournant un dict simple — `LansengerAdapter.__init__` nécessite l’attribut `config.extra` ; utilise maintenant `PlatformConfig` ou `SimpleNamespace` en fallback
 
 ### v2.3.0 (2026-05-12)
 
@@ -207,14 +207,14 @@ hermes gateway restart
 
 ### v2.2.0 (2026-05-11)
 
-- ✅ Implémentation de `reminder` (@mentions) pour `send_text` et `send_text_with_media` — `reminder_all` (bool, @tous) + `reminder_user_ids` (array, utilisateurs spécifiés), correspondant à l'objet `reminder` de l'API Lansenger
+- ✅ Implémentation de `reminder` (@mentions) pour `send_text` et `send_text_with_media` — `reminder_all` (bool, @tous) + `reminder_user_ids` (array, utilisateurs spécifiés), correspondant à l’objet `reminder` de l’API Lansenger
 - ✅ Les @mentions ne fonctionnent que dans les chats de groupe/staff ; les chats privés ne les supportent pas
 - ✅ Correction du champ schema `at_user_ids` qui était défini mais jamais passé aux méthodes de l’adaptateur
 
 ### v2.1.0 (2026-05-11)
 
 - 🔄 Migration en mode plugin — aucune modification du code core
-- ✅ `ctx.register_platform()` pour l'injection de l’adaptateur
+- ✅ `ctx.register_platform()` pour l’injection de l’adaptateur
 - ✅ `standalone_sender_fn` pour la livraison cron
 - ✅ Détection automatique du canal home
 - ✅ Autorisation des utilisateurs via variables d’environnement
@@ -222,7 +222,7 @@ hermes gateway restart
 - ✅ Plugin d’outils média & message — `lansenger_send_file`, `lansenger_send_image_url`
 - ✅ `lansenger_revoke_message` et `lansenger_send_link_card` extraits de l’adaptateur en plugin d’outils autonome
 - ✅ Implémentation de la méthode `send_link_card()` dans LansengerAdapter (précédemment manquante)
-- ✅ Correction de l'erreur revoke/linkCard « Lansenger non configuré » — lecture des variables d’environnement au lieu de `load_gateway_config()`
+- ✅ Correction de l’erreur revoke/linkCard « Lansenger non configuré » — lecture des variables d’environnement au lieu de `load_gateway_config()`
 
 ## Licence
 

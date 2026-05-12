@@ -8,9 +8,9 @@ Deux plugins et une compétence ont été installés :
 1. **hermes-lansenger-adapter** — Conteneur Bundle (auto-expands into `lansenger-platform` + `lansenger-tools`)
 2. **lansenger-messaging** — Compétence qui enseigne à l’Agent comment choisir le bon outil Lansenger
 
-> ⚠️ **Ne pas exécuter `hermes plugins enable lansenger-platform` ou `hermes plugins enable lansenger-tools` manuellement** — le bundle auto-expand et auto-active les deux sous-plugins au redémarrage du gateway. L'activation manuelle échouera car les sous-plugins sont encore dans le bundle.
+> ⚠️ **Ne pas exécuter `hermes plugins enable lansenger-platform` ou `hermes plugins enable lansenger-tools` manuellement** — le bundle auto-expand et auto-active les deux sous-plugins au redémarrage du gateway. L’activation manuelle échouera car les sous-plugins sont encore dans le bundle.
 
-> 💡 Si vous devez activer les sous-plugins *avant* le redémarrage du gateway, exécutez d’abord le script d'expansion :
+> 💡 Si vous devez activer les sous-plugins *avant* le redémarrage du gateway, exécutez d’abord le script d’expansion :
 > ```bash
 > python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
 > ```
@@ -26,7 +26,7 @@ hermes setup gateway
 
 Sélectionnez **Lansenger** dans la liste des plateformes, puis collez votre App ID, App Secret, et confirmez éventuellement l’URL de la passerelle API. Les valeurs déjà configurées sont affichées (les secrets sont masqués) et peuvent être remplacées.
 
-> 💡 L'App ID et l'App Secret se trouvent dans Lansenger desktop → Contacts → Rebots → Robots personnels → icône ℹ️ (le client mobile ne permet pas de voir les identifiants)
+> 💡 L’App ID et l’App Secret se trouvent dans Lansenger desktop → Contacts → Rebots → Robots personnels → icône ℹ️ (le client mobile ne permet pas de voir les identifiants)
 
 ### Option B : config.yaml
 
@@ -82,7 +82,7 @@ Vérifiez que le plugin est chargé :
 - `hermes tools list` devrait afficher `lansenger-tools` dans la section Plugin toolsets
 - `hermes plugins list` devrait afficher `hermes-lansenger-adapter` et `lansenger-tools` comme activés
 
-## Vue d'ensemble des outils
+## Vue d’ensemble des outils
 
 ```
 ┌─────────────────────────┬──────────────┬──────────────┬──────────────┐
