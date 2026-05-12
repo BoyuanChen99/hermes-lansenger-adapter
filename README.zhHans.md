@@ -180,6 +180,26 @@ hermes gateway restart
 
 - Bundle 安装时自动展开
 
+### v2.3.2 (2026-05-12)
+
+- Bug 修复：`_make_config()` platform 参数
+
+### v2.3.1 (2026-05-12)
+
+- Bug 修复：`_get_adapter_class()` 路径
+
+### v2.3.0 (2026-05-12)
+
+- Bundle 自动展开 + 简化安装流程
+
+### v2.2.0 (2026-05-11)
+
+- Reminder (@提及) 支持（群聊）
+
+### v2.1.0 (2026-05-11)
+
+- 插件模式迁移 — 零核心修改
+
 ## 许可证
 
 MIT — 详情见 [LICENSE](LICENSE)。

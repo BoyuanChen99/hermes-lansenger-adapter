@@ -166,7 +166,7 @@ hermes gateway restart
 
 ### v2.6.0 — Approbation : i18nAppCard → appCard dynamique
 
-- Mise à jour du flux d'approbation : i18nAppCard → appCard dynamique avec mises à jour de statut
+- Mise à jour du flux d'approbation : i18nAppCard → appCard dynamique
 
 ### v2.5.0 — appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
 
@@ -183,6 +183,26 @@ hermes gateway restart
 ### v2.4.0 — Expansion au moment de l’installation + script d'expansion
 
 - Expansion automatique du bundle à l'installation
+
+### v2.3.2 (2026-05-12)
+
+- Correctif: paramètre `platform` de `_make_config()`
+
+### v2.3.1 (2026-05-12)
+
+- Correctif: chemin de `_get_adapter_class()`
+
+### v2.3.0 (2026-05-12)
+
+- Expansion automatique du bundle + flux d'installation simplifié
+
+### v2.2.0 (2026-05-11)
+
+- Support des @mentions pour chat groupe
+
+### v2.1.0 (2026-05-11)
+
+- Migration en mode plugin — zéro modification core
 
 ## Licence
 

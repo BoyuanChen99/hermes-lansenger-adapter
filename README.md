@@ -184,6 +184,26 @@ hermes gateway restart
 
 - Bundle auto-expand on install
 
+### v2.3.2 (2026-05-12)
+
+- Bug fix: `_make_config()` platform param
+
+### v2.3.1 (2026-05-12)
+
+- Bug fix: `_get_adapter_class()` path
+
+### v2.3.0 (2026-05-12)
+
+- Bundle auto-expand + simplified install flow
+
+### v2.2.0 (2026-05-11)
+
+- Reminder (@mentions) support for group chat
+
+### v2.1.0 (2026-05-11)
+
+- Plugin mode migration — zero core modification
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
