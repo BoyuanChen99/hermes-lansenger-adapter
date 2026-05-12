@@ -4,10 +4,16 @@
 
 A bundle plugin and one skill were installed:
 
-1. **hermes-lansenger-adapter** — Bundle container (auto-expands into `lansenger-platform` + `lansenger-tools` on gateway restart)
+1. **hermes-lansenger-adapter** — Bundle container (auto-expands into `lansenger-platform` + `lansenger-tools`)
 2. **lansenger-messaging** — Skill that teaches the Agent how to choose the right Lansenger tool
 
-> 💡 The bundle auto-expands on first gateway restart: `lansenger-platform` and `lansenger-tools` are automatically copied to `~/.hermes/plugins/`, auto-enabled in `config.yaml`, and loaded in-place.
+> ⚠️ **Do NOT run `hermes plugins enable lansenger-platform` or `hermes plugins enable lansenger-tools` manually** — the bundle auto-expands and auto-enables both sub-plugins on gateway restart. Manual enable will fail because sub-plugins live inside the bundle until it is loaded.
+
+> 💡 If you need to enable sub-plugins *before* restarting the gateway, run the expand script first:
+> ```bash
+> python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
+> ```
+> Then you can run `hermes plugins enable lansenger-platform` and `hermes plugins enable lansenger-tools`.
 
 ## Configuration
 

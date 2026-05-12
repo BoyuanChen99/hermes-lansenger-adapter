@@ -5,10 +5,16 @@
 Deux plugins et une compétence ont été installés :
 
 1. **lansenger-platform** — Adaptateur de canal de passerelle (active Lansenger comme canal de messagerie)
-2. **lansenger-tools** — Outils de l'Agent pour envoyer des messages, fichiers, images, révoquer des messages, cartes linkCard
-3. **lansenger-messaging** — Compétence qui enseigne à l'Agent comment choisir le bon outil Lansenger
+1. **hermes-lansenger-adapter** — Conteneur Bundle (auto-expands into `lansenger-platform` + `lansenger-tools`)
+2. **lansenger-messaging** — Compétence qui enseigne à l'Agent comment choisir le bon outil Lansenger
 
-## Configuration
+> ⚠️ **Ne pas exécuter `hermes plugins enable lansenger-platform` ou `hermes plugins enable lansenger-tools` manuellement** — le bundle auto-expand et auto-active les deux sous-plugins au redémarrage du gateway. L'activation manuelle échouera car les sous-plugins sont encore dans le bundle.
+
+> 💡 Si vous devez activer les sous-plugins *avant* le redémarrage du gateway, exécutez d'abord le script d'expansion :
+> ```bash
+> python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
+> ```
+> Vous pouvez ensuite exécuter `hermes plugins enable lansenger-platform` et `hermes plugins enable lansenger-tools`.
 
 ### Option A : Assistant de configuration interactif (recommandé)
 

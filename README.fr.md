@@ -164,6 +164,14 @@ hermes gateway restart
 
 ## Journal des modifications
 
+### v2.4.0 — Expansion au moment de l'installation + script d'expansion
+
+- **Expansion au niveau du module**: Les sous-plugins (`lansenger-platform`, `lansenger-tools`) sont maintenant copiés vers `~/.hermes/plugins/` au niveau supérieur lors de **l'import**, pas seulement dans `register()`. Cela signifie qu'ils sont visibles par `hermes plugins enable` même sans redémarrage du gateway (mais un redémarrage est toujours nécessaire pour les charger).
+
+- **expand_sub_plugins.py**: Script autonome pour l'expansion pré-redémarrage. Exécutez `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` après l'installation pour rendre les sous-plugins découvrables par `hermes plugins enable` avant le premier redémarrage du gateway.
+
+- **Docs post-installation**: Les 5 versions linguistiques avertissent explicitement : *ne pas exécuter manuellement `hermes plugins enable` les sous-plugins* — le bundle auto-expand et auto-active au redémarrage. Le script d'expansion est offert comme alternative pour l'activation pré-redémarrage.
+
 ### v2.3.2 (2026-05-12)
 
 - 🐛 Correction de `_make_config()` passant un paramètre `platform` invalide à `PlatformConfig` — la dataclass n'a pas de champ `platform`, provoquant un TypeError

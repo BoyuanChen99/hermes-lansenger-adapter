@@ -36,12 +36,31 @@ _SUB_PLUGINS = {
 }
 
 
-def register(ctx):
-    """Expand bundle sub-plugins, auto-enable, and load them in-place."""
+# ── Module-level expand ────────────────────────────────────────────
+# When Python imports this module (e.g. during gateway plugin loading),
+# immediately copy sub-plugin directories to the top-level plugins dir
+# so that `hermes plugins enable <name>` can find them even if the user
+# runs it in a *later* session (without a restart in between).
+#
+# This also means that if the gateway imports the bundle module but then
+# discovers the sub-plugins *after* expand (i.e. on a second discovery
+# pass), they will already be visible at the top level.
+#
+_expand_done = False
+
+
+def _expand_sub_plugins() -> None:
+    """Copy each sub-plugin directory to ~/.hermes/plugins/ top level.
+
+    This runs at module-import time so the sub-plugins are visible to
+    ``hermes plugins enable`` even before the gateway calls register().
+    It is idempotent — subsequent calls re-copy (update) the directories.
+    """
+    global _expand_done
     bundle_dir = Path(__file__).resolve().parent
     plugins_dir = bundle_dir.parent  # ~/.hermes/plugins/
 
-    for sub_rel, (sub_name, import_path) in _SUB_PLUGINS.items():
+    for sub_rel, (sub_name, _import_path) in _SUB_PLUGINS.items():
         src = bundle_dir / sub_rel
         if not src.is_dir():
             logger.warning(
@@ -50,25 +69,53 @@ def register(ctx):
             )
             continue
 
-        # ── Step 1: Copy to top-level ──────────────────────────────
         dest = plugins_dir / sub_name
         if dest.is_dir():
-            logger.debug("Updating '%s' from %s", sub_name, src)
+            # Update existing expanded copy with fresh version from bundle
             shutil.rmtree(str(dest))
         shutil.copytree(str(src), str(dest))
         logger.info("Expanded '%s' → %s", sub_name, dest)
 
-        # ── Step 2: Auto-enable in config.yaml ──────────────────────
+    _expand_done = True
+
+
+# Execute expand on first import
+if not _expand_done:
+    _expand_sub_plugins()
+
+
+def register(ctx):
+    """Auto-enable and load expanded sub-plugins in-place.
+
+    By the time register() is called, _expand_sub_plugins() has already
+    copied the sub-plugins to the top-level plugins directory (module-level
+    code above).  This function now:
+    1. Auto-enables each sub-plugin in config.yaml
+    2. Loads each sub-plugin's register(ctx) in-place
+    3. Removes the bundle itself from the enabled set
+    """
+    bundle_dir = Path(__file__).resolve().parent
+    plugins_dir = bundle_dir.parent  # ~/.hermes/plugins/
+
+    # Ensure expand has been done (idempotent — re-copies if needed)
+    _expand_sub_plugins()
+
+    for sub_rel, (sub_name, import_path) in _SUB_PLUGINS.items():
+        dest = plugins_dir / sub_name
+        if not dest.is_dir():
+            continue
+
+        # ── Step 1: Auto-enable in config.yaml ──────────────────────
         _auto_enable(sub_name)
 
-        # ── Step 3: Load sub-plugin register() in-place ─────────────
+        # ── Step 2: Load sub-plugin register() in-place ─────────────
         _load_sub_plugin(sub_name, dest, ctx)
 
-    # ── Step 4: Remove bundle from enabled set ──────────────────────
+    # ── Step 3: Remove bundle from enabled set ──────────────────────
     _auto_disable("hermes-lansenger-adapter")
 
     logger.info(
-        "hermes-lansenger-adapter bundle: expanded and loaded %d sub-plugins",
+        "hermes-lansenger-adapter bundle: enabled and loaded %d sub-plugins",
         len(_SUB_PLUGINS),
     )
 

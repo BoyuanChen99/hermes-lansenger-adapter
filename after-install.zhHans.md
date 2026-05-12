@@ -4,10 +4,16 @@
 
 一个 Bundle 插件和一个技能已安装：
 
-1. **hermes-lansenger-adapter** — Bundle 容器（在 gateway 重启时自动展开为 `lansenger-platform` + `lansenger-tools`）
+1. **hermes-lansenger-adapter** — Bundle 容器（自动展开为 `lansenger-platform` + `lansenger-tools`）
 2. **lansenger-messaging** — 教 Agent 选择正确蓝信工具的技能
 
-> 💡 Bundle 在首次 gateway 重启时自动展开：`lansenger-platform` 和 `lansenger-tools` 自动复制到 `~/.hermes/plugins/`，自动在 `config.yaml` 中启用，并原地加载。
+> ⚠️ **不要手动运行 `hermes plugins enable lansenger-platform` 或 `hermes plugins enable lansenger-tools`** — Bundle 在 gateway 重启时会自动展开并启用两个子插件。手动 enable 会失败，因为子插件此时还在 Bundle 内部。
+
+> 💡 如果你需要在重启 gateway *之前*启用子插件，先运行展开脚本：
+> ```bash
+> python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
+> ```
+> 然后就可以运行 `hermes plugins enable lansenger-platform` 和 `hermes plugins enable lansenger-tools`。
 
 ## 配置
 

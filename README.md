@@ -164,6 +164,14 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.4.0 — Bundle install-time expand + expand script
+
+- **Module-level expand**: Sub-plugins (`lansenger-platform`, `lansenger-tools`) are now copied to `~/.hermes/plugins/` top level at **import time**, not just in `register()`. This means they're visible to `hermes plugins enable` even if a gateway restart hasn't happened yet (but you still need a restart to load them).
+
+- **expand_sub_plugins.py**: Standalone script for pre-restart expansion. Run `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py` after install to make sub-plugins discoverable by `hermes plugins enable` before the first gateway restart.
+
+- **After-install docs**: All 5 language versions now explicitly warn: *do NOT manually `hermes plugins enable` the sub-plugins* — the bundle auto-expands and auto-enables them on restart. The expand script is offered as an alternative for pre-restart enable.
+
 ### v2.3.2 (2026-05-12)
 
 - 🐛 Fixed `_make_config()` passing invalid `platform` param to `PlatformConfig` — dataclass has no `platform` field, caused TypeError

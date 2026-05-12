@@ -160,6 +160,14 @@ hermes gateway restart
 
 ## 更新日志
 
+### v2.4.0 — Bundle 安装时展开 + 展开脚本
+
+- **模块级展开**: 子插件（`lansenger-platform`、`lansenger-tools`）现在在 **import 时**就被复制到 `~/.hermes/plugins/` 顶层，而不是仅在 `register()` 中。这意味着它们在 gateway 重启之前就能被 `hermes plugins enable` 发现（但仍需重启才能加载）。
+
+- **expand_sub_plugins.py**: 用于重启前展开的独立脚本。安装后运行 `python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py`，即可在首次 gateway 重启前使子插件可被 `hermes plugins enable` 发现。
+
+- **安装后文档**: 5 个语言版本明确警告：*不要手动 `hermes plugins enable` 子插件* — Bundle 在重启时自动展开并启用。展开脚本作为重启前启用的替代方案提供。
+
 ### v2.3.2 (2026-05-12)
 
 - 🐛 修复 `_make_config()` 传了无效的 `platform` 参数给 `PlatformConfig` — dataclass 没有 `platform` 字段，会导致 TypeError
