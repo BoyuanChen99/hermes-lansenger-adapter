@@ -122,19 +122,22 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 
 ## Token Management
 
-All lansenger-tools use HTTP API calls, NOT the WebSocket connection. Each tool call:
+All lansenger-tools use HTTP API calls, NOT the WebSocket connection. The appToken is **persisted** to `~/.hermes/lansenger_token.json` for cross-process reuse.
 
-1. Creates an ephemeral LansengerAdapter instance
-2. Calls `_get_app_token()` which sends an HTTP GET to `/v1/apptoken/create` with app_id + app_secret
-3. Receives an appToken with a 2-hour expiry (7200s, refreshed 5 min before expiry)
-4. Uses the token in the actual API call
-5. Tears down the ephemeral adapter after the call
+### Token lifecycle
+
+1. First call: sends HTTP GET to `/v1/apptoken/create` → receives appToken (2-hour expiry)
+2. Persists `appToken` + `expiresAt` (absolute timestamp) to `~/.hermes/lansenger_token.json`
+3. Subsequent calls (from any process — gateway or ephemeral tool): load persisted token
+4. If persisted token is still valid (>5 min until expiry): reuse it, skip API call
+5. If expired or missing: fetch fresh token, persist again
+6. Gateway restart: loads persisted token instead of re-fetching
 
 **Key facts:**
 - The WebSocket token (used for receiving messages) is different from the HTTP appToken (used for sending)
 - Tools always use HTTP — they never touch the WebSocket connection or its token
-- Token is cached per ephemeral adapter instance (auto-refreshed before expiry)
-- No manual token management is needed — the adapter handles it internally
+- Token is shared across the gateway and all ephemeral tool instances via the persistence file
+- Ephemeral adapter pre-loads the persisted token before any API call, avoiding redundant `/v1/apptoken/create` requests
 
 ## Credential Storage
 
@@ -142,6 +145,7 @@ All lansenger-tools use HTTP API calls, NOT the WebSocket connection. Each tool 
 |------|----------|--------|
 | APP_ID + APP_SECRET | `~/.hermes/.env` or `config.yaml` platforms.lansenger.extra | LANSENGER_APP_ID / LANSENGER_APP_SECRET env vars |
 | API Gateway URL | `~/.hermes/.env` or `config.yaml` platforms.lansenger.extra | LANSENGER_API_GATEWAY_URL (default: `https://open.e.lanxin.cn/open/apigw`) |
+| appToken (persisted) | `~/.hermes/lansenger_token.json` | {"app_token": "...", "expires_at": timestamp} — auto-refreshed 5 min before expiry |
 | Owner ID | `~/.hermes/lansenger_owner.json` | {"owner_id": "2285568-..."} — auto-set on first bot-to-owner message |
 | Home Channel | `config.yaml` platforms.lansenger.home_channel | Standard Hermes home_channel config |
 

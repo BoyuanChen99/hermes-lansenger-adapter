@@ -180,6 +180,9 @@ def _run_async(coro):
 async def _create_ephemeral_adapter() -> tuple:
     """Create an ephemeral LansengerAdapter with env-based config.
 
+    Pre-loads persisted appToken so the ephemeral adapter can reuse it
+    without calling /v1/apptoken/create on every invocation.
+
     Returns (adapter, http_client) tuple. Caller must close http_client.
     """
     import httpx
@@ -192,7 +195,36 @@ async def _create_ephemeral_adapter() -> tuple:
     config = _make_config(env_config)
     adapter = LansengerAdapter(config)
     adapter._http_client = httpx.AsyncClient(timeout=30.0)
+
+    _load_persisted_token_into_adapter(adapter)
+
     return adapter
+
+
+def _load_persisted_token_into_adapter(adapter) -> None:
+    """Load persisted token from ~/.hermes/lansenger_token.json into adapter.
+
+    If the persisted token is still valid, set it on the adapter so
+    _get_app_token() skips the API call. If expired or missing, the
+    adapter will fetch a fresh token on first use and persist it back.
+    """
+    import json
+    from datetime import datetime
+    from pathlib import Path
+
+    token_file = Path.home() / ".hermes" / "lansenger_token.json"
+    try:
+        if not token_file.exists():
+            return
+        data = json.loads(token_file.read_text(encoding="utf-8"))
+        if "app_token" in data and "expires_at" in data:
+            if datetime.now().timestamp() < data["expires_at"]:
+                adapter._app_token = data["app_token"]
+                adapter._token_expiry = data["expires_at"]
+                logger.debug("lansenger-tools: reused persisted appToken (expires in %ds)",
+                             int(data["expires_at"] - datetime.now().timestamp()))
+    except Exception as e:
+        logger.debug("lansenger-tools: failed to load persisted token: %s", e)
 
 
 async def _send_text_async(chat_id: str, content: str,

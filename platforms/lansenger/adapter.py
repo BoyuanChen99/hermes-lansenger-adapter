@@ -130,6 +130,7 @@ class LansengerAdapter(BasePlatformAdapter):
         # Token cache
         self._app_token: Optional[str] = None
         self._token_expiry: float = 0
+        self._token_file = Path.home() / ".hermes" / "lansenger_token.json"
 
         # Owner ID (the user who bound the bot)
         self._owner_id: Optional[str] = None
@@ -499,11 +500,19 @@ class LansengerAdapter(BasePlatformAdapter):
     # -- Token management ---------------------------------------------------
 
     async def _get_app_token(self) -> Optional[str]:
-        """Get or refresh app access token."""
+        """Get or refresh app access token, with persistent caching."""
+
         if self._app_token and datetime.now().timestamp() < self._token_expiry:
             return self._app_token
 
-        # Ensure httpx client exists
+        persisted = self._load_persisted_token()
+        if persisted and datetime.now().timestamp() < persisted["expires_at"]:
+            self._app_token = persisted["app_token"]
+            self._token_expiry = persisted["expires_at"]
+            logger.info("[Lansenger] Loaded persisted appToken (expires in %ds)",
+                        int(persisted["expires_at"] - datetime.now().timestamp()))
+            return self._app_token
+
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(timeout=30.0)
 
@@ -526,11 +535,39 @@ class LansengerAdapter(BasePlatformAdapter):
             expires_in = data.get("data", {}).get("expiresIn", 7200)
             self._token_expiry = datetime.now().timestamp() + expires_in - 300
 
-            logger.info("[Lansenger] Got new access token")
+            self._persist_token(self._app_token, self._token_expiry + 300)
+
+            logger.info("[Lansenger] Got new access token (expires in %ds)", expires_in)
             return self._app_token
         except Exception as e:
             logger.error("[Lansenger] Error getting token: %s", e)
             return None
+
+    def _load_persisted_token(self) -> Optional[Dict[str, Any]]:
+        """Load persisted token from ~/.hermes/lansenger_token.json."""
+        try:
+            if not self._token_file.exists():
+                return None
+            content = self._token_file.read_text(encoding="utf-8")
+            data = json.loads(content)
+            if "app_token" in data and "expires_at" in data:
+                return data
+        except Exception as e:
+            logger.debug("[Lansenger] Failed to load persisted token: %s", e)
+        return None
+
+    def _persist_token(self, app_token: str, expires_at: float) -> None:
+        """Write token to ~/.hermes/lansenger_token.json for cross-process reuse."""
+        try:
+            data = {
+                "app_token": app_token,
+                "expires_at": expires_at,
+            }
+            self._token_file.parent.mkdir(parents=True, exist_ok=True)
+            self._token_file.write_text(json.dumps(data), encoding="utf-8")
+            logger.debug("[Lansenger] Persisted appToken to %s", self._token_file)
+        except Exception as e:
+            logger.debug("[Lansenger] Failed to persist token: %s", e)
 
     async def _download_media(self, media_id: str) -> Optional[bytes]:
         """Download media file by media ID. Returns raw file bytes or None."""
