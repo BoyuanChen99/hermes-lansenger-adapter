@@ -18,7 +18,7 @@
 ### 平台适配器
 - **实时消息** — 通过 WebSocket 长连接实现
 - **Markdown 支持** — 使用 `formatText` 消息类型
-- **i18nAppCard** — 交互式审批流程卡片
+- **审批卡片** — appCard 支持审批后原地更新卡片状态
 - **主通道自动检测** — 首条私聊消息设置默认发送目标
 - **定时推送** — 通过 `standalone_sender_fn` 实现计划通知
 - **用户授权** — 通过环境变量设置允许的用户 / 允许所有用户
@@ -160,9 +160,11 @@ hermes gateway restart
 
 ## 更新日志
 
-### v2.6.0 — 审批流程升级：i18nAppCard → 动态 appCard
+### v2.6.0 — 审批卡片支持动态状态更新
 
-- 审批流程升级：i18nAppCard → 动态 appCard，支持原地状态更新
+- 审批卡片支持审批后原地更新卡片状态
+- 按用户语言检测发送对应语言内容（中/英）
+- 修复 bodyContent 缩进问题：text-indent 设为 0
 
 ### v2.5.0 — appArticles、appCard、动态卡片更新、群消息路由、群ID查询
 

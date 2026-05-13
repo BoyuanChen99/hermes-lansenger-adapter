@@ -18,7 +18,7 @@ This repo contains **two plugins**:
 ### Platform Adapter
 - **Real-time messaging** via WebSocket long-connection
 - **Markdown support** using `formatText` msgType
-- **i18nAppCard** — interactive approval workflow cards
+- **Approval cards** — appCard with dynamic in-place status updates after approval/rejection
 - **Home channel auto-detection** — first p2p message sets the default delivery target
 - **Cron delivery** — scheduled notifications via `standalone_sender_fn`
 - **User authorization** — allowed users / allow all users via env vars
@@ -164,9 +164,11 @@ hermes gateway restart
 
 ## Changelog
 
-### v2.6.0 — Approval workflow upgrade: i18nAppCard → dynamic appCard
+### v2.6.0 — Approval cards with dynamic status updates
 
-- Approval workflow upgrade: i18nAppCard → dynamic appCard with in-place status updates
+- Approval cards with in-place status updates after approval/rejection
+- Language detection per user (zh/en)
+- Fixed bodyContent indentation: text-indent set to 0
 
 ### v2.5.0 — appArticles, appCard, dynamic card update, group routing, group query
 

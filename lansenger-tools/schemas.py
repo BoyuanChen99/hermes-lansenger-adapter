@@ -1,13 +1,21 @@
 """Tool schemas for lansenger-tools — what the LLM sees.
 
-Lansenger (蓝信) has TWO distinct message types with different capabilities:
+Lansenger (蓝信) has multiple message/card types with different capabilities:
 
   ┌──────────────┬──────────────┬──────────────┬──────────────┐
   │  msgType     │  Markdown    │  @mention    │  Attachments │
   ├──────────────┼──────────────┼──────────────┼──────────────┤
   │  text        │  ✗           │  ✓           │  ✓           │
   │  formatText  │  ✓           │  ✗           │  ✗           │
+  │  appArticles │  ✗           │  ✗           │  ✗           │
+  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │
   └──────────────┴──────────────┴──────────────┴──────────────┘
+
+  Card types:
+  - appCard: supports isDynamic + headStatusInfo (dynamic update), single language
+  - i18nAppCard: supports 5 languages, no dynamic update, reserved for future use
+  - appArticles: multi-article card (图文卡片)
+  - linkCard: rich link preview card
 
 This constraint shapes all tool designs below:
 - send_text:       msgType=text   → plain text + optional file/image/video attachment
@@ -16,6 +24,10 @@ This constraint shapes all tool designs below:
 - send_image_url:  msgType=text   → image from URL, optional plain-text caption
 - revoke_message:  retracts previously sent messages
 - send_link_card:  msgType=linkCard → rich link preview card
+- send_app_articles: msgType=appArticles → multi-article card
+- send_app_card:    msgType=appCard → rich card with div-style formatting + dynamic update
+- update_dynamic_card: POST /v1/messages/dynamic/update → update appCard status
+- query_groups:     GET /v2/groups/fetch → list bot's groups
 """
 
 # ─── Text message (msgType=text) ───────────────────────────────────────────
@@ -275,5 +287,256 @@ LANSENGER_SEND_LINK_CARD = {
             },
         },
         "required": ["chat_id", "title", "link"],
+    },
+}
+
+LANSENGER_SEND_APP_ARTICLES = {
+    "name": "lansenger_send_app_articles",
+    "description": (
+        "Send an appArticles (图文卡片) multi-article card to a Lansenger (蓝信) user or group. "
+        "Each article entry has an image, title, and clickable link. "
+        "Use this to share a collection of articles or news items in a single card. "
+        "For a single link card, use lansenger_send_link_card instead. "
+        "For rich formatted cards with dynamic updates, use lansenger_send_app_card instead."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "chat_id": {
+                "type": "string",
+                "description": "Recipient user ID or group chat ID on Lansenger",
+            },
+            "articles": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "imgUrl": {
+                            "type": "string",
+                            "description": "Article image URL (required)",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Article title (required)",
+                        },
+                        "url": {
+                            "type": "string",
+                            "description": "Article content link URL (required)",
+                        },
+                        "pcUrl": {
+                            "type": "string",
+                            "description": "PC client content link URL (required)",
+                        },
+                        "summary": {
+                            "type": "string",
+                            "description": "Optional article summary text",
+                        },
+                    },
+                    "required": ["imgUrl", "title", "url", "pcUrl"],
+                },
+                "description": "List of article entries (1 or more). Each must have imgUrl, title, url, pcUrl.",
+            },
+        },
+        "required": ["chat_id", "articles"],
+    },
+}
+
+LANSENGER_SEND_APP_CARD = {
+    "name": "lansenger_send_app_card",
+    "description": (
+        "Send an appCard (应用卡片) rich formatted card to a Lansenger (蓝信) user or group. "
+        "appCard supports div-style HTML formatting (color, font-size, text-align, text-indent) "
+        "in bodyTitle, bodySubTitle, bodyContent, and signature fields. "
+        "Set is_dynamic=true to enable in-place status updates via lansenger_update_dynamic_card "
+        "(e.g. approval workflows: pending → approved/rejected). "
+        "bodyContent text-indent should always be 0."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "chat_id": {
+                "type": "string",
+                "description": "Recipient user ID or group chat ID on Lansenger",
+            },
+            "body_title": {
+                "type": "string",
+                "description": (
+                    "Card body title (required, max 600 bytes). "
+                    "Supports div-style: color, font-size, text-align."
+                ),
+            },
+            "head_title": {
+                "type": "string",
+                "description": "Card header title (max 96 bytes)",
+            },
+            "body_sub_title": {
+                "type": "string",
+                "description": (
+                    "Card body subtitle (max 1200 bytes). "
+                    "Supports div-style: color, font-size, text-align."
+                ),
+            },
+            "body_content": {
+                "type": "string",
+                "description": (
+                    "Card body content (max 3000 bytes). "
+                    "Supports div-style: color, font-size, text-align, text-indent. "
+                    "Always use text-indent:0em to avoid unwanted indentation."
+                ),
+            },
+            "signature": {
+                "type": "string",
+                "description": "Card signature line (max 96 bytes). Supports color.",
+            },
+            "fields": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {"type": "string"},
+                        "value": {"type": "string"},
+                    },
+                },
+                "description": (
+                    "Key-value pairs (max 10 pairs). "
+                    "Key max 18 bytes, value max 192 bytes per pair. "
+                    "Both support color div-style."
+                ),
+            },
+            "links": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "url": {"type": "string"},
+                    },
+                },
+                "description": "Link entries (max 3 pairs). Title supports color and text-align.",
+            },
+            "is_dynamic": {
+                "type": "boolean",
+                "description": (
+                    "Enable dynamic card updates (default: false). "
+                    "When true, the card can be updated in-place via lansenger_update_dynamic_card."
+                ),
+                "default": False,
+            },
+            "head_status_info": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Status description (max 30 bytes, required when is_dynamic=true). Supports color div-style.",
+                    },
+                    "colour": {
+                        "type": "string",
+                        "description": "Solid circle status color (e.g. #FFB116 amber, #198754 green, #dc3545 red)",
+                    },
+                    "iconLink": {
+                        "type": "string",
+                        "description": "Status icon URL",
+                    },
+                },
+                "description": "Dynamic card status info. Required when is_dynamic=true.",
+            },
+            "card_link": {
+                "type": "string",
+                "description": "Card click-through link",
+            },
+            "pc_card_link": {
+                "type": "string",
+                "description": "PC client click-through link",
+            },
+            "staff_id": {
+                "type": "string",
+                "description": "Staff openId for showing sender avatar",
+            },
+            "head_icon_url": {
+                "type": "string",
+                "description": "Header icon URL",
+            },
+        },
+        "required": ["chat_id", "body_title"],
+    },
+}
+
+LANSENGER_UPDATE_DYNAMIC_CARD = {
+    "name": "lansenger_update_dynamic_card",
+    "description": (
+        "Update a dynamic appCard's status in-place (e.g. approval: pending → approved/rejected). "
+        "The card must have been sent with is_dynamic=true via lansenger_send_app_card. "
+        "Uses the Lansenger dynamic update API to change headStatusInfo and optionally links."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "msg_id": {
+                "type": "string",
+                "description": "The message ID from the original lansenger_send_app_card response (required)",
+            },
+            "head_status_info": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Updated status description (max 30 bytes). Supports color div-style.",
+                    },
+                    "colour": {
+                        "type": "string",
+                        "description": "Updated status color (e.g. #198754 green for approved, #dc3545 red for rejected)",
+                    },
+                    "iconLink": {
+                        "type": "string",
+                        "description": "Updated status icon URL",
+                    },
+                },
+                "description": "Updated status info for the card header.",
+            },
+            "links": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "url": {"type": "string"},
+                    },
+                },
+                "description": "Updated link entries (max 3 pairs). Title supports color and text-align.",
+            },
+            "is_last_update": {
+                "type": "boolean",
+                "description": (
+                    "True = final state update, card becomes static and cannot be updated further "
+                    "(default: false). Set true for approved/rejected final states."
+                ),
+                "default": False,
+            },
+        },
+        "required": ["msg_id"],
+    },
+}
+
+LANSENGER_QUERY_GROUPS = {
+    "name": "lansenger_query_groups",
+    "description": (
+        "Query the bot's group ID list on Lansenger (蓝信). "
+        "Returns the total number of groups and a list of group IDs. "
+        "Use this to discover available group chat IDs before sending messages to groups."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "page_offset": {
+                "type": "integer",
+                "description": "Page number (default: 1)",
+                "default": 1,
+            },
+            "page_size": {
+                "type": "integer",
+                "description": "Number of groups per page (max 100, default: 100)",
+                "default": 100,
+            },
+        },
     },
 }

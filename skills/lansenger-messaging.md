@@ -1,14 +1,14 @@
 ---
 name: lansenger-messaging
-version: 2.4.2
+version: 2.6.0
 category: lansenger
-description: Lansenger messaging strategy — understand text/formatText capability boundary, token management, and credential storage
-trigger: When you need to send any message, file, image, or notification via Lansenger (蓝信), or when you see a lansenger_* tool in the available tools list.
+description: Lansenger messaging strategy — understand text/formatText/appCard/appArticles capability boundary, token management, and credential storage
+trigger: When you need to send any message, file, image, card, or notification via Lansenger (蓝信), or when you see a lansenger_* tool in the available tools list.
 ---
 
 # Lansenger Messaging Strategy
 
-Lansenger (蓝信) has two distinct message types with different capabilities. Picking the wrong type causes feature loss (e.g., attachments silently dropped, Markdown not rendered).
+Lansenger (蓝信) has multiple message types with different capabilities. Picking the wrong type causes feature loss (e.g., attachments silently dropped, Markdown not rendered, dynamic updates not working).
 
 ## Message Type Capability Matrix
 
@@ -18,8 +18,28 @@ Lansenger (蓝信) has two distinct message types with different capabilities. P
 ├──────────────┼──────────────┼──────────────┼──────────────┤
 │  text        │  ✗           │  ✓           │  ✓           │
 │  formatText  │  ✓           │  ✗           │  ✗           │
+│  appArticles │  ✗           │  ✗           │  ✗           │
+│  appCard     │  ✗ (div)     │  ✗           │  ✗           │
 └──────────────┴──────────────┴──────────────┴──────────────┘
 ```
+
+## Card Type Capability Matrix
+
+```
+┌──────────────┬──────────────┬──────────────┬──────────────┐
+│  Card Type   │  Multi-lang  │  Dynamic     │  headStatus  │
+│              │  (5 langs)   │  Update      │  Info        │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│  appCard     │  ✗           │  ✓           │  ✓           │
+│  i18nAppCard │  ✓           │  ✗           │  ✗           │
+└──────────────┴──────────────┴──────────────┴──────────────┘
+```
+
+**Key distinction:**
+- **appCard** — supports `isDynamic` + `headStatusInfo` for in-place status updates, but uses a single language per card. Language is detected per user and content is sent in the detected language.
+- **i18nAppCard** — supports 5 languages (zhHans/zhHant/zhHantHK/en/fr) in one message, but does NOT support dynamic updates or `headStatusInfo`. **Reserved for future use**.
+- **DynamicMsg appCard** — the update payload for appCard (`appCardUpdateMsg`), which updates `headStatusInfo` and `links` in-place. Used after approval/rejection to change card status.
+- **appArticles** — multi-article card (图文卡片) with image + title + link per article. No formatting, no dynamic updates.
 
 ## Tool Selection Decision Tree
 
@@ -61,18 +81,44 @@ Lansenger (蓝信) has two distinct message types with different capabilities. P
 - caption can be empty or a brief description
 - Example: send an online chart URL
 
-### 7. Link card
+### 7. Link card (single link)
 → `lansenger_send_link_card`
 - title + link are required
 - description, icon_link, from_name are optional
 - Example: share an article, recommend a tool
 
-### 8. Revoke a message
+### 8. Multi-article card (图文卡片)
+→ `lansenger_send_app_articles`
+- articles = list of dicts, each with imgUrl, title, url, pcUrl (all required)
+- Optional per article: summary
+- Example: news digest, article collection, product showcase
+
+### 9. AppCard (approval / confirmation / rich formatted card)
+→ `lansenger_send_app_card`
+- Use `is_dynamic=True` + `headStatusInfo` for approval workflows
+- Language is auto-detected per user (zh/en), content is sent in detected language
+- After approval/rejection, use `lansenger_update_dynamic_card` to update `headStatusInfo` in-place
+- **bodyContent text-indent is always 0** — do not set indent > 0
+- For multi-article collections, use `lansenger_send_app_articles` instead
+
+### 10. Update dynamic card status
+→ `lansenger_update_dynamic_card`
+- msg_id from original `lansenger_send_app_card` response is required
+- Updates `headStatusInfo` (status text + color) and optionally `links`
+- Set `is_last_update=True` for final state (approved/denied) — locks the card from further updates
+
+### 11. Revoke a message
 → `lansenger_revoke_message`
 - message_ids is required (from a previous send's response)
 - chat_type defaults to "bot"
 - staff/group types require sender_id
 - **Note:** Lansenger shows a fixed system prompt after revocation — the text cannot be customized
+
+### 12. Query groups
+→ `lansenger_query_groups`
+- Returns total number of groups and list of group IDs
+- Use this to discover available group chat IDs before sending messages to groups
+- page_offset (default 1), page_size (default 100, max 100)
 
 ## Token Management
 
@@ -112,6 +158,9 @@ All lansenger-tools use HTTP API calls, NOT the WebSocket connection. Each tool 
 | `lansenger_send_file` expecting formatted caption | Captions are plain text only; split into two messages for formatting |
 | Forgetting chat_id | chat_id is required for ALL send tools |
 | Expecting custom revocation text | Lansenger shows a fixed system message — not customizable |
+| Using i18nAppCard for approval workflows | Use appCard with isDynamic + headStatusInfo; i18nAppCard has no dynamic update support |
+| Setting text-indent > 0 in bodyContent | Always use text-indent:0em to avoid unwanted indentation |
+| Using lansenger_send_link_card for multiple articles | Use lansenger_send_app_articles for multi-article cards |
 
 ## Tips
 
@@ -119,3 +168,4 @@ All lansenger-tools use HTTP API calls, NOT the WebSocket connection. Each tool 
 - For long Markdown analyses, consider splitting into multiple `lansenger_send_markdown` calls (long messages have poor readability in Lansenger)
 - File size limits are determined by the organization's Lansenger configuration (not a fixed 2MB cap)
 - The ephemeral adapter pattern means each tool call is independent — no state carries over between calls
+- Use `lansenger_query_groups` to discover group IDs before sending to a group — you need the exact group chat ID

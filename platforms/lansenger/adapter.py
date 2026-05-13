@@ -1,7 +1,7 @@
 """
 Lansenger (蓝信) platform adapter — Hermes Agent plugin version.
 
-Uses Lansenger Bot API for real-time message reception via WebSocket.
+Uses Lansenger Smart Bot API for real-time message reception via WebSocket.
 Responses are sent via Lansenger's HTTP API.
 
 Requires:
@@ -786,6 +786,13 @@ class LansengerAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Send an appCard (应用卡片) message with rich formatting support.
 
+        NOTE: appCard and i18nAppCard are DIFFERENT message types:
+        - appCard: supports isDynamic + headStatusInfo for in-place status
+          updates, but uses a SINGLE language (no i18n fields).
+        - i18nAppCard: supports 5 languages (zhHans/zhHant/zhHantHK/en/fr)
+          but does NOT support dynamic updates or headStatusInfo.
+          Reserved for future use (send_i18n_app_card stub below).
+
         appCard supports div-style HTML formatting (color, font-size, text-align, text-indent).
         Dynamic cards (is_dynamic=True) can be updated later via update_dynamic_card_status().
 
@@ -825,6 +832,12 @@ class LansengerAdapter(BasePlatformAdapter):
                 "pcCardLink": pc_card_link,
             }
 
+            if is_dynamic and not head_status_info:
+                head_status_info = {
+                    "description": "<div style=\"color:rgba(0,0,0,.47)\">Active</div>",
+                    "colour": "rgba(0,0,0,.47)",
+                }
+
             if is_dynamic and head_status_info:
                 app_card_data["headStatusInfo"] = head_status_info
 
@@ -851,6 +864,10 @@ class LansengerAdapter(BasePlatformAdapter):
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
+
+            if not response.text or len(response.text.strip()) == 0:
+                return SendResult(success=False, error="Empty API response for appCard — likely a payload format issue", retryable=True)
+
             data = response.json()
 
             if data.get("errCode") != 0:
@@ -863,6 +880,44 @@ class LansengerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error("[Lansenger] Send appCard error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
+
+    # ------------------------------------------------------------------
+    # i18nAppCard — RESERVED for future use
+    # ------------------------------------------------------------------
+    # i18nAppCard supports 5 languages (zhHans/zhHant/zhHantHK/en/fr) but
+    # does NOT support isDynamic or headStatusInfo.  It cannot be updated
+    # in-place after sending.  Currently the approval workflow uses appCard
+    # with language detection instead.  When multi-language broadcast
+    # (sending the SAME card to users of different languages simultaneously)
+    # becomes necessary, implement send_i18n_app_card() here.
+
+    async def send_i18n_app_card(
+        self,
+        chat_id: str,
+        i18n_head_title: Optional[Dict[str, str]] = None,
+        head_icon_url: str = "",
+        i18n_body_title: Optional[Dict[str, str]] = None,
+        i18n_body_sub_title: Optional[Dict[str, str]] = None,
+        i18n_body_content: Optional[Dict[str, str]] = None,
+        i18n_signature: Optional[Dict[str, str]] = None,
+        staff_id: str = "",
+        i18n_fields: Optional[List[Dict[str, Any]]] = None,
+        i18n_links: Optional[List[Dict[str, Any]]] = None,
+        card_link: str = "",
+        pc_card_link: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> SendResult:
+        """Send an i18nAppCard (国际化应用卡片) — RESERVED for future use.
+
+        i18nAppCard supports 5 languages but does NOT support dynamic
+        updates (isDynamic) or headStatusInfo.  For approval workflows
+        that need in-place status updates, use send_app_card() instead.
+        """
+        raise NotImplementedError(
+            "i18nAppCard is reserved for future use. "
+            "For approval cards with dynamic updates, use send_app_card() "
+            "with is_dynamic=True and headStatusInfo."
+        )
 
     async def update_dynamic_card_status(
         self,
@@ -1240,6 +1295,12 @@ class LansengerAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Send a dynamic appCard approval card with isDynamic=True.
 
+        NOTE: This uses appCard (not i18nAppCard).  appCard supports
+        isDynamic + headStatusInfo for in-place status updates, but does
+        NOT support multi-language (i18n).  i18nAppCard supports 5
+        languages but cannot be dynamically updated and has no
+        headStatusInfo — it is reserved for future use.
+
         Uses the user's cached language preference (from inbound messages)
         to select card content language.  Default: Chinese.
 
@@ -1264,27 +1325,27 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         lang = self._get_lang(chat_id)
-        cmd_preview = command[:200] + "..." if len(command) > 200 else command
+        cmd_preview = command[:300] + "..." if len(command) > 300 else command
 
         # --- Build appCard content in the user's language ---
         if lang == "zh":
             head_title = "⚠️ 命令审批"
-            body_title = cmd_preview.split("\n")[0][:50]  # First line of command
-            body_sub_title = description[:50] if description else ""
-            body_content = f"会话：{session_key[:20]}"
+            body_title = "危险命令审批请求"
+            body_sub_title = description
+            body_content = f"会话 ID: {session_key[:32]}\n命令:\n{cmd_preview}"
             status_desc = "待审批"
             signature = self._get_agent_signature("zh")
             fields = [
                 {"key": "执行一次", "value": "/approve"},
                 {"key": "本会话有效", "value": "/approve session"},
                 {"key": "永久允许", "value": "/approve always"},
-                {"key": "拒绝", "value": "/deny"},
+                {"key": "拒绝执行", "value": "/deny"},
             ]
         else:
             head_title = "⚠️ Command Approval"
-            body_title = cmd_preview.split("\n")[0][:50]  # First line of command
-            body_sub_title = description[:50] if description else ""
-            body_content = f"Session: {session_key[:20]}"
+            body_title = "Dangerous Command Approval Request"
+            body_sub_title = description
+            body_content = f"Session ID: {session_key[:32]}\nCommand:\n{cmd_preview}"
             status_desc = "Pending"
             signature = self._get_agent_signature("en")
             fields = [
@@ -1313,7 +1374,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 "headStatusInfo": head_status_info,
                 "bodyTitle": f'<div style="color:#000;font-size:15pt;text-align:left">{body_title}</div>',
                 "bodySubTitle": f'<div style="color:rgba(0,0,0,.47);font-size:13pt;text-align:left">{body_sub_title}</div>',
-                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left;text-indent:0">{body_content}</div>',
+                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left;text-indent:0em">{body_content}</div>',
                 "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
                 "fields": fields,
                 "cardLink": "",
@@ -1358,6 +1419,9 @@ class LansengerAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Send a dynamic appCard slash-command confirmation card.
 
+        NOTE: This uses appCard (not i18nAppCard).  See send_exec_approval
+        docstring for the appCard vs i18nAppCard distinction.
+
         Uses the user's cached language preference to select content language.
 
         Used by the gateway's ``_maybe_confirm_destructive_slash`` gate for
@@ -1381,25 +1445,25 @@ class LansengerAdapter(BasePlatformAdapter):
         command_name = title.strip() if title else "unknown"
 
         if lang == "zh":
-            head_title = f"🔄 {command_name[:20]} 确认"
-            body_title = message[:30] if message else "会话操作"
-            body_content = ""  # Empty — fields show all options
+            head_title = f"🔄 {command_name} 确认"
+            body_title = "会话操作确认请求"
+            body_content = self._escape_html(message or "此操作将修改当前会话。")
             status_desc = "待确认"
             signature = self._get_agent_signature("zh")
             fields = [
-                {"key": "确认", "value": "/approve"},
+                {"key": "确认执行", "value": "/approve"},
                 {"key": "本会话免确认", "value": "/always"},
                 {"key": "取消", "value": "/cancel"},
             ]
         else:
-            head_title = f"🔄 {command_name[:20]} Confirm"
-            body_title = message[:30] if message else "Session Action"
-            body_content = ""  # Empty — fields show all options
+            head_title = f"🔄 {command_name} Confirm"
+            body_title = "Session Action Confirmation"
+            body_content = self._escape_html(message or "This action will modify your current session.")
             status_desc = "Pending"
             signature = self._get_agent_signature("en")
             fields = [
-                {"key": "Approve", "value": "/approve"},
-                {"key": "No Confirm", "value": "/always"},
+                {"key": "Approve Once", "value": "/approve"},
+                {"key": "Always This Session", "value": "/always"},
                 {"key": "Cancel", "value": "/cancel"},
             ]
 
@@ -1416,7 +1480,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 "isDynamic": True,
                 "headStatusInfo": head_status_info,
                 "bodyTitle": f'<div style="color:#000;font-size:15pt;text-align:left">{body_title}</div>',
-                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left">{body_content}</div>',
+                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left;text-indent:0em">{body_content}</div>',
                 "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
                 "fields": fields,
                 "cardLink": "",
@@ -1453,6 +1517,9 @@ class LansengerAdapter(BasePlatformAdapter):
         status: str, user_name: str = ""
     ) -> SendResult:
         """Update a dynamic appCard message status in-place.
+
+        NOTE: This uses the DynamicMsg appCard update API (appCardUpdateMsg),
+        not i18nAppCard.  i18nAppCard does not support dynamic updates.
 
         Uses the user's cached language preference for status text.
 
@@ -1530,6 +1597,9 @@ class LansengerAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Send a dynamic appCard update prompt with /approve /deny reply hints.
 
+        NOTE: This uses appCard (not i18nAppCard).  See send_exec_approval
+        docstring for the appCard vs i18nAppCard distinction.
+
         Uses the user's cached language preference to select content language.
 
         Used by the gateway's ``/update`` watcher when ``hermes update --gateway``
@@ -1591,12 +1661,12 @@ class LansengerAdapter(BasePlatformAdapter):
                 "isDynamic": True,
                 "headStatusInfo": head_status_info,
                 "bodyTitle": f'<div style="color:#000;font-size:15pt;text-align:left">{body_title}</div>',
-                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left">{body_content}</div>',
-                "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
-                "fields": fields,
-                "cardLink": "",
-                "pcCardLink": "",
-            }
+"bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left;text-indent:0em">{body_content}</div>',
+            "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
+            "fields": fields,
+            "cardLink": "",
+            "pcCardLink": "",
+        }
 
             payload = {
                 "userIdList": [chat_id],
@@ -1628,6 +1698,10 @@ class LansengerAdapter(BasePlatformAdapter):
 
     def _build_agent_signature_i18n(self) -> Dict[str, str]:
         """Build the i18nSignature with the agent name from SOUL.md (dynamic).
+
+        RESERVED for future i18nAppCard use.  Currently not called by
+        any active flow — the approval workflow uses appCard with
+        language detection instead.
 
         Falls back to "Hermes" if SOUL.md cannot be read.  The signature
         format is "{agent_name} 安全系统" / "{agent_name} Security System" etc.
@@ -1684,6 +1758,10 @@ class LansengerAdapter(BasePlatformAdapter):
 
     def _build_i18n_obj_full(self, zh_hans: str, zh_hant: str, zh_hant_hk: str, en: str, fr: str) -> Dict[str, str]:
         """Build i18n object with all 5 supported languages.
+
+        RESERVED for future i18nAppCard use.  Currently not called by
+        any active flow — the approval workflow uses appCard with
+        language detection (single-language per card) instead.
         
         Args:
             zh_hans: Simplified Chinese text
@@ -1938,7 +2016,7 @@ def _interactive_setup():
     print(f"  {CYAN}─── 💠 Lansenger (蓝信) Setup ───{RESET}")
     print()
     print(f"  {YELLOW}Where to find your credentials:{RESET}")
-    print(f"  Lansenger desktop → Contacts → Bots → Personal Bots → ℹ️ icon")
+    print(f"  Lansenger desktop → Contacts → Smart Bot → Personal Bot → ℹ️ icon")
     print(f"  (Mobile client does not support viewing credentials)")
     print()
     
