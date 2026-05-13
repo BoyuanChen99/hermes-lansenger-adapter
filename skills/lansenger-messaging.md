@@ -98,7 +98,7 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 - Use `is_dynamic=True` + `headStatusInfo` for approval workflows
 - Language is auto-detected per user (zh/en), content is sent in detected language
 - After approval/rejection, use `lansenger_update_dynamic_card` to update `headStatusInfo` in-place
-- **bodyContent text-indent is always 0** — do not set indent > 0
+- **bodyContent text-indent must use unit: `0em`** — bare `0` causes API to return empty response
 - For multi-article collections, use `lansenger_send_app_articles` instead
 
 ### 10. Update dynamic card status

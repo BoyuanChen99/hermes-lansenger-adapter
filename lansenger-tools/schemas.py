@@ -349,7 +349,7 @@ LANSENGER_SEND_APP_CARD = {
         "in bodyTitle, bodySubTitle, bodyContent, and signature fields. "
         "Set is_dynamic=true to enable in-place status updates via lansenger_update_dynamic_card "
         "(e.g. approval workflows: pending → approved/rejected). "
-        "bodyContent text-indent should always be 0."
+        "bodyContent text-indent must always be 0em (bare 0 causes API failure)."
     ),
     "parameters": {
         "type": "object",
