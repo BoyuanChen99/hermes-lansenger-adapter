@@ -177,13 +177,13 @@ def _run_async(coro):
 # --- Async implementations (shared by all handlers) ---
 
 
-async def _create_ephemeral_adapter() -> tuple:
+async def _create_ephemeral_adapter():
     """Create an ephemeral LansengerAdapter with env-based config.
 
     Pre-loads persisted appToken so the ephemeral adapter can reuse it
     without calling /v1/apptoken/create on every invocation.
 
-    Returns (adapter, http_client) tuple. Caller must close http_client.
+    Returns the adapter instance. The adapter's _http_client is already set.
     """
     import httpx
 

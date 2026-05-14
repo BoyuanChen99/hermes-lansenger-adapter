@@ -79,7 +79,7 @@ API_ENDPOINTS = {
         "group_message": "/v1/messages/group/create",
     },
     "app": {
-        "upload_media": "/v1/app/medias/create",
+        "upload_media": "/v1/medias/create",
     },
     "message": {
         "revoke": "/v1/messages/revoke",
@@ -157,15 +157,13 @@ class LansengerAdapter(BasePlatformAdapter):
         try:
             self._http_client = httpx.AsyncClient(timeout=30.0)
 
-            # Get WebSocket URL
             ws_url = await self._get_websocket_url()
             if not ws_url:
                 logger.error("[Lansenger] Failed to get WebSocket URL")
                 return False
 
             self._ws_task = asyncio.create_task(self._run_ws(ws_url))
-            self._mark_connected()
-            logger.info("[Lansenger] Connected via WebSocket")
+            logger.info("[Lansenger] WebSocket task created")
             return True
         except Exception as e:
             logger.error("[Lansenger] Failed to connect: %s", e)
@@ -202,15 +200,15 @@ class LansengerAdapter(BasePlatformAdapter):
                 async with websockets.connect(ws_url, ping_interval=30, ping_timeout=10) as ws:
                     self._ws_client = ws
                     backoff_idx = 0
+                    self._mark_connected()
+                    logger.info("[Lansenger] WebSocket connected")
                     
-                    # Start heartbeat task
                     heartbeat_task = asyncio.create_task(self._heartbeat_loop(ws))
                     
                     try:
                         async for message in ws:
                             await self._on_message(message)
                     finally:
-                        # Cancel heartbeat on disconnect
                         heartbeat_task.cancel()
                         try:
                             await heartbeat_task
@@ -226,12 +224,15 @@ class LansengerAdapter(BasePlatformAdapter):
             if not self._running:
                 return
 
+            self._ws_client = None
+            self._mark_disconnected()
+            logger.warning("[Lansenger] WebSocket disconnected, will reconnect")
+
             delay = RECONNECT_BACKOFF[min(backoff_idx, len(RECONNECT_BACKOFF) - 1)]
             logger.info("[Lansenger] Reconnecting in %ds...", delay)
             await asyncio.sleep(delay)
             backoff_idx += 1
 
-            # Refresh WebSocket URL on reconnect
             ws_url = await self._get_websocket_url() or ws_url
     
     async def _heartbeat_loop(self, ws, interval: int = 25) -> None:
@@ -678,6 +679,9 @@ class LansengerAdapter(BasePlatformAdapter):
 
     async def send_format_text(self, chat_id: str, content: str) -> SendResult:
         """Send a formatted text message (Markdown support).
+
+        Routes to /v1/messages/group/create for group chats,
+        /v1/bot/messages/create for private chats.
         
         Note: formatText does NOT support media attachments.
         Use send_text_with_media() for sending files/images/videos.
@@ -687,17 +691,32 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "formatText",
-                "msgData": {
-                    "formatText": {
-                        "formatType": 1,
-                        "text": content
+            is_group = self._chat_type_map.get(chat_id) == "group"
+
+            if is_group:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+                payload = {
+                    "groupId": chat_id,
+                    "msgType": "formatText",
+                    "msgData": {
+                        "formatText": {
+                            "formatType": 1,
+                            "text": content
+                        }
                     }
                 }
-            }
+            else:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+                payload = {
+                    "userIdList": [chat_id],
+                    "msgType": "formatText",
+                    "msgData": {
+                        "formatText": {
+                            "formatType": 1,
+                            "text": content
+                        }
+                    }
+                }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -707,7 +726,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] FormatText message sent to %s", chat_id)
+            logger.info("[Lansenger] FormatText message sent to %s (group=%s)", chat_id, is_group)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
         except Exception as e:
             logger.error("[Lansenger] Send formatText error: %s", e, exc_info=True)
@@ -757,6 +776,9 @@ class LansengerAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Send an appArticles (图文卡片) message with multiple article entries.
 
+        Routes to /v1/messages/group/create for group chats,
+        /v1/bot/messages/create for private chats.
+
         Each article dict must contain:
             - imgUrl (required): Image URL
             - title (required): Article title
@@ -779,14 +801,22 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "appArticles",
-                "msgData": {
-                    "appArticles": articles,
-                },
-            }
+            is_group = self._chat_type_map.get(chat_id) == "group"
+
+            if is_group:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+                payload = {
+                    "groupId": chat_id,
+                    "msgType": "appArticles",
+                    "msgData": {"appArticles": articles},
+                }
+            else:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+                payload = {
+                    "userIdList": [chat_id],
+                    "msgType": "appArticles",
+                    "msgData": {"appArticles": articles},
+                }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -796,7 +826,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] appArticles sent to %s, msgId=%s", chat_id, msg_id)
+            logger.info("[Lansenger] appArticles sent to %s, msgId=%s (group=%s)", chat_id, msg_id, is_group)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
 
         except Exception as e:
@@ -858,7 +888,12 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            is_group = self._chat_type_map.get(chat_id) == "group"
+
+            if is_group:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+            else:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
 
             app_card_data: Dict[str, Any] = {
                 "headTitle": head_title,
@@ -891,13 +926,18 @@ class LansengerAdapter(BasePlatformAdapter):
             if links:
                 app_card_data["links"] = links
 
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "appCard",
-                "msgData": {
-                    "appCard": app_card_data,
-                },
-            }
+            if is_group:
+                payload = {
+                    "groupId": chat_id,
+                    "msgType": "appCard",
+                    "msgData": {"appCard": app_card_data},
+                }
+            else:
+                payload = {
+                    "userIdList": [chat_id],
+                    "msgType": "appCard",
+                    "msgData": {"appCard": app_card_data},
+                }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -911,7 +951,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] appCard sent to %s, msgId=%s, dynamic=%s", chat_id, msg_id, is_dynamic)
+            logger.info("[Lansenger] appCard sent to %s, msgId=%s, dynamic=%s, group=%s", chat_id, msg_id, is_dynamic, is_group)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
 
         except Exception as e:
@@ -1035,7 +1075,13 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            is_group = self._chat_type_map.get(chat_id) == "group"
+
+            if is_group:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+            else:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+
             text_data = {
                 "content": content,
                 "mediaType": media_type,
@@ -1043,11 +1089,19 @@ class LansengerAdapter(BasePlatformAdapter):
             }
             if reminder:
                 text_data["reminder"] = reminder
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "text",
-                "msgData": {"text": text_data}
-            }
+
+            if is_group:
+                payload = {
+                    "groupId": chat_id,
+                    "msgType": "text",
+                    "msgData": {"text": text_data},
+                }
+            else:
+                payload = {
+                    "userIdList": [chat_id],
+                    "msgType": "text",
+                    "msgData": {"text": text_data},
+                }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -1057,7 +1111,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] Text+media message sent to %s", chat_id)
+            logger.info("[Lansenger] Text+media message sent to %s (group=%s)", chat_id, is_group)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
         except Exception as e:
             logger.error("[Lansenger] Send text+media error: %s", e)
@@ -1258,6 +1312,9 @@ class LansengerAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Send a linkCard card message.
 
+        Routes to /v1/messages/group/create for group chats,
+        /v1/bot/messages/create for private chats.
+
         Args:
             chat_id: Recipient user ID
             title: Card title
@@ -1273,22 +1330,35 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="Failed to get token")
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "linkCard",
-                "msgData": {
-                    "linkCard": {
-                        "title": title,
-                        "link": link,
-                        "description": description or "",
-                        "iconLink": icon_link or "",
-                        "pcLink": pc_link or "",
-                        "fromName": from_name or "",
-                        "fromIconLink": from_icon_link or "",
-                    }
-                }
+            is_group = self._chat_type_map.get(chat_id) == "group"
+
+            if is_group:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+            else:
+                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+
+            link_card_data = {
+                "title": title,
+                "link": link,
+                "description": description or "",
+                "iconLink": icon_link or "",
+                "pcLink": pc_link or "",
+                "fromName": from_name or "",
+                "fromIconLink": from_icon_link or "",
             }
+
+            if is_group:
+                payload = {
+                    "groupId": chat_id,
+                    "msgType": "linkCard",
+                    "msgData": {"linkCard": link_card_data},
+                }
+            else:
+                payload = {
+                    "userIdList": [chat_id],
+                    "msgType": "linkCard",
+                    "msgData": {"linkCard": link_card_data},
+                }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -1304,7 +1374,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg", "Unknown error"))
 
             msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] LinkCard sent to %s, msgId=%s", chat_id, msg_id)
+            logger.info("[Lansenger] LinkCard sent to %s, msgId=%s (group=%s)", chat_id, msg_id, is_group)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
         except Exception as e:
             logger.error("[Lansenger] Send linkCard error: %s", e, exc_info=True)
@@ -1366,8 +1436,8 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # --- Build appCard content in the user's language ---
         if lang == "zh":
-            head_title = "⚠️ 命令审批"
-            body_title = "危险命令审批请求"
+            head_title = "⚠️ 危险命令审批"
+            body_title = f"确认 {cmd_preview[:20]}"
             body_sub_title = description
             body_content = f"会话 ID: {session_key[:32]}\n命令:\n{cmd_preview}"
             status_desc = "待审批"
