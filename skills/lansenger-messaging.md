@@ -1,6 +1,6 @@
 ---
 name: lansenger-messaging
-version: 2.6.0
+version: 2.6.1
 category: lansenger
 description: Lansenger messaging strategy — understand text/formatText/appCard/appArticles capability boundary, token management, and credential storage
 trigger: When you need to send any message, file, image, card, or notification via Lansenger (蓝信), or when you see a lansenger_* tool in the available tools list.
@@ -13,15 +13,21 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 ## Message Type Capability Matrix
 
 ```
-┌──────────────┬──────────────┬──────────────┬──────────────┐
-│  msgType     │  Markdown    │  @mention    │  Attachments │
-├──────────────┼──────────────┼──────────────┼──────────────┤
-│  text        │  ✗           │  ✓           │  ✓           │
-│  formatText  │  ✓           │  ✗           │  ✗           │
-│  appArticles │  ✗           │  ✗           │  ✗           │
-│  appCard     │  ✗ (div)     │  ✗           │  ✗           │
-└──────────────┴──────────────┴──────────────┴──────────────┘
+┌──────────────┬──────────────┬──────────────┬──────────────┬──────────────┐
+│  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
+├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
+│  text        │  ✗           │  ✓           │  ✓           │  ✓           │
+│  formatText  │  ✓           │  ✗           │  ✗           │  ✓           │
+│  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
+│  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
+│  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
+└──────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
 ```
+
+All message types support both private and group chat. The adapter auto-routes:
+- Private chat → `/v1/bot/messages/create` with `userIdList`
+- Group chat → `/v1/messages/group/create` with `groupId`
+Group detection uses `_chat_type_map` populated from inbound messages.
 
 ## Card Type Capability Matrix
 
@@ -40,6 +46,7 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 - **i18nAppCard** — supports 5 languages (zhHans/zhHant/zhHantHK/en/fr) in one message, but does NOT support dynamic updates or `headStatusInfo`. **Reserved for future use**.
 - **DynamicMsg appCard** — the update payload for appCard (`appCardUpdateMsg`), which updates `headStatusInfo` and `links` in-place. Used after approval/rejection to change card status.
 - **appArticles** — multi-article card (图文卡片) with image + title + link per article. No formatting, no dynamic updates.
+- **linkCard** — rich link preview card with title, description, icon, and clickable link.
 
 ## Tool Selection Decision Tree
 

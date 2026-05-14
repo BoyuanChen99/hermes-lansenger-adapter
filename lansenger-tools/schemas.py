@@ -2,14 +2,18 @@
 
 Lansenger (蓝信) has multiple message/card types with different capabilities:
 
-  ┌──────────────┬──────────────┬──────────────┬──────────────┐
-  │  msgType     │  Markdown    │  @mention    │  Attachments │
-  ├──────────────┼──────────────┼──────────────┼──────────────┤
-  │  text        │  ✗           │  ✓           │  ✓           │
-  │  formatText  │  ✓           │  ✗           │  ✗           │
-  │  appArticles │  ✗           │  ✗           │  ✗           │
-  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │
-  └──────────────┴──────────────┴──────────────┴──────────────┘
+  ┌──────────────┬──────────────┬──────────────┬──────────────┬──────────────┐
+  │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
+  ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
+  │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
+  │  formatText  │  ✓           │  ✗           │  ✗           │  ✓           │
+  │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
+  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
+  │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
+  └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
+
+  All message types support both private and group chat. The adapter auto-routes
+  to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
   Card types:
   - appCard: supports isDynamic + headStatusInfo (dynamic update), single language

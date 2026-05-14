@@ -2,14 +2,18 @@
 
 Lansenger (蓝信) has multiple message types with different capabilities:
 
-  ┌──────────────┬──────────────┬──────────────┬──────────────┐
-  │  msgType     │  Markdown    │  @mention    │  Attachments │
-  ├──────────────┼──────────────┼──────────────┼──────────────┤
-  │  text        │  ✗           │  ✓           │  ✓           │
-  │  formatText  │  ✓           │  ✗           │  ✗           │
-  │  appArticles │  ✗           │  ✗           │  ✗           │
-  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │
-  └──────────────┴──────────────┴──────────────┴──────────────┘
+  ┌──────────────┬──────────────┬──────────────┬──────────────┬──────────────┐
+  │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
+  ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
+  │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
+  │  formatText  │  ✓           │  ✗           │  ✗           │  ✓           │
+  │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
+  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
+  │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
+  └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
+
+  All message types support both private and group chat. The adapter auto-routes
+  to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
   appCard supports div-style formatting (color, font-size, text-align, text-indent).
   appArticles is a multi-article card (图文卡片) with imgUrl/title/url fields.
