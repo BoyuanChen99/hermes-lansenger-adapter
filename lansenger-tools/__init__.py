@@ -6,14 +6,18 @@ users and groups.
 
 Lansenger has multiple message/card types with different capabilities:
 
-  ┌──────────────┬──────────────┬──────────────┬──────────────┐
-  │  msgType     │  Markdown    │  @mention    │  Attachments │
-  ├──────────────┼──────────────┼──────────────┼──────────────┤
-  │  text        │  ✗           │  ✓           │  ✓           │
-  │  formatText  │  ✓           │  ✗           │  ✗           │
-  │  appArticles │  ✗           │  ✗           │  ✗           │
-  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │
-  └──────────────┴──────────────┴──────────────┴──────────────┘
+  ┌──────────────┬──────────────┬──────────────┬──────────────┬──────────────┐
+  │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
+  ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
+  │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
+  │  formatText  │  ✓           │  ✗           │  ✗           │  ✓           │
+  │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
+  │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
+  │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
+  └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
+
+  All message types support both private and group chat. The adapter auto-routes
+  to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
 - lansenger_send_text:         msgType=text → plain text + optional file/image/video
 - lansenger_send_markdown:     msgType=formatText → Markdown text, NO attachments

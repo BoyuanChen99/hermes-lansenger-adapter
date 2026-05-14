@@ -122,6 +122,8 @@ class LansengerAdapter(BasePlatformAdapter):
         # Chat type cache: maps chat_id → "group" or "dm"
         # Populated from inbound messages so outbound can route correctly
         self._chat_type_map: Dict[str, str] = {}
+        self._chat_type_file = Path.home() / ".hermes" / "lansenger_chat_types.json"
+        self._load_chat_type_map()
 
         # User language cache: maps chat_id → "zh" or "en"
         # Populated from inbound messages so approval cards use the right language
@@ -297,6 +299,26 @@ class LansengerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error("[Lansenger] Failed to save owner ID: %s", e)
 
+    def _load_chat_type_map(self) -> None:
+        try:
+            if self._chat_type_file.exists():
+                import json
+                data = json.loads(self._chat_type_file.read_text())
+                if isinstance(data, dict):
+                    self._chat_type_map.update(data)
+                    logger.info("[Lansenger] Loaded %d chat type mappings from file", len(data))
+        except Exception as e:
+            logger.warning("[Lansenger] Failed to load chat type map: %s", e)
+
+    def _persist_chat_type_map(self) -> None:
+        try:
+            import json
+            self._chat_type_file.parent.mkdir(parents=True, exist_ok=True)
+            self._chat_type_file.write_text(json.dumps(self._chat_type_map, indent=2))
+            logger.debug("[Lansenger] Persisted %d chat type mappings", len(self._chat_type_map))
+        except Exception as e:
+            logger.error("[Lansenger] Failed to persist chat type map: %s", e)
+
     async def _auto_sethome(self, chat_id: str) -> None:
         """Auto-designate the first DM as Lansenger home channel.
 
@@ -394,6 +416,7 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # Cache chat type for outbound routing
         self._chat_type_map[chat_id] = "group" if is_group else "dm"
+        self._persist_chat_type_map()
 
         # Cache user language from message text (for appCard language selection)
         text_content = msg_data.get("text", {}).get("content", "")

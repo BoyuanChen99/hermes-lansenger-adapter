@@ -201,6 +201,7 @@ async def _create_ephemeral_adapter():
     adapter._http_client = httpx.AsyncClient(timeout=30.0)
 
     _load_persisted_token_into_adapter(adapter)
+    _load_persisted_chat_types_into_adapter(adapter)
 
     return adapter
 
@@ -229,6 +230,28 @@ def _load_persisted_token_into_adapter(adapter) -> None:
                              int(data["expires_at"] - datetime.now().timestamp()))
     except Exception as e:
         logger.debug("lansenger-tools: failed to load persisted token: %s", e)
+
+
+def _load_persisted_chat_types_into_adapter(adapter) -> None:
+    """Load persisted chat type map from ~/.hermes/lansenger_chat_types.json.
+
+    The gateway adapter caches chat_id → group/dm from inbound messages and
+    persists it. The ephemeral adapter reads it so outbound routing works
+    correctly (group chat → groupId endpoint, private → userIdList endpoint).
+    """
+    import json
+    from pathlib import Path
+
+    chat_type_file = Path.home() / ".hermes" / "lansenger_chat_types.json"
+    try:
+        if not chat_type_file.exists():
+            return
+        data = json.loads(chat_type_file.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            adapter._chat_type_map.update(data)
+            logger.debug("lansenger-tools: loaded %d chat type mappings", len(data))
+    except Exception as e:
+        logger.debug("lansenger-tools: failed to load chat type map: %s", e)
 
 
 async def _send_text_async(chat_id: str, content: str,
