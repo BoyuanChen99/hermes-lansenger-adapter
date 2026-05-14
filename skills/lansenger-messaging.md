@@ -17,12 +17,25 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
 ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
 │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
-│  formatText  │  ✓           │  ✗           │  ✗           │  ✓           │
+│  formatText  │  ✓           │  ✓           │  ✗           │  ✓           │
 │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
 │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
 │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
 └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
 ```
+
+NOTE: formatText supports @mention (reminder) per API spec 4.6.4.12, but this
+is a newer capability. Older Lansenger versions silently accept the reminder
+field without triggering client-side @mention notifications. Newer versions
+trigger the notification. In group chat, it is recommended to include @姓名
+in the text content (e.g. "@张三 请查看报告") so people know who the reply is for.
+Private chat also supports reminder but it is unnecessary (only one participant).
+
+NOTE: linkCard has 6 required fields per API spec 4.6.4.4: title, description,
+iconLink, link, fromName, fromIconLink. The `lansenger_send_link_card` schema
+enforces all of them.
+
+NOTE: For video (mediaType=1), the API requires 2 mediaIds: [videoId, coverImageId].
 
 All message types support both private and group chat. The adapter auto-routes:
 - Private chat → `/v1/bot/messages/create` with `userIdList`
@@ -59,7 +72,9 @@ Group detection uses `_chat_type_map` populated from inbound messages and persis
 ### 2. Markdown-formatted text (code, tables, lists)
 → `lansenger_send_markdown`
 - content = Markdown text
-- Cannot @mention, cannot attach files
+- Optional @mention via reminder_all / reminder_user_ids (newer API, old API silently accepts)
+- In group chat, recommended to include @姓名 in text when replying to someone
+- Cannot attach files
 - Example: code output, structured reports, step-by-step instructions
 
 ### 3. Text + attachment (file/image/video)

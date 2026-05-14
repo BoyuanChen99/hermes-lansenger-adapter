@@ -203,19 +203,10 @@ class LansengerAdapter(BasePlatformAdapter):
                     self._ws_client = ws
                     backoff_idx = 0
                     self._mark_connected()
-                    logger.info("[Lansenger] WebSocket connected")
-                    
-                    heartbeat_task = asyncio.create_task(self._heartbeat_loop(ws))
-                    
-                    try:
-                        async for message in ws:
-                            await self._on_message(message)
-                    finally:
-                        heartbeat_task.cancel()
-                        try:
-                            await heartbeat_task
-                        except asyncio.CancelledError:
-                            pass
+                    logger.info("[Lansenger] WebSocket connected (ping_interval=30s, ping_timeout=10s)")
+
+                    async for message in ws:
+                        await self._on_message(message)
             except asyncio.CancelledError:
                 return
             except Exception as e:
@@ -236,23 +227,6 @@ class LansengerAdapter(BasePlatformAdapter):
             backoff_idx += 1
 
             ws_url = await self._get_websocket_url() or ws_url
-    
-    async def _heartbeat_loop(self, ws, interval: int = 25) -> None:
-        """Send periodic heartbeat to keep connection alive."""
-        logger.info("[Lansenger] Heartbeat task started (interval=%ds)", interval)
-        while self._running:
-            try:
-                await asyncio.sleep(interval)
-                if not self._running:
-                    break
-                # Send a simple ping to keep connection alive
-                await ws.ping()
-                logger.debug("[Lansenger] Heartbeat ping sent")
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning("[Lansenger] Heartbeat error: %s", e)
-                break
 
     async def disconnect(self) -> None:
         """Disconnect from Lansenger."""
@@ -638,23 +612,25 @@ class LansengerAdapter(BasePlatformAdapter):
 
     async def send(self, chat_id: str, content: str, **kwargs) -> SendResult:
         """Send a message (alias for send_format_text)."""
-        return await self.send_format_text(chat_id, content)
+        reminder = kwargs.get("reminder")
+        return await self.send_format_text(chat_id, content, reminder=reminder)
 
     async def send_typing(self, chat_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """Send typing indicator (not supported by Lansenger)."""
         pass  # Lansenger doesn't support typing indicators
 
     async def send_text(self, chat_id: str, content: str, reminder: dict = None) -> SendResult:
-        """Send a plain text message, optionally with @mentions (group/staff chat only).
+        """Send a plain text message, optionally with @mentions.
         
         Routes to /v1/messages/group/create for group chats,
         /v1/bot/messages/create for private chats.
         
         Args:
             chat_id: Recipient user ID or chat ID
-            content: Text content
+            content: Text content. In group chat, recommended to include @姓名
+                     when replying to someone (e.g. "@张三 请查收").
             reminder: Optional dict with 'all' (bool) and 'userIds' (list) for @mentions.
-                      Only works in group/staff chat; private chat does not support @mentions.
+                      Private chat supports this but it is unnecessary (only one participant).
         """
         token = await self._get_app_token()
         if not token:
@@ -700,60 +676,71 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.error("[Lansenger] Send text error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
-    async def send_format_text(self, chat_id: str, content: str) -> SendResult:
-        """Send a formatted text message (Markdown support).
+    async def send_format_text(self, chat_id: str, content: str, reminder: dict = None) -> SendResult:
+            """Send a formatted text message (Markdown support), optionally with @mentions.
 
-        Routes to /v1/messages/group/create for group chats,
-        /v1/bot/messages/create for private chats.
-        
-        Note: formatText does NOT support media attachments.
-        Use send_text_with_media() for sending files/images/videos.
-        """
-        token = await self._get_app_token()
-        if not token:
-            return SendResult(success=False, error="No access token")
+            Routes to /v1/messages/group/create for group chats,
+            /v1/bot/messages/create for private chats.
 
-        try:
-            is_group = self._chat_type_map.get(chat_id) == "group"
+NOTE: formatText @mention (reminder) is a NEWER API capability (spec 4.6.4.12).
+        Older Lansenger API versions silently accept the reminder field without error
+        but do NOT trigger client-side @mention notifications. On newer versions,
+        reminder triggers the notification. In group chat, it is recommended to
+        include @姓名 in the text content so people know who the reply is for.
+        Private chat supports reminder but it is unnecessary (only one participant).
 
-            if is_group:
-                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
-                payload = {
-                    "groupId": chat_id,
-                    "msgType": "formatText",
-                    "msgData": {
-                        "formatText": {
-                            "formatType": 1,
-                            "text": content
-                        }
-                    }
+        Args:
+            chat_id: Recipient user ID or chat ID
+            content: Markdown-formatted text content. In group chat, recommended to
+                     include @姓名 when replying to someone (e.g. "@张三 请查看报告").
+            reminder: Optional dict with 'all' (bool), 'userIds' (list), and
+                      'botIds' (list) for @mentions. Private chat supports this
+                      but it is unnecessary. Old API silently accepts this field
+                      without triggering notifications.
+            """
+            token = await self._get_app_token()
+            if not token:
+                return SendResult(success=False, error="No access token")
+
+            try:
+                is_group = self._chat_type_map.get(chat_id) == "group"
+
+                format_text_data: Dict[str, Any] = {
+                    "formatType": 1,
+                    "text": content,
                 }
-            else:
-                url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
-                payload = {
-                    "userIdList": [chat_id],
-                    "msgType": "formatText",
-                    "msgData": {
-                        "formatText": {
-                            "formatType": 1,
-                            "text": content
-                        }
+                if reminder:
+                    format_text_data["reminder"] = reminder
+
+                if is_group:
+                    url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+                    payload = {
+                        "groupId": chat_id,
+                        "msgType": "formatText",
+                        "msgData": {"formatText": format_text_data},
                     }
-                }
+                else:
+                    url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+                    payload = {
+                        "userIdList": [chat_id],
+                        "msgType": "formatText",
+                        "msgData": {"formatText": format_text_data},
+                    }
 
-            response = await self._http_client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
+                response = await self._http_client.post(url, json=payload)
+                response.raise_for_status()
+                data = response.json()
 
-            if data.get("errCode") != 0:
-                return SendResult(success=False, error=data.get("errMsg"))
+                if data.get("errCode") != 0:
+                    return SendResult(success=False, error=data.get("errMsg"))
 
-            msg_id = data.get("data", {}).get("msgId")
-            logger.info("[Lansenger] FormatText message sent to %s (group=%s)", chat_id, is_group)
-            return SendResult(success=True, message_id=msg_id, raw_response=data)
-        except Exception as e:
-            logger.error("[Lansenger] Send formatText error: %s", e, exc_info=True)
-            return SendResult(success=False, error=str(e), retryable=True)
+                msg_id = data.get("data", {}).get("msgId")
+                logger.info("[Lansenger] FormatText sent to %s (group=%s, reminder=%s)",
+                            chat_id, is_group, bool(reminder))
+                return SendResult(success=True, message_id=msg_id, raw_response=data)
+            except Exception as e:
+                logger.error("[Lansenger] Send formatText error: %s", e, exc_info=True)
+                return SendResult(success=False, error=str(e), retryable=True)
 
     async def query_groups(self, page_offset: int = 1, page_size: int = 100) -> Dict[str, Any]:
         """Query the bot's group ID list via GET /v2/groups/fetch.
@@ -806,8 +793,8 @@ class LansengerAdapter(BasePlatformAdapter):
             - imgUrl (required): Image URL
             - title (required): Article title
             - url (required): Content link URL
-            - pcUrl (required): PC content link URL
             Optional:
+            - pcUrl: PC content link URL
             - summary: Article summary
             - attach: Mini-app redirect params (ignored by other apps)
 
@@ -1092,6 +1079,7 @@ class LansengerAdapter(BasePlatformAdapter):
             
         Note: Uses msgType='text' (not formatText) because formatText doesn't support media.
               Markdown is NOT supported when sending media.
+              For video (mediaType=1), the API requires 2 mediaIds: [videoId, coverImageId].
         """
         token = await self._get_app_token()
         if not token:
@@ -1283,25 +1271,25 @@ class LansengerAdapter(BasePlatformAdapter):
         self, 
         message_ids: List[str], 
         chat_type: str = "bot",
-        sender_id: Optional[str] = None
+        sender_id: Optional[str] = None,
     ) -> SendResult:
         """Revoke previously sent messages.
 
-        Args:
-            message_ids: List of message IDs to revoke
-            chat_type: Message type enum: staff, group, notification, account, bot
-            sender_id: Sender ID; required for private/group chats
+        For a personal bot plugin, only 'bot' and 'group' chat types are relevant.
+        - bot: bot-to-user private chat messages. sender_id not required.
+        - group: group chat messages. sender_id is REQUIRED per API spec.
 
         Note: Lansenger displays a fixed system message after revocation.
-              The revocation prompt text cannot be customized.
+              Custom sysMsg content/icon is NOT supported by the current API.
         """
-        # Get token
+        if chat_type not in ("bot", "group"):
+            return SendResult(success=False, error=f"chat_type must be 'bot' or 'group', got '{chat_type}'")
+        if chat_type == "group" and not sender_id:
+            return SendResult(success=False, error="chat_type='group' requires sender_id")
+
         token = await self._get_app_token()
         if not token:
             return SendResult(success=False, error="Failed to get token")
-        
-        if chat_type in ["staff", "group"] and not sender_id:
-            return SendResult(success=False, error=f"chat_type='{chat_type}' requires sender_id")
         
         try:
             url = f"{self._api_gateway_url}{API_ENDPOINTS['message']['revoke']}?app_token={token}"
@@ -1316,7 +1304,7 @@ class LansengerAdapter(BasePlatformAdapter):
             if data.get("errCode") != 0:
                 return SendResult(success=False, error=data.get("errMsg", "Unknown error"))
             
-            logger.info("[Lansenger] Message(s) revoked: %s", message_ids)
+            logger.info("[Lansenger] Message(s) revoked: %s (chatType=%s)", message_ids, chat_type)
             return SendResult(success=True, message_id=None, raw_response=data)
         except Exception as e:
             logger.error("[Lansenger] Revoke error: %s", e, exc_info=True)

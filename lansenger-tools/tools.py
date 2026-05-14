@@ -6,7 +6,7 @@ Lansenger (蓝信) has multiple message types with different capabilities:
   │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
   ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
   │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
-  │  formatText  │  ✓           │  ✗           │  ✗           │  ✓           │
+  │  formatText  │  ✓           │  ✓           │  ✗           │  ✓           │
   │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
   │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
   │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
@@ -15,15 +15,23 @@ Lansenger (蓝信) has multiple message types with different capabilities:
   All message types support both private and group chat. The adapter auto-routes
   to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
+  NOTE: formatText supports @mention (reminder) per API spec 4.6.4.12,
+  with reminder_all / reminder_user_ids params in lansenger_send_markdown.
+  This is a newer API capability — older Lansenger versions silently accept
+  the reminder field but do NOT trigger client-side @mention notifications.
+  In group chat, recommended to include @姓名 in the text content so people
+  know who the reply is for. Private chat supports reminder but it is unnecessary.
+
   appCard supports div-style formatting (color, font-size, text-align, text-indent).
   appArticles is a multi-article card (图文卡片) with imgUrl/title/url fields.
+  linkCard requires: title, description, iconLink, link, fromName, fromIconLink (per spec 4.6.4.4).
 
 This constraint shapes handler implementations:
 - send_text:       msgType=text   → plain text + optional file/image/video attachment
-- send_markdown:   msgType=formatText → Markdown text, NO attachments
+- send_markdown:   msgType=formatText → Markdown text, NO attachments (reminder supported by API but not exposed)
 - send_file:       msgType=text   → file/image/video only, optional plain-text caption
 - send_image_url:  msgType=text   → image from URL, optional plain-text caption
-- send_link_card:  msgType=text   → link preview card
+- send_link_card:  msgType=linkCard → link preview card (6 required fields)
 - send_app_articles: msgType=appArticles → multi-article card (图文卡片)
 - send_app_card:    msgType=appCard → rich card with div-style formatting
 - update_dynamic_card: POST /v1/messages/dynamic/update → update appCard status
@@ -300,11 +308,20 @@ async def _send_text_async(chat_id: str, content: str,
         return {"success": False, "error": str(e)}
 
 
-async def _send_markdown_async(chat_id: str, content: str) -> dict:
-    """Async: send Markdown-formatted message (msgType=formatText)."""
+async def _send_markdown_async(chat_id: str, content: str,
+                                reminder_all: bool = False,
+                                reminder_user_ids: list = None) -> dict:
+    """Async: send Markdown-formatted message (msgType=formatText), optionally with @mentions."""
     adapter = await _create_ephemeral_adapter()
     try:
-        result = await adapter.send_format_text(chat_id, content)
+        reminder = None
+        if reminder_all or (reminder_user_ids and len(reminder_user_ids) > 0):
+            reminder = {
+                "all": reminder_all,
+                "userIds": reminder_user_ids or [],
+            }
+
+        result = await adapter.send_format_text(chat_id, content, reminder=reminder)
         await adapter._http_client.aclose()
         return {
             "success": result.success,
@@ -587,13 +604,16 @@ def lansenger_send_text(args: dict, **kwargs) -> str:
 
 
 def lansenger_send_markdown(args: dict, **kwargs) -> str:
-    """Send a Markdown-formatted message (msgType=formatText).
+    """Send a Markdown-formatted message (msgType=formatText), optionally with @mentions.
 
-    msgType=formatText supports: Markdown formatting.
-    Does NOT support: @mentions, file/image/video attachments.
+    msgType=formatText supports: Markdown formatting and optional @mentions (reminder).
+    @mentions are a newer API capability — if the server doesn't support them, they will
+    be silently dropped. Does NOT support file/image/video attachments.
     """
     chat_id = args.get("chat_id", "").strip()
     content = args.get("content", "").strip()
+    reminder_all = args.get("reminder_all", False)
+    reminder_user_ids = args.get("reminder_user_ids") or []
 
     if not chat_id:
         return json.dumps({"error": "chat_id is required"})
@@ -605,7 +625,7 @@ def lansenger_send_markdown(args: dict, **kwargs) -> str:
         return json.dumps(env_result)
 
     try:
-        result = _run_async(_send_markdown_async(chat_id, content))
+        result = _run_async(_send_markdown_async(chat_id, content, reminder_all, reminder_user_ids))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
@@ -668,7 +688,8 @@ def lansenger_send_image_url(args: dict, **kwargs) -> str:
 def lansenger_revoke_message(args: dict, **kwargs) -> str:
     """Revoke a previously sent Lansenger (蓝信) message.
 
-    Uses env vars for credentials (fixes "Lansenger not configured" error).
+    Only 'bot' and 'group' chat types supported. For group, sender_id required.
+    Custom sysMsg not supported — system message is fixed.
     """
     message_ids = args.get("message_ids", [])
     chat_type = args.get("chat_type", "bot")
@@ -677,14 +698,15 @@ def lansenger_revoke_message(args: dict, **kwargs) -> str:
     if not message_ids:
         return json.dumps({"error": "message_ids is required"})
 
+    if chat_type not in ("bot", "group"):
+        return json.dumps({"error": "chat_type must be 'bot' or 'group'"})
+
+    if chat_type == "group" and not sender_id:
+        return json.dumps({"error": "chat_type='group' requires sender_id"})
+
     env_result = _check_env()
     if "error" in env_result:
         return json.dumps(env_result)
-
-    if chat_type in ("staff", "group") and not sender_id:
-        return json.dumps({
-            "error": f"chat_type='{chat_type}' requires sender_id",
-        })
 
     try:
         result = _run_async(_revoke_async(message_ids, chat_type, sender_id))

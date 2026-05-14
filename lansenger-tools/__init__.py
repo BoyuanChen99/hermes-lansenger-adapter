@@ -10,7 +10,7 @@ Lansenger has multiple message/card types with different capabilities:
   │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
   ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
   │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
-  │  formatText  │  ✓           │  ✗           │  ✗           │  ✓           │
+  │  formatText  │  ✓           │  ✓           │  ✗           │  ✓           │
   │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
   │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
   │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
@@ -19,12 +19,18 @@ Lansenger has multiple message/card types with different capabilities:
   All message types support both private and group chat. The adapter auto-routes
   to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
+  NOTE: formatText supports @mention (reminder) per API spec 4.6.4.12, exposed
+  via reminder_all / reminder_user_ids params in lansenger_send_markdown.
+  This is a newer API capability — old versions silently accept reminder
+  without triggering notifications. In group chat, recommended to include
+  @姓名 in text content. Private chat supports reminder but it is unnecessary.
+
 - lansenger_send_text:         msgType=text → plain text + optional file/image/video
 - lansenger_send_markdown:     msgType=formatText → Markdown text, NO attachments
 - lansenger_send_file:         msgType=text → file/image/video only, optional caption
 - lansenger_send_image_url:    msgType=text → image from URL, optional caption
-- lansenger_revoke_message:    retract previously sent messages
-- lansenger_send_link_card:    msgType=linkCard → rich link preview card
+- lansenger_revoke_message:    retract messages (fixed system message, bot/group only)
+- lansenger_send_link_card:    msgType=linkCard → rich link preview card (6 required fields)
 - lansenger_send_app_articles: msgType=appArticles → multi-article card (图文卡片)
 - lansenger_send_app_card:     msgType=appCard → rich card with dynamic update support
 - lansenger_update_dynamic_card: POST → update appCard status in-place
@@ -68,7 +74,7 @@ def register(ctx):
         toolset="lansenger-tools",
         schema=schemas.LANSENGER_SEND_MARKDOWN,
         handler=tools.lansenger_send_markdown,
-        description="Send Markdown-formatted text (msgType=formatText). No @mentions or attachments.",
+        description="Send Markdown-formatted text (msgType=formatText). No attachments. @mention supported by API but not exposed in this tool.",
         check_fn=check_available,
     )
 
@@ -97,7 +103,7 @@ def register(ctx):
         toolset="lansenger-tools",
         schema=schemas.LANSENGER_REVOKE_MESSAGE,
         handler=tools.lansenger_revoke_message,
-        description="Revoke a previously sent Lansenger (蓝信) message",
+        description="Revoke a message (fixed system message shown). Only bot/group chat types.",
         check_fn=check_available,
     )
 
