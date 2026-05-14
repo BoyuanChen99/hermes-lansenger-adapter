@@ -86,14 +86,23 @@ Check that the plugin is loaded:
 ## Tools Overview
 
 ```
-┌─────────────────────────┬──────────────┬──────────────┬──────────────┐
-│  Tool                   │  Markdown    │  @mention    │  Attachments │
-├─────────────────────────┼──────────────┼──────────────┼──────────────┤
-│  lansenger_send_text    │  ✗           │  ✓           │  ✓           │
-│  lansenger_send_markdown│  ✓           │  ✗           │  ✗           │
-│  lansenger_send_file    │  ✗           │  —           │  ✓ (only)    │
-│  lansenger_send_image_url│ ✗           │  —           │  ✓ (only)    │
-│  lansenger_revoke_message│ —           │  —           │  —           │
-│  lansenger_send_link_card│ —           │  —           │  —           │
-└─────────────────────────┴──────────────┴──────────────┴──────────────┘
+┌───────────────────────────────┬──────────────┬──────────────┬──────────────┐
+│  Tool                         │  Markdown    │  @mention    │  Attachments │
+├───────────────────────────────┼──────────────┼──────────────┼──────────────┤
+│  lansenger_send_text          │  ✗           │  ✓           │  ✓           │
+│  lansenger_send_markdown      │  ✓           │  ✓ (opt)     │  ✗           │
+│  lansenger_send_file          │  ✗           │  —           │  ✓ (only)    │
+│  lansenger_send_image_url     │  ✗           │  —           │  ✓ (only)    │
+│  lansenger_send_link_card     │  —           │  —           │  —           │
+│  lansenger_send_app_articles  │  —           │  —           │  —           │
+│  lansenger_send_app_card      │  ✗ (div)     │  —           │  —           │
+│  lansenger_update_dynamic_card│  —           │  —           │  —           │
+│  lansenger_revoke_message     │  —           │  —           │  —           │
+│  lansenger_query_groups       │  —           │  —           │  —           │
+└───────────────────────────────┴──────────────┴──────────────┴──────────────┘
+
+@mention notes:
+- send_text: works in group chat; private chat supports but unnecessary (only one participant)
+- send_markdown: newer API capability (spec 4.6.4.12); older versions silently accept
+  without triggering notification. In group chat, recommended to include @姓名 in text.
 ```

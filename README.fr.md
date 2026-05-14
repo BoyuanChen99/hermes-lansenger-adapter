@@ -11,26 +11,31 @@ Ce dépôt contient **deux plugins** :
 | Plugin | Type | Ce qu’il fait |
 |--------|------|---------------|
 | `platforms/lansenger/` | plateforme | Adaptateur de canal de passerelle — recevoir & envoyer des messages |
-| `lansenger-tools/` | autonome (outil) | Outils appelables par l’Agent : envoyer des fichiers/images, révoquer des messages, envoyer des linkCard |
+| `lansenger-tools/` | autonome (outil) | Outils appelables par l’Agent : envoyer des messages/cartes/fichiers, révoquer des messages, requête groupes |
 
 ## Fonctionnalités
 
 ### Adaptateur de plateforme
-- **Messagerie en temps réel** via connexion longue WebSocket
-- **Support Markdown** utilisant le msgType `formatText`
+- **Messagerie en temps réel** via connexion longue WebSocket (ping/pong intégré)
+- **Support Markdown** utilisant le msgType `formatText` (avec @mentions optionnelles, API plus récente)
 - **Cartes d’approbation** — appCard avec mises à jour de statut en place après approbation/rejet
 - **Détection automatique du canal principal** — le premier message p2p définit la cible de livraison par défaut
+- **Persistance du type de chat** — map chat_id→groupe/dm entrante persistée pour le routage inter-processus
 - **Livraison planifiée** — notifications planifiées via `standalone_sender_fn`
 - **Autorisation des utilisateurs** — utilisateurs autorisés / autoriser tous les utilisateurs via des variables d’environnement
 - **Zéro modification du core** — mode plugin pur, `git diff HEAD` reste INTACT
 
 ### Plugin d’outils média & messages
-- **lansenger_send_text** — Envoyer des messages en texte brut avec @mentions optionnelles (groupe/staff uniquement) et pièces jointes
-- **lansenger_send_markdown** — Envoyer des messages au format Markdown (pas de @mentions ni pièces jointes)
+- **lansenger_send_text** — Envoyer du texte brut avec @mentions optionnelles et pièces jointes
+- **lansenger_send_markdown** — Envoyer du texte Markdown avec @mentions optionnelles (API plus récente, pas de pièces jointes)
 - **lansenger_send_file** — Envoyer tout fichier/image/vidéo local à un utilisateur ou groupe spécifique
 - **lansenger_send_image_url** — Envoyer une image depuis une URL à un utilisateur ou groupe spécifique
-- **lansenger_revoke_message** — Révoquer un message Lansenger envoyé 🗑️
-- **lansenger_send_link_card** — Envoyer un message de carte linkCard Lansenger 🔗
+- **lansenger_revoke_message** — Révoquer un message Lansenger envoyé (bot/groupe uniquement)
+- **lansenger_send_link_card** — Envoyer une carte linkCard (6 champs requis par la spec)
+- **lansenger_send_app_articles** — Envoyer une carte multi-article appArticles
+- **lansenger_send_app_card** — Envoyer une carte riche appCard avec mises à jour dynamiques optionnelles
+- **lansenger_update_dynamic_card** — Mettre à jour le statut d’une appCard dynamique en place
+- **lansenger_query_groups** — Requête la liste des ID de groupes du bot
 - **Détection automatique du type de média** — images/vidéos/documents classifiés par extension
 - **Contrôle des identifiants** — outils masqués lorsque LANSENGER_APP_ID/SECRET ne sont pas configurés
 
@@ -67,7 +72,7 @@ hermes gateway restart
 
 ## Configuration
 
-### Required Environment Variables
+### Variables d'environnement requises
 
 Ajoutez ces variables à `~/.hermes/.env` :
 
@@ -97,16 +102,20 @@ platforms:
 
 ## Outils média & messages (de lansenger-tools)
 
-Ces outils permettent à l’Agent d’envoyer des fichiers, images et vidéos, de révoquer des messages et d’envoyer des cartes linkCard — tous appelables indépendamment par le LLM. Les identifiants sont lus depuis les variables d’environnement (LANSENGER_APP_ID/SECRET), et non depuis `load_gateway_config()`.
+Ces outils permettent à l’Agent d’envoyer des messages, fichiers, images, cartes, de révoquer des messages et de requête groupes — tous appelables indépendamment par le LLM. Les identifiants sont lus depuis les variables d’environnement (LANSENGER_APP_ID/SECRET), et non depuis `load_gateway_config()`.
 
 | Outil | Paramètres | Description |
 |------|-----------|-------------|
-| `lansenger_send_text` | `chat_id`, `message`, `reminder_all`?, `reminder_user_ids`?, `media_paths`? | Envoyer du texte brut avec @mentions optionnelles (groupe/staff uniquement) et pièces jointes |
-| `lansenger_send_markdown` | `chat_id`, `message` | Envoyer du texte Markdown (pas de @mentions ni pièces jointes) |
+| `lansenger_send_text` | `chat_id`, `content`, `reminder_all`?, `reminder_user_ids`?, `file_path`?, `media_type`? | Envoyer du texte brut avec @mentions optionnelles et pièces jointes |
+| `lansenger_send_markdown` | `chat_id`, `content`, `reminder_all`?, `reminder_user_ids`? | Envoyer du texte Markdown avec @mentions optionnelles (API plus récente, pas de pièces jointes) |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Envoyer un fichier/image/vidéo local à un utilisateur ou groupe |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Télécharger une image depuis une URL et l’envoyer comme image native |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message Lansenger envoyé (le prompt système est fixe, non personnalisable) |
-| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`?, `icon_link`?, `pc_link`?, `from_name`?, `from_icon_link`? | Envoyer un message de carte linkCard Lansenger |
+| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message envoyé (bot/groupe uniquement; groupe nécessite sender_id) |
+| `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | Envoyer une carte linkCard (6 champs requis par la spec, pc_link optionnel) |
+| `lansenger_send_app_articles` | `chat_id`, `articles` | Envoyer une carte multi-article appArticles |
+| `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | Envoyer une carte riche appCard avec mises à jour dynamiques optionnelles |
+| `lansenger_update_dynamic_card` | `msg_id`, `head_status_info`?, `is_last_update`? | Mettre à jour le statut d’une appCard dynamique en place |
+| `lansenger_query_groups` | `page_offset`?, `page_size`? | Requête la liste des ID de groupes du bot |
 
 **Exemples d’utilisation (prompts de l’Agent) :**
 
@@ -114,15 +123,20 @@ Ces outils permettent à l’Agent d’envoyer des fichiers, images et vidéos, 
 "Envoyer le rapport report.pdf à l’utilisateur 2285568-abc123"
 "Partager cette image du graphique avec le chat de groupe du projet"
 "Télécharger cette image URL et l’envoyer à mon collègue"
-"Révoquer le message que j’ai刚刚 envoyé à l’utilisateur"
-"Envoyer une carte link card à l’utilisateur avec le titre 'Documentation du projet' et le lien https://..."
+"Révoquer le message que j’ai envoyé à l’utilisateur"
+"Envoyer une carte linkCard avec le titre 'Documentation du projet' et le lien https://..."
+"Envoyer une carte d’approbation appCard pour la commande dangereuse"
+"Mettre à jour le statut de la carte d’approbation à 'approuvé'"
 ```
 
 **Limitations :**
 - Les limites de taille de fichier sont déterminées par la configuration Lansenger de l’organisation (aucun plafond fixe)
 - Les légendes de média utilisent du texte brut (pas de Markdown) — pour du texte Markdown, envoyer séparément
 - `lansenger_send_file` détecte automatiquement le media_type depuis l’extension si non spécifié
-- `lansenger_revoke_message` : pour les types de chat staff/groupe, `sender_id` est requis
+- `lansenger_revoke_message` : uniquement bot/groupe; groupe nécessite sender_id; le message système est fixe (non personnalisable)
+- `lansenger_send_link_card` : 6 champs requis par la spec API (title, description, iconLink, link, fromName, fromIconLink); pc_link optionnel
+- `lansenger_send_markdown` @mentions : capacité API plus récente; les anciennes versions acceptent sans notification
+- Vidéo (mediaType=1) nécessite 2 mediaIds (vidéo + image de couverture) selon la spec API
 
 ## Architecture
 
@@ -163,6 +177,12 @@ hermes gateway restart
 ```
 
 ## Journal des modifications
+
+### v2.6.1 — Audit des messages + formatText @mention
+
+- formatText supporte les @mentions (reminder); les anciennes versions API acceptent sans notification
+- Révoqué limité à bot/groupe; linkCard 6 champs requis; appArticles pcUrl optionnel
+- Suppression du heartbeat WS manuel (ping/pong intégré); persistance chat_type_map pour le routage groupe
 
 ### v2.6.0 — Approbation : appCard dynamique + détection de langue
 

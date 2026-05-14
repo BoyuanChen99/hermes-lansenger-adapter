@@ -86,14 +86,22 @@ hermes gateway restart
 ## 工具概览
 
 ```
-┌─────────────────────────┬──────────────┬──────────────┬──────────────┐
-│  工具                    │  Markdown    │  @提及       │  附件        │
-├─────────────────────────┼──────────────┼──────────────┼──────────────┤
-│  lansenger_send_text    │  ✗           │  ✓           │  ✓           │
-│  lansenger_send_markdown│  ✓           │  ✗           │  ✗           │
-│  lansenger_send_file    │  ✗           │  —           │  ✓ (仅)      │
-│  lansenger_send_image_url│ ✗           │  —           │  ✓ (仅)      │
-│  lansenger_revoke_message│ —           │  —           │  —           │
-│  lansenger_send_link_card│ —           │  —           │  —           │
-└─────────────────────────┴──────────────┴──────────────┴──────────────┘
+┌───────────────────────────────┬──────────────┬──────────────┬──────────────┐
+│  工具                         │  Markdown    │  @提及       │  附件        │
+├───────────────────────────────┼──────────────┼──────────────┼──────────────┤
+│  lansenger_send_text          │  ✗           │  ✓           │  ✓           │
+│  lansenger_send_markdown      │  ✓           │  ✓ (可选)    │  ✗           │
+│  lansenger_send_file          │  ✗           │  —           │  ✓ (仅)      │
+│  lansenger_send_image_url     │  ✗           │  —           │  ✓ (仅)      │
+│  lansenger_send_link_card     │  —           │  —           │  —           │
+│  lansenger_send_app_articles  │  —           │  —           │  —           │
+│  lansenger_send_app_card      │  ✗ (div)     │  —           │  —           │
+│  lansenger_update_dynamic_card│  —           │  —           │  —           │
+│  lansenger_revoke_message     │  —           │  —           │  —           │
+│  lansenger_query_groups       │  —           │  —           │  —           │
+└───────────────────────────────┴──────────────┴──────────────┴──────────────┘
+
+@提及说明：
+- send_text：群聊中可用；私聊支持但没必要（只有一个对话者）
+- send_markdown：新版 API 能力（spec 4.6.4.12）；旧版静默接受不触发通知。群聊中建议在文本中包含 @姓名。
 ```

@@ -2,10 +2,9 @@
 
 # 💠 Adaptateur Lansenger — Configuration post-installation
 
-Deux plugins et une compétence ont été installés :
+Un plugin Bundle et une compétence ont été installés :
 
-1. **lansenger-platform** — Adaptateur de canal de passerelle (active Lansenger comme canal de messagerie)
-1. **hermes-lansenger-adapter** — Conteneur Bundle (auto-expands into `lansenger-platform` + `lansenger-tools`)
+1. **hermes-lansenger-adapter** — Conteneur Bundle (s'auto-expand en `lansenger-platform` + `lansenger-tools`)
 2. **lansenger-messaging** — Compétence qui enseigne à l’Agent comment choisir le bon outil Lansenger
 
 > ⚠️ **Ne pas exécuter `hermes plugins enable lansenger-platform` ou `hermes plugins enable lansenger-tools` manuellement** — le bundle auto-expand et auto-active les deux sous-plugins au redémarrage du gateway. L’activation manuelle échouera car les sous-plugins sont encore dans le bundle.
@@ -15,6 +14,8 @@ Deux plugins et une compétence ont été installés :
 > python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
 > ```
 > Vous pouvez ensuite exécuter `hermes plugins enable lansenger-platform` et `hermes plugins enable lansenger-tools`.
+
+## Configuration
 
 ### Option A : Assistant de configuration interactif (recommandé)
 
@@ -26,7 +27,7 @@ hermes setup gateway
 
 Sélectionnez **Lansenger** dans la liste des plateformes, puis collez votre App ID, App Secret, et confirmez éventuellement l’URL de la passerelle API. Les valeurs déjà configurées sont affichées (les secrets sont masqués) et peuvent être remplacées.
 
-> 💡 L’App ID et l’App Secret se trouvent dans Lansenger desktop → Contacts → Rebots → Robots personnels → icône ℹ️ (le client mobile ne permet pas de voir les identifiants)
+> 💡 L’App ID et l’App Secret se trouvent dans Lansenger desktop → Contacts → Robots → Robots personnels → icône ℹ️ (le client mobile ne permet pas de voir les identifiants)
 
 ### Option B : config.yaml
 
@@ -85,14 +86,23 @@ Vérifiez que le plugin est chargé :
 ## Vue d’ensemble des outils
 
 ```
-┌─────────────────────────┬──────────────┬──────────────┬──────────────┐
-│  Tool                   │  Markdown    │  @mention    │  Attachments │
-├─────────────────────────┼──────────────┼──────────────┼──────────────┤
-│  lansenger_send_text    │  ✗           │  ✓           │  ✓           │
-│  lansenger_send_markdown│  ✓           │  ✗           │  ✗           │
-│  lansenger_send_file    │  ✗           │  —           │  ✓ (only)    │
-│  lansenger_send_image_url│ ✗           │  —           │  ✓ (only)    │
-│  lansenger_revoke_message│ —           │  —           │  —           │
-│  lansenger_send_link_card│ —           │  —           │  —           │
-└─────────────────────────┴──────────────┴──────────────┴──────────────┘
+┌───────────────────────────────┬──────────────┬──────────────┬──────────────┐
+│  Tool                         │  Markdown    │  @mention    │  Attachments │
+├───────────────────────────────┼──────────────┼──────────────┼──────────────┤
+│  lansenger_send_text          │  ✗           │  ✓           │  ✓           │
+│  lansenger_send_markdown      │  ✓           │  ✓ (opt)     │  ✗           │
+│  lansenger_send_file          │  ✗           │  —           │  ✓ (only)    │
+│  lansenger_send_image_url     │  ✗           │  —           │  ✓ (only)    │
+│  lansenger_send_link_card     │  —           │  —           │  —           │
+│  lansenger_send_app_articles  │  —           │  —           │  —           │
+│  lansenger_send_app_card      │  ✗ (div)     │  —           │  —           │
+│  lansenger_update_dynamic_card│  —           │  —           │  —           │
+│  lansenger_revoke_message     │  —           │  —           │  —           │
+│  lansenger_query_groups       │  —           │  —           │  —           │
+└───────────────────────────────┴──────────────┴──────────────┴──────────────┘
+
+@mention notes :
+- send_text : fonctionne en chat groupe ; chat privé supporte mais inutile (un seul participant)
+- send_markdown : capacité API plus récente (spec 4.6.4.12) ; anciennes versions acceptent
+  sans notification. En chat groupe, recommandé d’inclure @姓名 dans le texte.
 ```
