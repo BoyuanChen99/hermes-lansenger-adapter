@@ -27,7 +27,7 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 All message types support both private and group chat. The adapter auto-routes:
 - Private chat → `/v1/bot/messages/create` with `userIdList`
 - Group chat → `/v1/messages/group/create` with `groupId`
-Group detection uses `_chat_type_map` populated from inbound messages.
+Group detection uses `_chat_type_map` populated from inbound messages and persisted to `~/.hermes/lansenger_chat_types.json` for cross-process reuse (ephemeral tools load this file).
 
 ## Card Type Capability Matrix
 
@@ -134,7 +134,7 @@ All lansenger-tools use HTTP API calls, NOT the WebSocket connection. The appTok
 ### Token lifecycle
 
 1. First call: sends HTTP GET to `/v1/apptoken/create` → receives appToken (2-hour expiry)
-2. Persists `appToken` + `expiresAt` (absolute timestamp) to `~/.hermes/lansenger_token.json`
+2. Persists `app_token` + `expires_at` (absolute timestamp) to `~/.hermes/lansenger_token.json`
 3. Subsequent calls (from any process — gateway or ephemeral tool): load persisted token
 4. If persisted token is still valid (>5 min until expiry): reuse it, skip API call
 5. If expired or missing: fetch fresh token, persist again
@@ -154,6 +154,7 @@ All lansenger-tools use HTTP API calls, NOT the WebSocket connection. The appTok
 | API Gateway URL | `~/.hermes/.env` or `config.yaml` platforms.lansenger.extra | LANSENGER_API_GATEWAY_URL (default: `https://open.e.lanxin.cn/open/apigw`) |
 | appToken (persisted) | `~/.hermes/lansenger_token.json` | {"app_token": "...", "expires_at": timestamp} — auto-refreshed 5 min before expiry |
 | Owner ID | `~/.hermes/lansenger_owner.json` | {"owner_id": "2285568-..."} — auto-set on first bot-to-owner message |
+| Chat Type Map | `~/.hermes/lansenger_chat_types.json` | {"<chat_id>": "group"|"dm"} — auto-updated from inbound messages |
 | Home Channel | `config.yaml` platforms.lansenger.home_channel | Standard Hermes home_channel config |
 
 **Credential resolution order:**
@@ -178,5 +179,5 @@ All lansenger-tools use HTTP API calls, NOT the WebSocket connection. The appTok
 - If unsure whether the recipient can render Markdown, prefer `lansenger_send_text` (plain text is safest)
 - For long Markdown analyses, consider splitting into multiple `lansenger_send_markdown` calls (long messages have poor readability in Lansenger)
 - File size limits are determined by the organization's Lansenger configuration (not a fixed 2MB cap)
-- The ephemeral adapter pattern means each tool call is independent — no state carries over between calls
+- The ephemeral adapter pattern means each tool call creates a fresh adapter instance — but appToken and chat_type_map are shared across processes via persistence files
 - Use `lansenger_query_groups` to discover group IDs before sending to a group — you need the exact group chat ID
