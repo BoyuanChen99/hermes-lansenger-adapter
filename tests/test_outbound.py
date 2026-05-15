@@ -107,7 +107,8 @@ class TestSendText:
 
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
-        assert payload.get("reminder") == reminder
+        msg_data = payload.get("msgData", {})
+        assert msg_data.get("text", {}).get("reminder") == reminder
 
     async def test_unknown_chat_type_defaults_to_private(self, make_adapter):
         adapter = make_adapter()
@@ -143,9 +144,9 @@ class TestSendFormatText:
 
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
+        assert payload.get("msgType") == "formatText"
         msg_data = payload.get("msgData", {})
-        assert msg_data.get("msgType") == "formatText"
-        assert msg_data.get("formatType") == 1
+        assert msg_data.get("formatText", {}).get("formatType") == 1
 
     async def test_formatText_with_reminder(self, make_adapter):
         adapter = make_adapter()
@@ -163,7 +164,8 @@ class TestSendFormatText:
 
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
-        assert payload.get("reminder") == reminder
+        msg_data = payload.get("msgData", {})
+        assert msg_data.get("formatText", {}).get("reminder") == reminder
 
 
 class TestSendLinkCard:
@@ -190,8 +192,8 @@ class TestSendLinkCard:
 
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
+        assert payload.get("msgType") == "linkCard"
         msg_data = payload.get("msgData", {})
-        assert msg_data.get("msgType") == "linkCard"
         link_data = msg_data.get("linkCard", {})
         assert link_data.get("title") == "Project Docs"
         assert link_data.get("link") == "https://example.com"
@@ -249,8 +251,8 @@ class TestSendAppArticles:
 
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
+        assert payload.get("msgType") == "appArticles"
         msg_data = payload.get("msgData", {})
-        assert msg_data.get("msgType") == "appArticles"
         assert len(msg_data.get("appArticles", [])) == 2
 
 
@@ -270,8 +272,8 @@ class TestSendAppCard:
 
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
+        assert payload.get("msgType") == "appCard"
         msg_data = payload.get("msgData", {})
-        assert msg_data.get("msgType") == "appCard"
         assert msg_data.get("appCard", {}).get("bodyTitle") == "Approval Request"
 
     async def test_dynamic_appCard_auto_adds_headStatusInfo(self, make_adapter):
@@ -305,6 +307,7 @@ class TestRevokeMessage:
 
         result = await adapter.revoke_message(["msg-1"], chat_type="bot")
 
+        assert result.success is True
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
         assert payload.get("chatType") == "bot"
@@ -320,6 +323,7 @@ class TestRevokeMessage:
 
         result = await adapter.revoke_message(["msg-2"], chat_type="group", sender_id="sender-1")
 
+        assert result.success is True
         call_args = adapter._http_client.post.call_args
         payload = call_args.kwargs.get("json", {})
         assert payload.get("chatType") == "group"
@@ -329,8 +333,19 @@ class TestRevokeMessage:
         adapter = make_adapter()
         await _ensure_token(adapter)
 
-        with pytest.raises(ValueError, match="bot or group"):
-            await adapter.revoke_message(["msg-3"], chat_type="staff")
+        result = await adapter.revoke_message(["msg-3"], chat_type="staff")
+
+        assert result.success is False
+        assert "bot" in result.error and "group" in result.error
+
+    async def test_revoke_group_without_sender_id_fails(self, make_adapter):
+        adapter = make_adapter()
+        await _ensure_token(adapter)
+
+        result = await adapter.revoke_message(["msg-4"], chat_type="group")
+
+        assert result.success is False
+        assert "sender_id" in result.error
 
 
 class TestQueryGroups:

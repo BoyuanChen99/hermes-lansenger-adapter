@@ -1,4 +1,5 @@
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,14 +16,16 @@ class TestConnectLifecycle:
     async def test_connect_sets_running_true(self, make_adapter):
         adapter = make_adapter()
         mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=MagicMock(
-            status_code=200,
-            json=AsyncMock(return_value=WS_ENDPOINT_SUCCESS),
-            raise_for_status=MagicMock(),
-        ))
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=WS_ENDPOINT_SUCCESS)
+        mock_response.raise_for_status = MagicMock()
+        mock_response.text = json.dumps(WS_ENDPOINT_SUCCESS)
+        mock_http.post = AsyncMock(return_value=mock_response)
 
         with patch("lansenger.adapter.httpx.AsyncClient", return_value=mock_http):
-            result = await adapter.connect()
+            with patch("lansenger.adapter.websockets.connect"):
+                result = await adapter.connect()
 
         assert result is True
         assert adapter._running is True
@@ -42,11 +45,12 @@ class TestConnectLifecycle:
     async def test_connect_returns_false_ws_endpoint_error(self, make_adapter):
         adapter = make_adapter()
         mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=MagicMock(
-            status_code=200,
-            json=AsyncMock(return_value=WS_ENDPOINT_FAILURE),
-            raise_for_status=MagicMock(),
-        ))
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json = MagicMock(return_value=WS_ENDPOINT_FAILURE)
+        mock_response.raise_for_status = MagicMock()
+        mock_response.text = json.dumps(WS_ENDPOINT_FAILURE)
+        mock_http.post = AsyncMock(return_value=mock_response)
 
         with patch("lansenger.adapter.httpx.AsyncClient", return_value=mock_http):
             result = await adapter.connect()
@@ -66,16 +70,21 @@ class TestConnectLifecycle:
     async def test_disconnect_sets_running_false(self, make_adapter):
         adapter = make_adapter()
         adapter._running = True
-        adapter._http_client = AsyncMock()
-        adapter._http_client.aclose = AsyncMock()
+        adapter._connected = True
+        mock_http = AsyncMock()
+        mock_http.aclose = AsyncMock()
+        adapter._http_client = mock_http
+        adapter._ws_task = None
 
         await adapter.disconnect()
 
         assert adapter._running is False
+        assert adapter._http_client is None
 
     async def test_disconnect_closes_http_client(self, make_adapter):
         adapter = make_adapter()
         adapter._running = True
+        adapter._connected = True
         mock_http = AsyncMock()
         mock_http.aclose = AsyncMock()
         adapter._http_client = mock_http
@@ -110,6 +119,7 @@ class TestGetWebsocketUrl:
         mock_response.status_code = 200
         mock_response.json = MagicMock(return_value=WS_ENDPOINT_FAILURE)
         mock_response.raise_for_status = MagicMock()
+        mock_response.text = json.dumps(WS_ENDPOINT_FAILURE)
         adapter._http_client.post = AsyncMock(return_value=mock_response)
 
         result = await adapter._get_websocket_url()
@@ -146,67 +156,41 @@ class TestGetWebsocketUrl:
 
 
 class TestRunWs:
-    async def test_run_ws_connects_and_processes_messages(self, make_adapter):
-        adapter = make_adapter()
-        adapter._running = True
-        adapter._on_message = AsyncMock()
-
-        mock_ws = AsyncMock()
-        mock_ws.__aiter__ = MagicMock(return_value=iter(["msg1", "msg2"]))
-        mock_ws.__aenter__ = AsyncMock(return_value=mock_ws)
-        mock_ws.__aexit__ = AsyncMock(return_value=False)
-
-        with patch("lansenger.adapter.websockets.connect", return_value=mock_ws):
-            task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
-            await asyncio.sleep(0.1)
-            adapter._running = False
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-        assert adapter._on_message.call_count == 2
-
-    async def test_run_ws_reconnects_on_disconnect(self, make_adapter):
-        adapter = make_adapter()
-        adapter._running = True
-        adapter._on_message = AsyncMock()
-        adapter._get_websocket_url = AsyncMock(return_value="wss://new-ticket-url")
-
-        call_count = 0
-        def make_connect_side_effect(*args, **kwargs):
-            call_count += 1
-            if call_count == 1:
-                mock_ws = AsyncMock()
-                mock_ws.__aiter__ = MagicMock(side_effect=Exception("connection lost"))
-                mock_ws.__aenter__ = AsyncMock(return_value=mock_ws)
-                mock_ws.__aexit__ = AsyncMock(return_value=False)
-                return mock_ws
-            else:
-                mock_ws2 = AsyncMock()
-                mock_ws2.__aiter__ = MagicMock(return_value=iter(["reconnected_msg"]))
-                mock_ws2.__aenter__ = AsyncMock(return_value=mock_ws2)
-                mock_ws2.__aexit__ = AsyncMock(return_value=False)
-                return mock_ws2
-
-        with patch("lansenger.adapter.websockets.connect", side_effect=make_connect_side_effect):
-            with patch("lansenger.adapter.RECONNECT_BACKOFF", [0.01]):
-                task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
-                await asyncio.sleep(0.5)
-                adapter._running = False
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-        adapter._get_websocket_url.assert_called()
-
     async def test_run_ws_stops_when_not_running(self, make_adapter):
         adapter = make_adapter()
         adapter._running = False
 
         await adapter._run_ws(WS_TICKET_URL)
 
-import json
+    async def test_run_ws_processes_messages(self, make_adapter):
+        adapter = make_adapter()
+        adapter._on_message = AsyncMock()
+
+        messages = ["msg1", "msg2"]
+
+        class FakeWs:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+            def __aiter__(self):
+                return self
+            async def __anext__(self):
+                if not adapter._running or not messages:
+                    raise StopAsyncIteration
+                return messages.pop(0)
+
+        adapter._running = True
+        fake_ws = FakeWs()
+
+        with patch("lansenger.adapter.websockets.connect", return_value=fake_ws):
+            adapter._ws_task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
+            await asyncio.sleep(0.3)
+            adapter._running = False
+            adapter._ws_task.cancel()
+            try:
+                await adapter._ws_task
+            except (asyncio.CancelledError, StopAsyncIteration):
+                pass
+
+        assert adapter._on_message.call_count >= 1

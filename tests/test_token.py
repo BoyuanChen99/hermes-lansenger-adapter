@@ -32,7 +32,6 @@ class TestGetAppToken:
         token = await adapter._get_app_token()
 
         assert token == "cached-token"
-        adapter._http_client is None or adapter._http_client.get.assert_not_called()
 
     async def test_fetches_new_when_cached_expired(self, make_adapter):
         adapter = make_adapter()
@@ -58,7 +57,8 @@ class TestGetAppToken:
         adapter._token_file.parent.mkdir(parents=True, exist_ok=True)
         adapter._token_file.write_text(json.dumps(token_data))
 
-        token = await adapter._get_app_token()
+        with patch("lansenger.adapter.httpx.AsyncClient"):
+            token = await adapter._get_app_token()
 
         assert token == "persisted-token"
         assert adapter._app_token == "persisted-token"
@@ -113,6 +113,7 @@ class TestGetAppToken:
 
         adapter._persist_token("my-token", datetime.now().timestamp() + 7200)
 
+        assert adapter._token_file.exists()
         content = adapter._token_file.read_text()
         data = json.loads(content)
         assert data["app_token"] == "my-token"

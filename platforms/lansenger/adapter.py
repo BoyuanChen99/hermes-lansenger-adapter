@@ -23,6 +23,7 @@ register(ctx) entry point.  No modifications to core Hermes code are needed.
 
 import asyncio
 import logging
+import json
 import os
 import tempfile
 import time
