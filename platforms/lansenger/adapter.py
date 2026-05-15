@@ -184,7 +184,7 @@ class LansengerAdapter(BasePlatformAdapter):
             
             if data.get("errCode") == 0:
                 ws_url = data.get("data", {}).get("wsEndpoint")
-                logger.info("[Lansenger] Got WebSocket URL: %s", ws_url[:50] if ws_url else None)
+                logger.info("[Lansenger] Got WebSocket URL: %s", ws_url if ws_url else None)
                 return ws_url
             else:
                 logger.error("[Lansenger] WebSocket endpoint error: %s", data.get("errMsg"))
