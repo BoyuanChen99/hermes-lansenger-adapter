@@ -165,6 +165,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 logger.error("[Lansenger] Failed to get WebSocket URL — check appId/secret and API gateway")
                 return False
 
+            self._running = True
             self._ws_task = asyncio.create_task(self._run_ws(ws_url))
             logger.info("[Lansenger] WebSocket task created")
             return True
