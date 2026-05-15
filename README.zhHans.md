@@ -153,7 +153,7 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           │   ├── schemas.py                   # LLM 工具描述
                           │   └── tools.py                     # 处理器实现
                           ├── skills/                          # Agent 决策技能
-                          │   └── lansenger-messaging.md       # 工具选择策略 + token 文档
+                          │   └── lansenger-messaging/           # skill 目录 (SKILL.md + references/)
                           ├── README.md
                           ├── LICENSE
                           ├── VERSION
