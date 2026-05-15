@@ -35,6 +35,9 @@ _SUB_PLUGINS = {
     "lansenger-tools":     ("lansenger-tools",   "lansenger_tools"),
 }
 
+_SKILL_DIR = "skills/lansenger-messaging"
+_SKILL_CATEGORY = "lansenger"
+
 
 # ── Module-level expand ────────────────────────────────────────────
 # When Python imports this module (e.g. during gateway plugin loading),
@@ -50,7 +53,8 @@ _expand_done = False
 
 
 def _expand_sub_plugins() -> None:
-    """Copy each sub-plugin directory to ~/.hermes/plugins/ top level.
+    """Copy each sub-plugin directory to ~/.hermes/plugins/ top level
+    and install the skill to ~/.hermes/skills/.
 
     This runs at module-import time so the sub-plugins are visible to
     ``hermes plugins enable`` even before the gateway calls register().
@@ -71,10 +75,20 @@ def _expand_sub_plugins() -> None:
 
         dest = plugins_dir / sub_name
         if dest.is_dir():
-            # Update existing expanded copy with fresh version from bundle
             shutil.rmtree(str(dest))
         shutil.copytree(str(src), str(dest))
         logger.info("Expanded '%s' → %s", sub_name, dest)
+
+    skill_src = bundle_dir / _SKILL_DIR
+    if skill_src.is_dir():
+        skills_dir = Path.home() / ".hermes" / "skills" / _SKILL_CATEGORY
+        skill_dest = skills_dir / _SKILL_DIR.split("/")[-1]
+        if skill_dest.is_dir():
+            shutil.rmtree(str(skill_dest))
+        shutil.copytree(str(skill_src), str(skill_dest))
+        logger.info("Installed skill → %s", skill_dest)
+    else:
+        logger.warning("Skill directory not found at %s — skipping", skill_src)
 
     _expand_done = True
 
