@@ -35,3 +35,6 @@ Thumbs.db
 *.json
 sessions/
 logs/
+
+# Tests (local dev only)
+tests/
