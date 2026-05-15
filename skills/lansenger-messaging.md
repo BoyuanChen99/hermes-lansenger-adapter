@@ -59,6 +59,8 @@ Auto-routing: private → `/v1/bot/messages/create` (userIdList), group → `/v1
 | send_markdown with file_path | Two messages: markdown + file |
 | i18nAppCard for approval | appCard with isDynamic + headStatusInfo |
 | text-indent:0 (bare) | text-indent:0em (must have unit) |
+| headStatusInfo.description as plain text | Single `<div style="color:...">` allowed, <30 bytes, no nested divs |
+| headStatusInfo.colour for text color | colour = dot color only; description div = text color (independent) |
 | font-size:14px in appCard | font-size:12pt–36pt (px rejected by enterprise API, adapter auto-converts) |
 | Message >4000 chars | Split into multiple messages |
 
