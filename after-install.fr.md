@@ -58,7 +58,7 @@ Après avoir installé les plugins, installez la compétence lansenger-messaging
 **Option A : Depuis le dépôt local cloné (Le plus rapide) :**
 
 ```bash
-mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/mlops/lansenger-messaging
+mkdir -p ~/.hermes/skills/lansenger && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/lansenger/
 ```
 
 **Option B : Depuis l’URL GitHub (Fonctionne sans clone local) :**

@@ -58,7 +58,7 @@ LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 **方式 A：从本地克隆仓库复制（最快）：**
 
 ```bash
-mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/mlops/lansenger-messaging
+mkdir -p ~/.hermes/skills/lansenger && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/lansenger/
 ```
 
 **方式 B：从 GitHub URL 安装（无需本地克隆）：**
