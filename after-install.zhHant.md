@@ -9,7 +9,7 @@
 
 > ⚠️ **不要手動執行 `hermes plugins enable lansenger-platform` 或 `hermes plugins enable lansenger-tools`** — Bundle 在閘道重啟時會自動展開並啟用兩個子插件。手動啟用會失敗，因為子插件此時還在 Bundle 內部。
 
-> 💡 如果你需要在重啟閘道 *之前*啟用子插件，先執行展開腳本：
+> 💡 如果你需要在重啟閘道 *之前*啟用子插件，先執行展開腳本（也會自動安裝技能）：
 > ```bash
 > python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
 > ```
@@ -50,24 +50,6 @@ LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
-
-## 技能安裝
-
-安裝插件後，安裝 lansenger-messaging 技能（教導 Agent 訊息類型能力邊界與工具決策樹）：
-
-**方式 A：從本地複製的儲存庫（最快速）：**
-
-```bash
-mkdir -p ~/.hermes/skills/lansenger && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/lansenger/
-```
-
-**方式 B：從 GitHub URL 安裝（不需本地複製）：**
-
-```bash
-hermes skills install --force --category lansenger https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging/SKILL.md
-```
-
-若缺少此技能，Agent 可能選擇錯誤的訊息類型，導致失去 Markdown 格式或附件支援。
 
 ## 重啟閘道
 

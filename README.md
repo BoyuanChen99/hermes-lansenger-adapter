@@ -178,6 +178,13 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.6.3 — Bug fixes, expand script auto-installs skill
+
+- Fixed `_running` flag: `connect()` now sets `_running=True` before creating WS task (was silently exiting)
+- Fixed missing `import json` at module top-level — `_persist_token()` was silently failing
+- Expand script now auto-installs skill to `~/.hermes/skills/lansenger/` alongside sub-plugins
+- Removed manual skill installation step from after-install docs
+
 ### v2.6.2 — WS logging + doc fixes
 
 - Improved WS connection lifecycle logging: full endpoint response, HTTP error details (status_code/body), reconnect attempt tracking

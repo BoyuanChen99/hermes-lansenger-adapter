@@ -9,7 +9,7 @@
 
 > ⚠️ **不要手动运行 `hermes plugins enable lansenger-platform` 或 `hermes plugins enable lansenger-tools`** — Bundle 在 gateway 重启时会自动展开并启用两个子插件。手动 enable 会失败，因为子插件此时还在 Bundle 内部。
 
-> 💡 如果你需要在重启 gateway *之前*启用子插件，先运行展开脚本：
+> 💡 如果你需要在重启 gateway *之前*启用子插件，先运行展开脚本（也会自动安装技能）：
 > ```bash
 > python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
 > ```
@@ -50,24 +50,6 @@ LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
-
-## 技能安装
-
-安装插件后，安装 lansenger-messaging 技能（教会 Agent 消息类型能力边界与工具决策树）：
-
-**方式 A：从本地克隆仓库复制（最快）：**
-
-```bash
-mkdir -p ~/.hermes/skills/lansenger && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/lansenger/
-```
-
-**方式 B：从 GitHub URL 安装（无需本地克隆）：**
-
-```bash
-hermes skills install --force --category lansenger https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging/SKILL.md
-```
-
-没有此技能，Agent 可能选择错误的消息类型，从而丢失 Markdown 格式或附件支持。
 
 ## 重启网关
 

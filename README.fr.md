@@ -178,6 +178,13 @@ hermes gateway restart
 
 ## Journal des modifications
 
+### v2.6.3 — Corrections de bugs + script d'expansion installe la compétence
+
+- Correction du flag `_running` : `connect()` définit `_running=True` avant de créer la tâche WS (sortait silencieusement avant)
+- Correction de l'absence de `import json` au niveau du module — `_persist_token()` échouait silencieusement
+- Le script d'expansion installe maintenant automatiquement la compétence dans `~/.hermes/skills/lansenger/` (avec les sous-plugins)
+- Suppression de l'étape d'installation manuelle de la compétence dans les documents post-installation
+
 ### v2.6.2 — Journalisation WS + corrections docs
 
 - Journalisation améliorée du cycle de vie WS : réponse complète du endpoint, détails des erreurs HTTP (code/body), suivi des tentatives de reconnexion

@@ -178,6 +178,13 @@ hermes gateway restart
 
 ## 更新日誌
 
+### v2.6.3 — Bug 修復 + 展開腳本自動安裝技能
+
+- 修復 `_running` 標志：`connect()` 現在在建立 WS task 之前設定 `_running=True`（之前靜默退出）
+- 修復模組頂層缺少 `import json` — `_persist_token()` 之前靜默失敗
+- 展開腳本現在自動將技能安裝到 `~/.hermes/skills/lansenger/`（與子插件一起）
+- 從安裝後文件中移除手動技能安裝步驟
+
 ### v2.6.2 — WS 日誌 + 文檔修復
 
 - 改進 WS 連線生命週期日誌：完整端點回應、HTTP 錯誤詳情（狀態碼/回應體）、重連嘗試序號

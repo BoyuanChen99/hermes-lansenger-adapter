@@ -9,7 +9,7 @@ A bundle plugin and one skill were installed:
 
 > ⚠️ **Do NOT run `hermes plugins enable lansenger-platform` or `hermes plugins enable lansenger-tools` manually** — the bundle auto-expands and auto-enables both sub-plugins on gateway restart. Manual enable will fail because sub-plugins live inside the bundle until it is loaded.
 
-> 💡 If you need to enable sub-plugins *before* restarting the gateway, run the expand script first:
+> 💡 If you need to enable sub-plugins *before* restarting the gateway, run the expand script first (it also installs the skill automatically):
 > ```bash
 > python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
 > ```
@@ -50,24 +50,6 @@ LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
 LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 ```
-
-## Skill Installation
-
-After installing the plugins, install the lansenger-messaging skill (teaches the Agent the message type capability boundary and tool decision tree):
-
-**Option A: From local cloned repo (fastest):**
-
-```bash
-mkdir -p ~/.hermes/skills/lansenger && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/lansenger/
-```
-
-**Option B: From GitHub URL (works without local clone):**
-
-```bash
-hermes skills install --force --category lansenger https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging/SKILL.md
-```
-
-Without this skill, the Agent may pick the wrong message type and lose Markdown formatting or attachment support.
 
 ## Restart Gateway
 
