@@ -58,13 +58,13 @@ LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 **方式 A：从本地克隆仓库复制（最快）：**
 
 ```bash
-mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansenger-messaging/SKILL.md
+mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/mlops/lansenger-messaging
 ```
 
 **方式 B：从 GitHub URL 安装（无需本地克隆）：**
 
 ```bash
-hermes skills install --force --category lansenger https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
+hermes skills install --force --category lansenger https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging/SKILL.md
 ```
 
 没有此技能，Agent 可能选择错误的消息类型，从而丢失 Markdown 格式或附件支持。

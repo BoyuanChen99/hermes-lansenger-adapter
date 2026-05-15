@@ -58,13 +58,13 @@ After installing the plugins, install the lansenger-messaging skill (teaches the
 **Option A: From local cloned repo (fastest):**
 
 ```bash
-mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging.md ~/.hermes/skills/mlops/lansenger-messaging/SKILL.md
+mkdir -p ~/.hermes/skills/mlops/lansenger-messaging && cp -r ~/.hermes/plugins/hermes-lansenger-adapter/skills/lansenger-messaging ~/.hermes/skills/mlops/lansenger-messaging
 ```
 
 **Option B: From GitHub URL (works without local clone):**
 
 ```bash
-hermes skills install --force --category lansenger https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging.md
+hermes skills install --force --category lansenger https://github.com/lansenger-pm/hermes-lansenger-adapter/raw/main/skills/lansenger-messaging/SKILL.md
 ```
 
 Without this skill, the Agent may pick the wrong message type and lose Markdown formatting or attachment support.
