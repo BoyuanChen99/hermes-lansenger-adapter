@@ -1999,8 +1999,12 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             return f"{agent_name} Security"
 
     def _build_status_div(self, text: str, color: str) -> str:
-        """Build a div-style HTML string for appCard status display."""
-        return f'<div style="color:{color};text-align:left">{text}</div>'
+        """Build plain text for headStatusInfo.description (colour controls the dot).
+
+        headStatusInfo.description uses plain text — do NOT wrap in <div> tags.
+        The 'colour' field controls the status dot color, not the description text.
+        """
+        return text
 
     @property
     def owner_id(self) -> Optional[str]:
