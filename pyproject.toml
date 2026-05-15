@@ -40,6 +40,10 @@ include = ["platforms*"]
 Homepage = "https://github.com/lansenger-pm/hermes-lansenger-adapter"
 Repository = "https://github.com/lansenger-pm/hermes-lansenger-adapter"
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
 # NOTE: The lansenger-tools plugin (standalone, kind: tool) lives in
 # lansenger-tools/ alongside this package but is NOT a Python package
 # (directory name contains hyphens). It is discovered by Hermes's directory-based
