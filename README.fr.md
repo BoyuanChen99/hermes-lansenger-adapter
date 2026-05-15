@@ -178,6 +178,12 @@ hermes gateway restart
 
 ## Journal des modifications
 
+### v2.6.2 — Journalisation WS + corrections docs
+
+- Journalisation améliorée du cycle de vie WS : réponse complète du endpoint, détails des erreurs HTTP (code/body), suivi des tentatives de reconnexion
+- Correction de la troncature de l'URL wsEndpoint dans les logs (affichait seulement 4 caractères du ticket)
+- Réécriture des traductions chinoises traditionnelles (zhHant/zhHantHK) éliminant les caractères simplifiés ; corrections des erreurs françaises
+
 ### v2.6.1 — Audit des messages + formatText @mention
 
 - formatText supporte les @mentions (reminder); les anciennes versions API acceptent sans notification

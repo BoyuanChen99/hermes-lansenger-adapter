@@ -178,6 +178,12 @@ hermes gateway restart
 
 ## 更新日誌
 
+### v2.6.2 — WS 日誌 + 文檔修復
+
+- 改進 WS 連線生命週期日誌：完整端點回應、HTTP 錯誤詳情（狀態碼/回應體）、重連嘗試序號
+- 修復日誌中 wsEndpoint URL 截斷問題（之前只顯示 ticket 的 4 個字元）
+- 重新翻譯所有繁體中文檔案（zhHant/zhHantHK），消除簡體字混入；修復法文錯誤
+
 ### v2.6.1 — 訊息體審計 + formatText @提及
 
 - formatText 支援 @提及（reminder）；舊版 API 靜默接受不觸發通知

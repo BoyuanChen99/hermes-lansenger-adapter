@@ -178,6 +178,12 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.6.2 — WS logging + doc fixes
+
+- Improved WS connection lifecycle logging: full endpoint response, HTTP error details (status_code/body), reconnect attempt tracking
+- Fixed misleading wsEndpoint URL truncation in log (was showing only 4 chars of ticket)
+- Rewrote all traditional Chinese translations (zhHant/zhHantHK) eliminating simplified characters; fixed French errors
+
 ### v2.6.1 — Message body audit + formatText @mention
 
 - formatText supports @mentions (reminder); older API silently accepts without notification
