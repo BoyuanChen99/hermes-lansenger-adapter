@@ -932,17 +932,17 @@ NOTE: formatText @mention (reminder) is a NEWER API capability (spec 4.6.4.12).
                 url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
 
             app_card_data: Dict[str, Any] = {
-                "headTitle": head_title,
+                "headTitle": self._convert_font_px_to_pt(head_title),
                 "headIconUrl": head_icon_url,
                 "isDynamic": is_dynamic,
-                "bodyTitle": body_title,
+                "bodyTitle": self._convert_font_px_to_pt(body_title),
                 "cardLink": card_link,
                 "pcCardLink": pc_card_link,
             }
 
             if is_dynamic and not head_status_info:
                 head_status_info = {
-                    "description": "<div style=\"color:rgba(0,0,0,.47)\">Active</div>",
+                    "description": "Active",
                     "colour": "rgba(0,0,0,.47)",
                 }
 
@@ -950,11 +950,11 @@ NOTE: formatText @mention (reminder) is a NEWER API capability (spec 4.6.4.12).
                 app_card_data["headStatusInfo"] = head_status_info
 
             if body_sub_title:
-                app_card_data["bodySubTitle"] = body_sub_title
+                app_card_data["bodySubTitle"] = self._convert_font_px_to_pt(body_sub_title)
             if body_content:
-                app_card_data["bodyContent"] = body_content
+                app_card_data["bodyContent"] = self._convert_font_px_to_pt(body_content)
             if signature:
-                app_card_data["signature"] = signature
+                app_card_data["signature"] = self._convert_font_px_to_pt(signature)
             if staff_id:
                 app_card_data["staffId"] = staff_id
             if fields:
@@ -1933,6 +1933,22 @@ NOTE: formatText @mention (reminder) is a NEWER API capability (spec 4.6.4.12).
         parsed as HTML tags.
         """
         return text.replace("<", "&lt;").replace(">", "&gt;")
+
+    def _convert_font_px_to_pt(self, text: str) -> str:
+        """Convert font-size px values to pt in div-style HTML strings.
+
+        Lansenger enterprise deployment rejects font-size with px unit.
+        1px ≈ 0.75pt. Common sizes: 14px→10.5pt, 16px→12pt, 18px→13.5pt.
+        Only converts numeric px values; pt values are left unchanged.
+        """
+        import re
+        def _px_to_pt(m):
+            px_val = float(m.group(1))
+            pt_val = px_val * 0.75
+            if pt_val == int(pt_val):
+                return f"font-size:{int(pt_val)}pt"
+            return f"font-size:{pt_val}pt"
+        return re.sub(r'font-size:(\d+(?:\.\d+)?)px', _px_to_pt, text)
 
     def _detect_lang(self, text: str) -> str:
         """Detect language from user message text. Returns 'zh' or 'en'.

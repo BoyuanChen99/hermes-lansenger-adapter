@@ -1,6 +1,6 @@
 ---
 name: lansenger-messaging
-version: 2.6.1
+version: 2.6.3
 category: lansenger
 description: Lansenger messaging strategy — understand text/formatText/appCard/appArticles capability boundary, token management, and credential storage
 trigger: When you need to send any message, file, image, card, or notification via Lansenger (蓝信), or when you see a lansenger_* tool in the available tools list.
@@ -17,7 +17,7 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
 ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
 │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
-│  formatText  │  ✓           │  ✓           │  ✗           │  ✓           │
+│  formatText  │  ✓           │  ✓ (4.6.12)  │  ✗           │  ✓           │
 │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
 │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
 │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
@@ -72,10 +72,17 @@ Group detection uses `_chat_type_map` populated from inbound messages and persis
 ### 2. Markdown-formatted text (code, tables, lists)
 → `lansenger_send_markdown`
 - content = Markdown text
-- Optional @mention via reminder_all / reminder_user_ids (newer API, old API silently accepts)
+- Optional @mention via reminder_all / reminder_user_ids (API spec 4.6.4.12)
 - In group chat, recommended to include @姓名 in text when replying to someone
 - Cannot attach files
 - Example: code output, structured reports, step-by-step instructions
+
+### 2a. Markdown + @mention (group reply to specific person)
+→ `lansenger_send_markdown` with reminder
+- content = Markdown text with @姓名 in the content
+- reminder = {"all": false, "userIds": ["staff-id"]}
+- Newer Lansenger versions trigger client-side @mention notification; older versions silently accept without triggering
+- Example: "@张三 以下是分析报告\n\n| 指标 | 值 |"
 
 ### 3. Text + attachment (file/image/video)
 → `lansenger_send_text`
@@ -117,7 +124,10 @@ Group detection uses `_chat_type_map` populated from inbound messages and persis
 
 ### 9. AppCard (approval / confirmation / rich formatted card)
 → `lansenger_send_app_card`
+⚠️ **Group chat limitation**: appCard/formatText/appArticles/linkCard fall back to plain text in group chats if the API does not support them. For group approval workflows, use `lansenger_send_text` with plain text instructions + `/approve` `/deny` reply pattern instead.
 - Use `is_dynamic=True` + `headStatusInfo` for approval workflows
+- **headStatusInfo.description** uses **plain text** (NOT div-style HTML) — e.g. "待审批", "已批准", "Active"
+- headStatusInfo.colour controls the status dot color — e.g. "#FFB116" (amber), "green", "red"
 - Language is auto-detected per user (zh/en), content is sent in detected language
 - After approval/rejection, use `lansenger_update_dynamic_card` to update `headStatusInfo` in-place
 - **bodyContent text-indent must use unit: `0em`** — bare `0` causes API to return empty response
@@ -188,6 +198,8 @@ All lansenger-tools use HTTP API calls, NOT the WebSocket connection. The appTok
 | Using i18nAppCard for approval workflows | Use appCard with isDynamic + headStatusInfo; i18nAppCard has no dynamic update support |
 | Setting text-indent > 0 in bodyContent | Always use text-indent:0em to avoid unwanted indentation |
 | Using lansenger_send_link_card for multiple articles | Use lansenger_send_app_articles for multi-article cards |
+| Sending overly long messages (>4000 chars) | Split into multiple messages — Lansenger has ~4000 char per-message limit |
+| Using font-size with px unit in appCard bodyContent | Use pt unit only (12pt–36pt); px causes "invalid bodyContent" error on enterprise deployments |
 
 ## Tips
 
