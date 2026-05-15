@@ -178,73 +178,31 @@ hermes gateway restart
 
 ## Journal des modifications
 
-### v2.6.4 — appCard div-style selon spec API, suppression contenu OpenClaw
+### v2.6 — Cartes d'approbation, formatText @mention, WS lifecycle, corrections
 
-- `_fix_div_style_fields()` ne corrige font-size/text-indent que dans les champs supportés par la spec API (bodyTitle/SubTitle/Content)
-- Suppression des corrections font-size/text-indent pour signature, fields, links, headStatusInfo.description (non supportés par l'API)
-- Suppression de la section SSRF OpenClaw et du fichier de référence (pas pertinent pour le plugin Hermes)
-- Mise à jour de schemas.py, SKILL.md, appcard-design-guidelines.md pour correspondre à la spec API champ par champ
-- Correction du texte chinois dans le SKILL.md en anglais
+- Cartes d'approbation avec mises à jour en place (isDynamic + headStatusInfo)
+- formatText @mention; détection de langue par utilisateur (zh/en)
+- appCard div-style corrigé selon spec API (font-size/text-indent uniquement dans les champs supportés)
+- Corrections bugs `_running` et `import json` manquant
+- Script d'expansion installe automatiquement la compétence; journalisation WS améliorée
 
-### v2.6.3 — Corrections de bugs + script d'expansion installe la compétence
-
-- Correction du flag `_running` : `connect()` définit `_running=True` avant de créer la tâche WS (sortait silencieusement avant)
-- Correction de l'absence de `import json` au niveau du module — `_persist_token()` échouait silencieusement
-- Le script d'expansion installe maintenant automatiquement la compétence dans `~/.hermes/skills/lansenger/` (avec les sous-plugins)
-- Suppression de l'étape d'installation manuelle de la compétence dans les documents post-installation
-
-### v2.6.2 — Journalisation WS + corrections docs
-
-- Journalisation améliorée du cycle de vie WS : réponse complète du endpoint, détails des erreurs HTTP (code/body), suivi des tentatives de reconnexion
-- Correction de la troncature de l'URL wsEndpoint dans les logs (affichait seulement 4 caractères du ticket)
-- Réécriture des traductions chinoises traditionnelles (zhHant/zhHantHK) éliminant les caractères simplifiés ; corrections des erreurs françaises
-
-### v2.6.1 — Audit des messages + formatText @mention
-
-- formatText supporte les @mentions (reminder); les anciennes versions API acceptent sans notification
-- Révoqué limité à bot/groupe; linkCard 6 champs requis; appArticles pcUrl optionnel
-- Suppression du heartbeat WS manuel (ping/pong intégré); persistance chat_type_map pour le routage groupe
-
-### v2.6.0 — Approbation : appCard dynamique + détection de langue
-
-- Le flux d’approbation utilise appCard (pas i18nAppCard) avec isDynamic + headStatusInfo pour les mises à jour en place
-- Détection de langue par utilisateur pour envoyer du contenu appCard localisé (zh/en)
-- i18nAppCard réservé pour une utilisation future en diffusion multilingue
-- Correction de l’indentation du bodyContent : text-indent défini à 0
-
-### v2.5.0 — appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
+### v2.5 — appArticles, appCard, carte dynamique, routage groupe
 
 - appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
 
-### v2.4.2 — Canal d’accueil auto-amélioré
+### v2.4 — Installation bundle, canal d'accueil
 
-- Canal d’accueil auto-amélioré (DM > groupe)
+- Expansion automatique du bundle à l'installation; canal d'accueil auto-amélioré (DM > groupe)
 
-### v2.4.1 — send_update_prompt + signature d’agent dynamique
+### v2.3 — Mode plugin
 
-- send_update_prompt + signature d’agent dynamique
+- Expansion automatique du bundle + flux d'installation simplifié; corrections
 
-### v2.4.0 — Expansion au moment de l’installation + script d’expansion
-
-- Expansion automatique du bundle à l’installation
-
-### v2.3.2 (2026-05-12)
-
-- Correctif: paramètre `platform` de `_make_config()`
-
-### v2.3.1 (2026-05-12)
-
-- Correctif: chemin de `_get_adapter_class()`
-
-### v2.3.0 (2026-05-12)
-
-- Expansion automatique du bundle + flux d’installation simplifié
-
-### v2.2.0 (2026-05-11)
+### v2.2 — @mention chat groupe
 
 - Support des @mentions pour chat groupe
 
-### v2.1.0 (2026-05-11)
+### v2.1 — Migration plugin
 
 - Migration en mode plugin — zéro modification core
 

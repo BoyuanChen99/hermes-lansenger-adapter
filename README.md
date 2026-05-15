@@ -178,72 +178,32 @@ hermes gateway restart
 
 ## Changelog
 
-### v2.6.4 — appCard div-style per API spec, remove OpenClaw from Hermes plugin
+### v2.6 — Approval cards, formatText @mention, WS lifecycle, bug fixes
 
-- `_fix_div_style_fields()` now only fixes font-size/text-indent in fields that actually support them per API spec (bodyTitle/SubTitle/Content only)
-- Removed font-size/text-indent fixes from signature, fields, links, headStatusInfo.description (not supported by API)
-- Removed OpenClaw SSRF troubleshooting section and reference file (not relevant to Hermes plugin)
-- Updated schemas.py, SKILL.md, appcard-design-guidelines.md to match API spec field-by-field support
-- Fixed Chinese text in English SKILL.md
+- Approval cards with in-place status updates (isDynamic + headStatusInfo)
+- formatText @mention support; language detection per user (zh/en)
+- appCard div-style fixes per API spec (font-size/text-indent only in supported fields)
+- Fixed `_running` flag and missing `import json` bug
+- Expand script auto-installs skill alongside sub-plugins
+- WS connection lifecycle logging improvements
 
-### v2.6.3 — Bug fixes, expand script auto-installs skill
-
-- Fixed `_running` flag: `connect()` now sets `_running=True` before creating WS task (was silently exiting)
-- Fixed missing `import json` at module top-level — `_persist_token()` was silently failing
-- Expand script now auto-installs skill to `~/.hermes/skills/lansenger/` alongside sub-plugins
-- Removed manual skill installation step from after-install docs
-
-### v2.6.2 — WS logging + doc fixes
-
-- Improved WS connection lifecycle logging: full endpoint response, HTTP error details (status_code/body), reconnect attempt tracking
-- Fixed misleading wsEndpoint URL truncation in log (was showing only 4 chars of ticket)
-- Rewrote all traditional Chinese translations (zhHant/zhHantHK) eliminating simplified characters; fixed French errors
-
-### v2.6.1 — Message body audit + formatText @mention
-
-- formatText supports @mentions (reminder); older API silently accepts without notification
-- Revoke restricted to bot/group; linkCard 6 required fields per spec; appArticles pcUrl optional
-- Removed manual WS heartbeat (websockets built-in ping/pong); chat_type_map persisted for group routing
-
-### v2.6.0 — Approval cards with dynamic status updates
-
-- Approval cards with in-place status updates after approval/rejection
-- Language detection per user (zh/en)
-- Fixed bodyContent indentation: text-indent set to 0
-
-### v2.5.0 — appArticles, appCard, dynamic card update, group routing, group query
+### v2.5 — appArticles, appCard, dynamic card, group routing
 
 - appArticles, appCard, dynamic card update, group routing, group query
 
-### v2.4.2 — Home channel auto-upgrade
+### v2.4 — Bundle install, home channel
 
-- Home channel auto-upgrade (DM > group)
+- Bundle auto-expand on install; home channel auto-upgrade (DM > group)
 
-### v2.4.1 — send_update_prompt + dynamic agent signature
+### v2.3 — Plugin mode
 
-- send_update_prompt + dynamic agent signature
+- Bundle auto-expand + simplified install flow; bug fixes
 
-### v2.4.0 — Bundle install-time expand + expand script
-
-- Bundle auto-expand on install
-
-### v2.3.2 (2026-05-12)
-
-- Bug fix: `_make_config()` platform param
-
-### v2.3.1 (2026-05-12)
-
-- Bug fix: `_get_adapter_class()` path
-
-### v2.3.0 (2026-05-12)
-
-- Bundle auto-expand + simplified install flow
-
-### v2.2.0 (2026-05-11)
+### v2.2 — Group chat @mention
 
 - Reminder (@mentions) support for group chat
 
-### v2.1.0 (2026-05-11)
+### v2.1 — Plugin migration
 
 - Plugin mode migration — zero core modification
 

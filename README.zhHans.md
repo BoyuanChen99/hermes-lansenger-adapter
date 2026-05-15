@@ -178,72 +178,31 @@ hermes gateway restart
 
 ## 更新日志
 
-### v2.6.4 — appCard div-style 按 API spec 修正，移除 OpenClaw 内容
+### v2.6 — 审批卡片、formatText @提及、WS 生命周期、Bug 修复
 
-- `_fix_div_style_fields()` 仅对 API spec 支持的字段修正 font-size/text-indent（bodyTitle/SubTitle/Content）
-- 移除 signature/fields/links/headStatusInfo.description 的 font-size/text-indent 修正（API 不支持）
-- 移除 OpenClaw SSRF 排障章节和引用文件（不属于 Hermes 插件）
-- schemas.py、SKILL.md、appcard-design-guidelines.md 按 API spec 逐字段更新支持范围
-- 修复英文 SKILL.md 中混入的中文文本
+- 审批卡片支持原地状态更新（isDynamic + headStatusInfo）
+- formatText @提及支持；按用户语言检测（中/英）
+- appCard div-style 按 API spec 修正（font-size/text-indent 仅在支持的字段）
+- 修复 `_running` 标志和缺少 `import json` 的 Bug
+- 展开脚本自动安装 skill；WS 连接日志改进
 
-### v2.6.3 — Bug 修复 + 展开脚本自动安装技能
-
-- 修复 `_running` 标志：`connect()` 现在在创建 WS task 之前设置 `_running=True`（之前静默退出）
-- 修复模块顶层缺少 `import json` — `_persist_token()` 之前静默失败
-- 展开脚本现在自动将技能安装到 `~/.hermes/skills/lansenger/`（与子插件一起）
-- 从安装后文档中移除手动技能安装步骤
-
-### v2.6.2 — WS 日志 + 文档修复
-
-- 改进 WS 连接生命周期日志：完整端点响应、HTTP 错误详情（状态码/响应体）、重连尝试序号
-- 修复日志中 wsEndpoint URL 截断问题（之前只显示 ticket 的 4 个字符）
-- 重新翻译所有繁体中文文件（zhHant/zhHantHK），消除简体字混入；修复法文错误
-
-### v2.6.1 — 消息体审计 + formatText @提及
-
-- formatText 支持 @提及（reminder）；旧版 API 静默接受不触发通知
-- 撤回仅支持 bot/group；linkCard 6 个必填字段；appArticles pcUrl 改为可选
-- 移除手动 WS 心跳（使用 websockets 内置 ping/pong）；chat_type_map 持久化支持群路由
-
-### v2.6.0 — 审批卡片支持动态状态更新
-
-- 审批卡片支持审批后原地更新卡片状态
-- 按用户语言检测发送对应语言内容（中/英）
-- 修复 bodyContent 缩进问题：text-indent 设为 0
-
-### v2.5.0 — appArticles、appCard、动态卡片更新、群消息路由、群ID查询
+### v2.5 — appArticles、appCard、动态卡片、群路由
 
 - appArticles、appCard、动态卡片更新、群消息路由、群 ID 查询
 
-### v2.4.2 — Home channel 自动升级
+### v2.4 — Bundle 安装、Home channel
 
-- Home channel 自动升级（DM > 群）
+- Bundle 安装时自动展开；Home channel 自动升级（DM > 群）
 
-### v2.4.1 — send_update_prompt + 动态 Agent 签名
+### v2.3 — 插件模式
 
-- send_update_prompt + 动态 Agent 签名
+- Bundle 自动展开 + 简化安装流程；Bug 修复
 
-### v2.4.0 — Bundle 安装时展开 + 展开脚本
+### v2.2 — 群聊 @提及
 
-- Bundle 安装时自动展开
+- Reminder (@提及) 支持群聊
 
-### v2.3.2 (2026-05-12)
-
-- Bug 修复：`_make_config()` platform 参数
-
-### v2.3.1 (2026-05-12)
-
-- Bug 修复：`_get_adapter_class()` 路径
-
-### v2.3.0 (2026-05-12)
-
-- Bundle 自动展开 + 简化安装流程
-
-### v2.2.0 (2026-05-11)
-
-- Reminder (@提及) 支持（群聊）
-
-### v2.1.0 (2026-05-11)
+### v2.1 — 插件迁移
 
 - 插件模式迁移 — 零核心修改
 

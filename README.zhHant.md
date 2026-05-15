@@ -178,72 +178,31 @@ hermes gateway restart
 
 ## 更新日誌
 
-### v2.6.4 — appCard div-style 按 API spec 修正，移除 OpenClaw 內容
+### v2.6 — 審批卡片、formatText @提及、WS 生命週期、Bug 修復
 
-- `_fix_div_style_fields()` 僅對 API spec 支援的字段修正 font-size/text-indent（bodyTitle/SubTitle/Content）
-- 移除 signature/fields/links/headStatusInfo.description 的 font-size/text-indent 修正（API 不支援）
-- 移除 OpenClaw SSRF 排障章節和引用檔案（不屬於 Hermes 插件）
-- schemas.py、SKILL.md、appcard-design-guidelines.md 按 API spec 逐欄位更新支援範圍
-- 修復英文 SKILL.md 中混入的中文文本
+- 審批卡片支援原地狀態更新（isDynamic + headStatusInfo）
+- formatText @提及支援；按使用者語言偵測（中/英）
+- appCard div-style 按 API spec 修正（font-size/text-indent 僅在支援的欄位）
+- 修復 `_running` 標誌和缺少 `import json` 的 Bug
+- 展開腳本自動安裝 skill；WS 連線日誌改進
 
-### v2.6.3 — Bug 修復 + 展開腳本自動安裝技能
-
-- 修復 `_running` 標志：`connect()` 現在在建立 WS task 之前設定 `_running=True`（之前靜默退出）
-- 修復模組頂層缺少 `import json` — `_persist_token()` 之前靜默失敗
-- 展開腳本現在自動將技能安裝到 `~/.hermes/skills/lansenger/`（與子插件一起）
-- 從安裝後文件中移除手動技能安裝步驟
-
-### v2.6.2 — WS 日誌 + 文檔修復
-
-- 改進 WS 連線生命週期日誌：完整端點回應、HTTP 錯誤詳情（狀態碼/回應體）、重連嘗試序號
-- 修復日誌中 wsEndpoint URL 截斷問題（之前只顯示 ticket 的 4 個字元）
-- 重新翻譯所有繁體中文檔案（zhHant/zhHantHK），消除簡體字混入；修復法文錯誤
-
-### v2.6.1 — 訊息體審計 + formatText @提及
-
-- formatText 支援 @提及（reminder）；舊版 API 靜默接受不觸發通知
-- 撤回僅支援 bot/group；linkCard 6 個必填欄位；appArticles pcUrl 改為可選
-- 移除手動 WS 心跳（使用 websockets 內建 ping/pong）；chat_type_map 持久化支援群路由
-
-### v2.6.0 — 審批卡片支援動態狀態更新
-
-- 審批卡片支援審批後原地更新卡片狀態
-- 按使用者語言偵測傳送對應語言內容（中/英）
-- 修復 bodyContent 縮進問題：text-indent 設為 0em
-
-### v2.5.0 — appArticles、appCard、動態卡片更新、群訊息路由、群 ID 查詢
+### v2.5 — appArticles、appCard、動態卡片、群路由
 
 - appArticles、appCard、動態卡片更新、群訊息路由、群 ID 查詢
 
-### v2.4.2 — Home channel 自動升級
+### v2.4 — Bundle 安裝、Home channel
 
-- Home channel 自動升級（DM > 群）
+- Bundle 安裝時自動展開；Home channel 自動升級（DM > 群）
 
-### v2.4.1 — send_update_prompt + 動態 Agent 簽名
+### v2.3 — 插件模式
 
-- send_update_prompt + 動態 Agent 签名
+- Bundle 自動展開 + 簡化安裝流程；Bug 修復
 
-### v2.4.0 — Bundle 安裝時展開 + 展開腳本
+### v2.2 — 群聊 @提及
 
-- Bundle 安裝時自動展開
+- Reminder (@提及) 支援群聊
 
-### v2.3.2 (2026-05-12)
-
-- Bug 修復：`_make_config()` platform 參數
-
-### v2.3.1 (2026-05-12)
-
-- Bug 修復：`_get_adapter_class()` 路徑
-
-### v2.3.0 (2026-05-12)
-
-- Bundle 自動展開 + 簡化安裝流程
-
-### v2.2.0 (2026-05-11)
-
-- Reminder (@提及) 支援（群聊）
-
-### v2.1.0 (2026-05-11)
+### v2.1 — 插件遷移
 
 - 插件模式遷移——零核心修改
 
