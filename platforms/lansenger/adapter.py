@@ -115,6 +115,7 @@ class LansengerAdapter(BasePlatformAdapter):
         self._ws_client: Optional[Any] = None
         self._ws_task: Optional[asyncio.Task] = None
         self._http_client: Optional["httpx.AsyncClient"] = None
+        self._ws_url: Optional[str] = None
 
         # Message deduplication
         self._dedup = MessageDeduplicator(max_size=1000)
@@ -161,7 +162,7 @@ class LansengerAdapter(BasePlatformAdapter):
 
             ws_url = await self._get_websocket_url()
             if not ws_url:
-                logger.error("[Lansenger] Failed to get WebSocket URL")
+                logger.error("[Lansenger] Failed to get WebSocket URL — check appId/secret and API gateway")
                 return False
 
             self._ws_task = asyncio.create_task(self._run_ws(ws_url))
@@ -172,23 +173,35 @@ class LansengerAdapter(BasePlatformAdapter):
             return False
 
     async def _get_websocket_url(self) -> Optional[str]:
-        """Get WebSocket URL from Lansenger API."""
+        """Get WebSocket URL from Lansenger API (includes ticket with expiresIn)."""
         try:
             url = f"{self._api_gateway_url}{API_ENDPOINTS['websocket']['endpoint']}"
+            logger.info("[Lansenger] Requesting WebSocket endpoint from %s", url)
             response = await self._http_client.post(
                 url,
                 json={"appId": self._app_id, "secret": self._app_secret}
             )
+            logger.info("[Lansenger] WS endpoint response: status=%d, body=%s",
+                        response.status_code, response.text[:200])
             response.raise_for_status()
             data = response.json()
             
             if data.get("errCode") == 0:
                 ws_url = data.get("data", {}).get("wsEndpoint")
-                logger.info("[Lansenger] Got WebSocket URL: %s", ws_url if ws_url else None)
+                expires_in = data.get("data", {}).get("expiresIn", 7200)
+                ping_interval = data.get("data", {}).get("pingInterval", 50)
+                logger.info("[Lansenger] Got WS endpoint: url=%s, expiresIn=%ds, pingInterval=%ds",
+                            ws_url, expires_in, ping_interval)
+                self._ws_url = ws_url
                 return ws_url
             else:
-                logger.error("[Lansenger] WebSocket endpoint error: %s", data.get("errMsg"))
+                logger.error("[Lansenger] WebSocket endpoint error: errCode=%s, errMsg=%s",
+                             data.get("errCode"), data.get("errMsg"))
                 return None
+        except httpx.HTTPStatusError as e:
+            logger.error("[Lansenger] WS endpoint HTTP error: %s (response=%s)",
+                         e, e.response.text[:200] if e.response else "n/a")
+            return None
         except Exception as e:
             logger.error("[Lansenger] Error getting WebSocket URL: %s", e)
             return None
@@ -198,7 +211,7 @@ class LansengerAdapter(BasePlatformAdapter):
         backoff_idx = 0
         while self._running:
             try:
-                logger.debug("[Lansenger] Connecting to WebSocket...")
+                logger.info("[Lansenger] Connecting to WebSocket: %s", ws_url)
                 async with websockets.connect(ws_url, ping_interval=30, ping_timeout=10) as ws:
                     self._ws_client = ws
                     backoff_idx = 0
@@ -209,10 +222,16 @@ class LansengerAdapter(BasePlatformAdapter):
                         await self._on_message(message)
             except asyncio.CancelledError:
                 return
+            except websockets.exceptions.InvalidStatusCode as e:
+                if not self._running:
+                    return
+                logger.error("[Lansenger] WebSocket rejected: status_code=%d, headers=%s, body=%s",
+                             e.status_code, dict(e.headers) if e.headers else "n/a",
+                             e.body.decode(errors='replace')[:200] if e.body else "n/a")
             except Exception as e:
                 if not self._running:
                     return
-                logger.warning("[Lansenger] WebSocket error: %s", e)
+                logger.warning("[Lansenger] WebSocket error: %s (type=%s)", e, type(e).__name__)
 
             if not self._running:
                 return
@@ -222,11 +241,16 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.warning("[Lansenger] WebSocket disconnected, will reconnect")
 
             delay = RECONNECT_BACKOFF[min(backoff_idx, len(RECONNECT_BACKOFF) - 1)]
-            logger.info("[Lansenger] Reconnecting in %ds...", delay)
+            logger.info("[Lansenger] Reconnecting in %ds (attempt %d)...", delay, backoff_idx + 1)
             await asyncio.sleep(delay)
             backoff_idx += 1
 
-            ws_url = await self._get_websocket_url() or ws_url
+            new_url = await self._get_websocket_url()
+            if new_url:
+                ws_url = new_url
+                logger.info("[Lansenger] Will reconnect with fresh ticket")
+            else:
+                logger.error("[Lansenger] Failed to get new ticket, cannot reconnect — retrying next cycle")
 
     async def disconnect(self) -> None:
         """Disconnect from Lansenger."""
