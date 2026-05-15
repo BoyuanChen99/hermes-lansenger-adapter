@@ -194,3 +194,86 @@ class TestRunWs:
                 pass
 
         assert adapter._on_message.call_count >= 1
+
+    async def test_run_ws_reconnects_after_disconnect(self, make_adapter):
+        adapter = make_adapter()
+        adapter._on_message = AsyncMock()
+        adapter._get_websocket_url = AsyncMock(return_value="wss://reconnect-url")
+
+        class FakeWsFirst:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+            def __aiter__(self):
+                return self
+            async def __anext__(self):
+                raise Exception("connection lost")
+
+        class FakeWsSecond:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+            def __aiter__(self):
+                return self
+            async def __anext__(self):
+                raise StopAsyncIteration
+
+        ws_sequence = [FakeWsFirst(), FakeWsSecond()]
+        call_idx = 0
+
+        def connect_side_effect(*args, **kwargs):
+            nonlocal call_idx
+            ws = ws_sequence[min(call_idx, len(ws_sequence) - 1)]
+            call_idx += 1
+            return ws
+
+        adapter._running = True
+
+        original_sleep = asyncio.sleep
+
+        async def fast_sleep(delay):
+            await original_sleep(min(delay, 0.01))
+
+        with patch("lansenger.adapter.websockets.connect", side_effect=connect_side_effect):
+            with patch("lansenger.adapter.RECONNECT_BACKOFF", [0.01]):
+                with patch("lansenger.adapter.asyncio.sleep", side_effect=fast_sleep):
+                    task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
+                    await original_sleep(0.3)
+                    adapter._running = False
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, StopAsyncIteration):
+                        pass
+
+        adapter._get_websocket_url.assert_called()
+
+    async def test_run_ws_stops_on_cancel(self, make_adapter):
+        adapter = make_adapter()
+        adapter._on_message = AsyncMock()
+
+        class InfiniteWs:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+            def __aiter__(self):
+                return self
+            async def __anext__(self):
+                await asyncio.sleep(1)
+                return "ping"
+
+        adapter._running = True
+
+        with patch("lansenger.adapter.websockets.connect", return_value=InfiniteWs()):
+            task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
+            await asyncio.sleep(0.05)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        assert adapter._running is True
