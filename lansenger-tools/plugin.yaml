@@ -1,5 +1,5 @@
 name: lansenger-tools
-version: 2.6.3
+version: 2.6.4
 description: Lansenger messaging tools — send text/markdown/files/images, revoke messages, send linkCard/appArticles/appCard cards, update dynamic cards, query groups
 provides_tools:
   - lansenger_send_text

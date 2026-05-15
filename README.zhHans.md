@@ -178,6 +178,14 @@ hermes gateway restart
 
 ## 更新日志
 
+### v2.6.4 — appCard div-style 按 API spec 修正，移除 OpenClaw 内容
+
+- `_fix_div_style_fields()` 仅对 API spec 支持的字段修正 font-size/text-indent（bodyTitle/SubTitle/Content）
+- 移除 signature/fields/links/headStatusInfo.description 的 font-size/text-indent 修正（API 不支持）
+- 移除 OpenClaw SSRF 排障章节和引用文件（不属于 Hermes 插件）
+- schemas.py、SKILL.md、appcard-design-guidelines.md 按 API spec 逐字段更新支持范围
+- 修复英文 SKILL.md 中混入的中文文本
+
 ### v2.6.3 — Bug 修复 + 展开脚本自动安装技能
 
 - 修复 `_running` 标志：`connect()` 现在在创建 WS task 之前设置 `_running=True`（之前静默退出）

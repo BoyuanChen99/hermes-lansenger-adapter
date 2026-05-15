@@ -178,6 +178,14 @@ hermes gateway restart
 
 ## Changelog
 
+### v2.6.4 — appCard div-style per API spec, remove OpenClaw from Hermes plugin
+
+- `_fix_div_style_fields()` now only fixes font-size/text-indent in fields that actually support them per API spec (bodyTitle/SubTitle/Content only)
+- Removed font-size/text-indent fixes from signature, fields, links, headStatusInfo.description (not supported by API)
+- Removed OpenClaw SSRF troubleshooting section and reference file (not relevant to Hermes plugin)
+- Updated schemas.py, SKILL.md, appcard-design-guidelines.md to match API spec field-by-field support
+- Fixed Chinese text in English SKILL.md
+
 ### v2.6.3 — Bug fixes, expand script auto-installs skill
 
 - Fixed `_running` flag: `connect()` now sets `_running=True` before creating WS task (was silently exiting)
