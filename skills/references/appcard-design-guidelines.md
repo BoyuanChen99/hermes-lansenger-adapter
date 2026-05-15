@@ -17,9 +17,13 @@ appCard body fields (bodyTitle, bodySubTitle, bodyContent, signature, fields, li
 
 ## headStatusInfo
 
-- **description**: plain text only. NOT div-style HTML. Examples: "待审批", "已批准", "Active"
-- **colour**: controls the status dot color. Examples: "#FFB116" (amber/pending), "#198754" (green/approved), "red" (rejected)
-- **iconLink**: optional icon URL for the status indicator
+headStatusInfo = status dot + text. Two independent parts:
+
+- **description** = the text label. Supports single `<div style="color:...">` for coloring the text. Must be <30 bytes. No nested divs — API rejects nested div structure.
+  - Examples: `<div style="color:#FFB116">待审批</div>`, `<div style="color:#198754">已批准</div>`, `Active`
+- **colour** = the status dot color. Independent from description text color.
+  - Examples: "#FFB116" (amber/pending), "#198754" (green/approved), "red" (rejected)
+- **iconLink** = optional icon URL for the status indicator
 
 ## Approval Card Template
 

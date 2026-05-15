@@ -942,7 +942,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
 
             if is_dynamic and not head_status_info:
                 head_status_info = {
-                    "description": "Active",
+                    "description": "<div style=\"color:rgba(0,0,0,.47)\">Active</div>",
                     "colour": "rgba(0,0,0,.47)",
                 }
 
@@ -1999,12 +1999,14 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             return f"{agent_name} Security"
 
     def _build_status_div(self, text: str, color: str) -> str:
-        """Build plain text for headStatusInfo.description (colour controls the dot).
+        """Build div-style text for headStatusInfo.description.
 
-        headStatusInfo.description uses plain text — do NOT wrap in <div> tags.
-        The 'colour' field controls the status dot color, not the description text.
+        headStatusInfo = dot + text. 'description' is the text portion,
+        supports single div-style color tag (must be <30 bytes).
+        'colour' controls the dot color — they are independent.
+        No nested divs — API rejects nested div structure.
         """
-        return text
+        return f'<div style="color:{color}">{text}</div>'
 
     @property
     def owner_id(self) -> Optional[str]:

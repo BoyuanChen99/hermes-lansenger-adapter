@@ -42,8 +42,10 @@ Auto-routing: private → `/v1/bot/messages/create` (userIdList), group → `/v1
 9. **Approval/confirmation card** → `lansenger_send_app_card`
    ⚠️ Group chat: appCard may fall back to plain text. For group approval, use text + /approve /deny pattern.
    - `is_dynamic=True` + `headStatusInfo` for approval workflows
-   - **headStatusInfo.description = plain text** (NOT div-style) — e.g. "待审批", "已批准"
-   - headStatusInfo.colour = status dot color — e.g. "#FFB116" amber, "green", "red"
+   - **headStatusInfo** = status dot + text, two independent parts:
+     - `description` = text label, supports single `<div style="color:...">` for text color, <30 bytes, no nested divs
+     - `colour` = status dot color (e.g. "#FFB116" amber, "#198754" green, "red")
+   - Example: `description='<div style="color:#FFB116">待审批</div>', colour="#FFB116"`
    - After approval: `lansenger_update_dynamic_card` to update status in-place
 10. **Update dynamic card** → `lansenger_update_dynamic_card` (msg_id required, is_last_update=True for final)
 11. **Revoke message** → `lansenger_revoke_message` (chat_type="bot"/"group"; Lansenger shows fixed system text, not customizable)
