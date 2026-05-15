@@ -15,7 +15,7 @@ Lansenger (蓝信) has multiple message types with different capabilities:
   All message types support both private and group chat. The adapter auto-routes
   to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
-  NOTE: formatText supports @mention (reminder) per API spec 4.6.4.12,
+  NOTE: formatText supports @mention (reminder) on newer Lansenger versions,
   with reminder_all / reminder_user_ids params in lansenger_send_markdown.
   This is a newer API capability — older Lansenger versions silently accept
   the reminder field but do NOT trigger client-side @mention notifications.
@@ -24,7 +24,7 @@ Lansenger (蓝信) has multiple message types with different capabilities:
 
   appCard supports div-style formatting (color, font-size, text-align, text-indent).
   appArticles is a multi-article card (图文卡片) with imgUrl/title/url fields.
-  linkCard requires: title, description, iconLink, link, fromName, fromIconLink (per spec 4.6.4.4).
+  linkCard requires: title, description, iconLink, link, fromName, fromIconLink.
 
 This constraint shapes handler implementations:
 - send_text:       msgType=text   → plain text + optional file/image/video attachment

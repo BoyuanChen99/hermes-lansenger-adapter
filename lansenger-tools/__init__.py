@@ -19,7 +19,7 @@ Lansenger has multiple message/card types with different capabilities:
   All message types support both private and group chat. The adapter auto-routes
   to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
-  NOTE: formatText supports @mention (reminder) per API spec 4.6.4.12, exposed
+  NOTE: formatText supports @mention (reminder) on newer Lansenger versions, exposed
   via reminder_all / reminder_user_ids params in lansenger_send_markdown.
   This is a newer API capability — old versions silently accept reminder
   without triggering notifications. In group chat, recommended to include

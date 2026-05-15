@@ -103,5 +103,5 @@ hermes gateway restart
 
 @提及说明：
 - send_text：群聊中可用；私聊支持但没必要（只有一个对话者）
-- send_markdown：新版 API 能力（spec 4.6.4.12）；旧版静默接受不触发通知。群聊中建议在文本中包含 @姓名。
+- send_markdown：新版 API 能力；旧版静默接受不触发通知。群聊中建议在文本中包含 @姓名。
 ```

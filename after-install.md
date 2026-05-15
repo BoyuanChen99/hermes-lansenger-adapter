@@ -103,6 +103,6 @@ Check that the plugin is loaded:
 
 @mention notes:
 - send_text: works in group chat; private chat supports but unnecessary (only one participant)
-- send_markdown: newer API capability (spec 4.6.4.12); older versions silently accept
+- send_markdown: newer API capability; older versions silently accept
   without triggering notification. In group chat, recommended to include @姓名 in text.
 ```

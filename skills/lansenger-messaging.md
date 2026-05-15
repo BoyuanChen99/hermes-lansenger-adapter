@@ -17,22 +17,19 @@ Lansenger (蓝信) has multiple message types with different capabilities. Picki
 │  msgType     │  Markdown    │  @mention    │  Attachments │  Group Chat  │
 ├──────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
 │  text        │  ✗           │  ✓           │  ✓           │  ✓           │
-│  formatText  │  ✓           │  ✓ (4.6.12)  │  ✗           │  ✓           │
+│  formatText  │  ✓           │  ✓ (newer)   │  ✗           │  ✓           │
 │  appArticles │  ✗           │  ✗           │  ✗           │  ✓           │
 │  appCard     │  ✗ (div)     │  ✗           │  ✗           │  ✓           │
 │  linkCard    │  ✗           │  ✗           │  ✗           │  ✓           │
 └──────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-NOTE: formatText supports @mention (reminder) per API spec 4.6.4.12, but this
-is a newer capability. Older Lansenger versions silently accept the reminder
-field without triggering client-side @mention notifications. Newer versions
+NOTE: formatText supports @mention (reminder) on newer Lansenger versions; older versions silently accept the reminder field without triggering client-side @mention notifications. Newer versions
 trigger the notification. In group chat, it is recommended to include @姓名
 in the text content (e.g. "@张三 请查看报告") so people know who the reply is for.
 Private chat also supports reminder but it is unnecessary (only one participant).
 
-NOTE: linkCard has 6 required fields per API spec 4.6.4.4: title, description,
-iconLink, link, fromName, fromIconLink. The `lansenger_send_link_card` schema
+NOTE: linkCard has 6 required fields: title, description, iconLink, link, fromName, fromIconLink. The `lansenger_send_link_card` schema
 enforces all of them.
 
 NOTE: For video (mediaType=1), the API requires 2 mediaIds: [videoId, coverImageId].
@@ -72,7 +69,7 @@ Group detection uses `_chat_type_map` populated from inbound messages and persis
 ### 2. Markdown-formatted text (code, tables, lists)
 → `lansenger_send_markdown`
 - content = Markdown text
-- Optional @mention via reminder_all / reminder_user_ids (API spec 4.6.4.12)
+- Optional @mention via reminder_all / reminder_user_ids (newer Lansenger versions)
 - In group chat, recommended to include @姓名 in text when replying to someone
 - Cannot attach files
 - Example: code output, structured reports, step-by-step instructions

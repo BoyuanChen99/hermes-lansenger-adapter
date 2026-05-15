@@ -708,7 +708,7 @@ class LansengerAdapter(BasePlatformAdapter):
             Routes to /v1/messages/group/create for group chats,
             /v1/bot/messages/create for private chats.
 
-NOTE: formatText @mention (reminder) is a NEWER API capability (spec 4.6.4.12).
+NOTE: formatText @mention (reminder) is a NEWER API capability.
         Older Lansenger API versions silently accept the reminder field without error
         but do NOT trigger client-side @mention notifications. On newer versions,
         reminder triggers the notification. In group chat, it is recommended to

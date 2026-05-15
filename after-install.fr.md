@@ -103,6 +103,6 @@ Vérifiez que le plugin est chargé :
 
 @mention notes :
 - send_text : fonctionne en chat groupe ; chat privé supporte mais inutile (un seul participant)
-- send_markdown : capacité API plus récente (spec 4.6.4.12) ; anciennes versions acceptent
+- send_markdown : capacité API plus récente ; anciennes versions acceptent
   sans notification. En chat groupe, recommandé d’inclure @姓名 dans le texte.
 ```
