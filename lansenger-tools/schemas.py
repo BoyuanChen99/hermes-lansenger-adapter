@@ -395,6 +395,7 @@ LANSENGER_SEND_APP_CARD = {
         "Send an appCard (应用卡片) rich formatted card to a Lansenger (蓝信) user or group. "
         "appCard supports div-style HTML formatting (color, font-size, text-align, text-indent) "
         "in bodyTitle, bodySubTitle, bodyContent, and signature fields. "
+        "font-size MUST use pt unit (e.g. 14pt), NOT px — px is rejected by the API. "
         "Set is_dynamic=true to enable in-place status updates via lansenger_update_dynamic_card "
         "(e.g. approval workflows: pending → approved/rejected). "
         "bodyContent text-indent must always be 0em (bare 0 causes API failure)."
@@ -410,7 +411,7 @@ LANSENGER_SEND_APP_CARD = {
                 "type": "string",
                 "description": (
                     "Card body title (required, max 600 bytes). "
-                    "Supports div-style: color, font-size, text-align."
+                    "Supports div-style: color, font-size (pt only), text-align."
                 ),
             },
             "head_title": {
@@ -421,20 +422,20 @@ LANSENGER_SEND_APP_CARD = {
                 "type": "string",
                 "description": (
                     "Card body subtitle (max 1200 bytes). "
-                    "Supports div-style: color, font-size, text-align."
+                    "Supports div-style: color, font-size (pt only), text-align."
                 ),
             },
             "body_content": {
                 "type": "string",
                 "description": (
                     "Card body content (max 3000 bytes). "
-                    "Supports div-style: color, font-size, text-align, text-indent. "
+                    "Supports div-style: color, font-size (pt only), text-align, text-indent. "
                     "Always use text-indent:0em to avoid unwanted indentation."
                 ),
             },
             "signature": {
                 "type": "string",
-                "description": "Card signature line (max 96 bytes). Supports color.",
+                "description": "Card signature line (max 96 bytes). Supports color div-style only (no font-size, no text-align).",
             },
             "fields": {
                 "type": "array",
@@ -448,7 +449,7 @@ LANSENGER_SEND_APP_CARD = {
                 "description": (
                     "Key-value pairs (max 10 pairs). "
                     "Key max 18 bytes, value max 192 bytes per pair. "
-                    "Both support color div-style."
+                    "Both support color div-style only (no font-size, no text-align)."
                 ),
             },
             "links": {
@@ -460,7 +461,7 @@ LANSENGER_SEND_APP_CARD = {
                         "url": {"type": "string"},
                     },
                 },
-                "description": "Link entries (max 3 pairs). Title supports color and text-align.",
+                "description": "Link entries (max 3 pairs). Title supports color and text-align div-style only (no font-size).",
             },
             "is_dynamic": {
                 "type": "boolean",

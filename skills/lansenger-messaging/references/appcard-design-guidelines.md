@@ -1,19 +1,22 @@
 # appCard Design Guidelines
 
-## div-style HTML Formatting
+## div-style Field-by-Field Support (per API Spec)
 
-appCard body fields (bodyTitle, bodySubTitle, bodyContent, signature, fields, links) support div-style HTML:
+Not all appCard fields support the same div-style properties. Per Lansenger API spec:
 
-| Property | Format | Works |
-|----------|--------|-------|
-| color | #RRGGBB hex | ✅ |
-| font-size | 12pt–36pt (pt only) | ✅ (pt) ❌ (px — adapter auto-converts) |
-| text-align | left/center/right | ✅ |
-| text-indent | 0em (must include unit) | ✅ |
+| Field | color | font-size | text-align | text-indent |
+|-------|-------|-----------|------------|-------------|
+| bodyTitle | ✓ | ✓ (pt only) | ✓ | ✗ |
+| bodySubTitle | ✓ | ✓ (pt only) | ✓ | ✗ |
+| bodyContent | ✓ | ✓ (pt only) | ✓ | ✓ (0em only) |
+| signature | ✓ | ✗ | ✗ | ✗ |
+| fields key/value | ✓ | ✗ | ✗ | ✗ |
+| links.title | ✓ | ✗ | ✓ | ✗ |
+| headStatusInfo.description | ✓ | ✗ | ✗ | ✗ |
 
-**font-size**: Enterprise Lansenger rejects `px` unit. Adapter auto-converts `px→pt` (1px ≈ 0.75pt). Use `pt` directly for best results.
+**font-size**: Enterprise Lansenger API rejects `px` unit. Only bodyTitle, bodySubTitle, bodyContent support font-size. lansenger-tools auto-converts `px→pt` (1px ≈ 0.75pt) in these three fields. Use `pt` directly for predictable results.
 
-**text-indent**: Must include unit. `text-indent:0em` works; bare `text-indent:0` causes API empty response.
+**text-indent**: Only bodyContent supports text-indent. Must include unit — `text-indent:0em` works; bare `text-indent:0` causes API empty response. lansenger-tools auto-converts bare `0` → `0em` in bodyContent.
 
 ## headStatusInfo
 

@@ -897,6 +897,9 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
           Reserved for future use (send_i18n_app_card stub below).
 
         appCard supports div-style HTML formatting (color, font-size, text-align, text-indent).
+        font-size MUST use pt unit (e.g. 14pt) — px is rejected by the enterprise API.
+        adapter provides _convert_px_to_pt() helper but it is not auto-applied;
+        callers must ensure pt units or call the helper explicitly.
         Dynamic cards (is_dynamic=True) can be updated later via update_dynamic_card_status().
 
         Args:

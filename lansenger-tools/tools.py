@@ -47,6 +47,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import tempfile
 
 logger = logging.getLogger("lansenger-tools")
@@ -771,6 +772,45 @@ def lansenger_send_app_articles(args: dict, **kwargs) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
+def _fix_div_style_fields(body_title, body_sub_title, body_content):
+    """Auto-fix appCard div-style fields per API spec tag support.
+
+    Per Lansenger API spec (4.6.4.7 appCard):
+    - bodyTitle, bodySubTitle, bodyContent: support color, font-size, text-align
+    - bodyContent: additionally supports text-indent
+    - signature: only supports color (no font-size, no text-indent)
+    - fields key/value: only support color (no font-size, no text-indent)
+    - links.title: only supports color and text-align (no font-size, no text-indent)
+    - headStatusInfo.description: only supports color (no font-size, no text-indent)
+
+    Therefore font-size px→pt and text-indent bare-0→0em fixes
+    are only applied to bodyTitle, bodySubTitle, bodyContent.
+    """
+    def _px_to_pt(m):
+        px_val = float(m.group(1))
+        pt_val = px_val * 0.75
+        if pt_val == int(pt_val):
+            return f"font-size:{int(pt_val)}pt"
+        return f"font-size:{pt_val}pt"
+
+    def _fix_font_size(text):
+        if not text:
+            return text
+        return re.sub(r'font-size:(\d+(?:\.\d+)?)px', _px_to_pt, text)
+
+    def _fix_text_indent(text):
+        if not text:
+            return text
+        return re.sub(r'text-indent:0(?![\d.em])', 'text-indent:0em', text)
+
+    body_title = _fix_font_size(body_title)
+    body_sub_title = _fix_font_size(body_sub_title)
+    body_content = _fix_font_size(body_content)
+    body_content = _fix_text_indent(body_content)
+
+    return body_title, body_sub_title, body_content
+
+
 def lansenger_send_app_card(args: dict, **kwargs) -> str:
     """Send an appCard (应用卡片) message with rich formatting.
 
@@ -796,6 +836,10 @@ def lansenger_send_app_card(args: dict, **kwargs) -> str:
         return json.dumps({"error": "chat_id is required"})
     if not body_title:
         return json.dumps({"error": "body_title is required for appCard"})
+
+    # Auto-fix div-style: px→pt for font-size in bodyTitle/SubTitle/Content, text-indent in bodyContent
+    body_title, body_sub_title, body_content = \
+        _fix_div_style_fields(body_title, body_sub_title, body_content)
 
     env_result = _check_env()
     if "error" in env_result:
