@@ -1251,21 +1251,31 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         import httpx
         
         try:
-            # Download image
             async with httpx.AsyncClient() as client:
-                resp = await client.get(image_url, timeout=30)
-                resp.raise_for_status()
+                try:
+                    resp = await client.get(image_url, timeout=30)
+                except httpx.ConnectError as e:
+                    return SendResult(success=False, error=f"Image URL unreachable: {image_url} — network error: {e}")
+                except httpx.TimeoutException:
+                    return SendResult(success=False, error=f"Image URL timed out: {image_url}")
+                
+                if resp.status_code == 404:
+                    return SendResult(success=False, error=f"Image URL not found (404): {image_url}")
+                if resp.status_code >= 400:
+                    return SendResult(success=False, error=f"Image URL returned HTTP {resp.status_code}: {image_url}")
+                
+                content_type = resp.headers.get("content-type", "")
+                if content_type and not content_type.startswith("image/"):
+                    return SendResult(success=False, error=f"URL returned non-image content ({content_type}): {image_url}")
+                
                 image_bytes = resp.content
             
-            # Save to temp file
             fd, temp_path = tempfile.mkstemp(suffix='.jpg', prefix='lansenger_image_')
             os.write(fd, image_bytes)
             os.close(fd)
             
-            # Determine media type based on content
-            media_type = 2  # Default: image
+            media_type = 2
             
-            # Send as image
             return await self.send_file(chat_id, temp_path, caption or "", media_type=media_type)
         except Exception as e:
             logger.error("[Lansenger] Send image error: %s", e)
