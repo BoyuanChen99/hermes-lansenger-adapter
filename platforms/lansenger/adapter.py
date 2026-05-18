@@ -354,7 +354,7 @@ class LansengerAdapter(BasePlatformAdapter):
             # Write lansenger home_channel into config.yaml
             platforms = user_config.setdefault("platforms", {})
             lansenger = platforms.setdefault("lansenger", {})
-            lansenger["home_channel"] = {"chat_id": chat_id}
+            lansenger["home_channel"] = {"platform": "lansenger", "chat_id": chat_id, "name": "Lansenger Home"}
             atomic_yaml_write(config_path, user_config)
 
             # Update runtime state immediately
@@ -364,8 +364,8 @@ class LansengerAdapter(BasePlatformAdapter):
             # Also update the adapter's config.home_channel for runtime
             if hasattr(self, "config") and hasattr(self.config, "home_channel"):
                 try:
-                    from gateway.config import HomeChannel
-                    self.config.home_channel = HomeChannel(chat_id=chat_id)
+                    from gateway.config import HomeChannel, Platform
+                    self.config.home_channel = HomeChannel(platform=Platform("lansenger"), chat_id=chat_id, name="Lansenger Home")
                 except Exception:
                     pass
 
