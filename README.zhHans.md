@@ -136,7 +136,7 @@ platforms:
 - `lansenger_revoke_message`：仅支持 bot/group 类型；group 需要 sender_id；系统提示固定不可自定义
 - `lansenger_send_link_card`：spec 规定 6 个必填字段（title, description, iconLink, link, fromName, fromIconLink）；pc_link 可选
 - `lansenger_send_markdown` @提及：新版 API 能力；旧版静默接受但不触发通知
-- 视频（mediaType=1）需要 2 个 mediaIds（视频+封面图）
+- 视频（mediaType=1）需要 2 个 mediaIds：[videoId, coverImageId]（视频和封面图分别上传后组合）
 
 ## 架构
 

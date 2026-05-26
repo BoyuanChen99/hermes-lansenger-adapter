@@ -136,7 +136,7 @@ These tools let the Agent send messages, files, images, cards, revoke messages, 
 - `lansenger_revoke_message`: only bot/group chat types; group requires sender_id; system message is fixed (not customizable)
 - `lansenger_send_link_card`: 6 fields required per API spec (title, description, iconLink, link, fromName, fromIconLink); pc_link optional
 - `lansenger_send_markdown` @mentions: newer API capability; older versions silently accept without triggering notification
-- Video (mediaType=1) requires 2 mediaIds (video + cover image) per API spec
+- Video (mediaType=1) requires 2 mediaIds: [videoId, coverImageId] (upload video and cover image separately, then combine)
 
 ## Architecture
 

@@ -72,7 +72,7 @@ Auto-routing: private → `/v1/bot/messages/create` (userIdList), group → `/v1
 | font-size in fields/links/signature | Only bodyTitle, bodySubTitle, bodyContent support font-size; fields only support color; links.title only color+text-align |
 | font-size:14px in bodyTitle/SubTitle/Content | font-size:12pt–36pt (px rejected by enterprise API; lansenger-tools auto-converts px→pt) |
 | Message >4000 chars | Split into multiple messages |
-| Video without cover image | Video requires 2 mediaIds: [videoId, coverImageId] |
+| Video mediaIds=[videoId] | video requires mediaIds=[videoId, coverImageId]; upload cover image separately via type=image |
 | Video without width/height/duration | Upload type=video requires width, height, duration params |
 
 ## Media Upload
@@ -80,7 +80,7 @@ Auto-routing: private → `/v1/bot/messages/create` (userIdList), group → `/v1
 Uses `/v1/app/medias/create` (not `/v1/medias/create` — that one is for avatars, 1MB limit only).
 
 - **type** param: `video` / `image` / `file` / `audio` (string, not numeric)
-- **Video**: must provide `width`, `height`, `duration` query params; requires cover image (2 mediaIds: [videoId, coverImageId])
+- **Video**: must provide `width`, `height`, `duration` query params on upload; sending video message requires `mediaIds=[videoId, coverImageId]` (cover image must be uploaded separately via `/v1/app/medias/create?type=image`)
 - **Image**: optional `width`, `height` query params
 - **Audio**: optional `duration` query param
 - **Media Upload**: uses `/v1/app/medias/create` (not `/v1/medias/create` — that's for avatars, 1MB limit only).

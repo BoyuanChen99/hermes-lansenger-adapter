@@ -801,6 +801,28 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             pass
         return None
 
+    def _extract_video_cover(self, file_path: str) -> Optional[str]:
+        """Extract the first frame of a video as a JPEG cover image using ffmpeg.
+        
+        Returns the temp file path of the cover image, or None if ffmpeg is unavailable.
+        """
+        try:
+            tmp = tempfile.mktemp(suffix=".jpg")
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-i", str(file_path),
+                 "-vframes", "1", "-f", "image2", tmp],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode == 0 and os.path.isfile(tmp) and os.path.getsize(tmp) > 0:
+                return tmp
+            try:
+                os.unlink(tmp)
+            except Exception:
+                pass
+        except Exception:
+            pass
+        return None
+
     async def query_groups(self, page_offset: int = 1, page_size: int = 100) -> Dict[str, Any]:
         """Query the bot's group ID list via GET /v2/groups/fetch.
 
@@ -1141,7 +1163,6 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             
         Note: Uses msgType='text' (not formatText) because formatText doesn't support media.
               Markdown is NOT supported when sending media.
-              For video (mediaType=1), the API requires 2 mediaIds: [videoId, coverImageId].
         """
         token = await self._get_app_token()
         if not token:
@@ -1280,8 +1301,24 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                                                  width=width, height=height, duration=duration)
         if not media_id:
             return SendResult(success=False, error="Failed to upload file")
-        
-        return await self.send_text_with_media(chat_id, caption, media_type=media_type, media_ids=[media_id])
+
+        media_ids = [media_id]
+
+        if media_type == 1:
+            cover_path = self._extract_video_cover(file_path)
+            if cover_path:
+                cover_id = await self.upload_media_file(cover_path, 2,
+                                                         width=width, height=height)
+                if cover_id:
+                    media_ids = [media_id, cover_id]
+                try:
+                    os.unlink(cover_path)
+                except Exception:
+                    pass
+            else:
+                logger.warning("[Lansenger] Could not extract video cover frame — sending with single mediaId")
+
+        return await self.send_text_with_media(chat_id, caption, media_type=media_type, media_ids=media_ids)
 
     async def send_image_file(self, chat_id: str, image_path: str, caption: Optional[str] = None, **kwargs) -> SendResult:
         """Send a local image file.

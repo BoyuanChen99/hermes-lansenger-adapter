@@ -89,10 +89,10 @@ LANSENGER_SEND_TEXT = {
                 "description": (
                     "Media type hint for the attachment: 1=video, 2=image, 3=file/document. "
                     "Auto-detected from file_path extension if omitted. "
-                    "NOTE: For video (mediaType=1), the Lansenger API requires 2 media IDs: "
-                    "the video file first, then a cover image (first frame). "
-                    "This tool auto-uploads the file; if sending video, you may need to "
-                    "also upload a cover image separately."
+                    "NOTE: For video (mediaType=1), the Lansenger API requires 2 mediaIds in the message body: "
+                    "[videoId, coverImageId]. The adapter auto-extracts the first frame "
+                    "as a cover image using ffmpeg and uploads it. If ffmpeg is unavailable, "
+                    "the video is sent with a single mediaId which may fail."
                 ),
                 "enum": [1, 2, 3],
             },
