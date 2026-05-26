@@ -186,6 +186,8 @@ hermes gateway restart
 - Fixed `_running` flag and missing `import json` bug
 - Expand script auto-installs skill alongside sub-plugins
 - WS connection lifecycle logging improvements
+- Media upload: switched to `/v1/app/medias/create` (supports larger files, type=video/image/file/audio)
+- Fixed `home_channel` missing `platform` field causing KeyError crash
 
 ### v2.5 — appArticles, appCard, dynamic card, group routing
 

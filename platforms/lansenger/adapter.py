@@ -80,7 +80,7 @@ API_ENDPOINTS = {
         "group_message": "/v1/messages/group/create",
     },
     "app": {
-        "upload_media": "/v1/medias/create",
+        "upload_media": "/v1/app/medias/create",
     },
     "message": {
         "revoke": "/v1/messages/revoke",
@@ -1159,42 +1159,42 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
 
     async def upload_media_file(self, file_path: str, media_type: int) -> Optional[str]:
         """Upload a media file to Lansenger and return mediaId.
-        
+
+        Uses /v1/app/medias/create (4.5.4) — supports larger files
+        (image up to 10MB, others up to 20MB, per EMC org config).
+
         Args:
             file_path: Path to the local file
             media_type: 1=video, 2=image, 3=file
-            
+
         Returns:
             mediaId string on success, None on failure
-            
-        Note: File size limits are determined by the organization's Lansenger configuration.
         """
         token = await self._get_app_token()
         if not token:
             logger.error("[Lansenger] No access token for media upload")
             return None
-        
+
+        type_map = {1: "video", 2: "image", 3: "file", 4: "audio"}
+        type_str = type_map.get(media_type, "file")
+
         try:
-            url = f"{self._api_gateway_url}/v1/medias/create?type={media_type}&app_token={token}"
-            
-            # Read file and prepare multipart form data
+            url = f"{self._api_gateway_url}/v1/app/medias/create?type={type_str}&app_token={token}"
+
             with open(file_path, 'rb') as f:
                 file_content = f.read()
-            
-            # Get filename from path
+
             filename = os.path.basename(file_path)
-            
-            # Build multipart form data manually for httpx
             files = {'media': (filename, file_content)}
-            
+
             response = await self._http_client.post(url, files=files)
             response.raise_for_status()
             data = response.json()
-            
+
             if data.get("errCode") != 0:
                 logger.error("[Lansenger] Upload media error: %s", data.get("errMsg"))
                 return None
-            
+
             media_id = data.get("data", {}).get("mediaId")
             logger.info("[Lansenger] Media uploaded: %s (%s)", filename, media_id)
             return media_id
