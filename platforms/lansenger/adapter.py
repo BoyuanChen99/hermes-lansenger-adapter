@@ -25,6 +25,7 @@ import asyncio
 import logging
 import json
 import os
+import subprocess
 import tempfile
 import time
 import uuid
@@ -768,6 +769,38 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                 logger.error("[Lansenger] Send formatText error: %s", e, exc_info=True)
                 return SendResult(success=False, error=str(e), retryable=True)
 
+    def _probe_video_size(self, file_path: str) -> tuple:
+        """Try to extract width/height from video/image via ffprobe."""
+        try:
+            result = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0",
+                 str(file_path)],
+                capture_output=True, text=True, timeout=5,
+            )
+            parts = result.stdout.strip().split("x")
+            if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                return int(parts[0]), int(parts[1])
+        except Exception:
+            pass
+        return None, None
+
+    def _probe_duration(self, file_path: str) -> Optional[int]:
+        """Try to extract duration in seconds via ffprobe."""
+        try:
+            result = subprocess.run(
+                ["ffprobe", "-v", "error",
+                 "-show_entries", "format=duration", "-of", "csv=s=x:p=0",
+                 str(file_path)],
+                capture_output=True, text=True, timeout=5,
+            )
+            val = result.stdout.strip()
+            if val and val.replace(".", "", 1).isdigit():
+                return int(float(val))
+        except Exception:
+            pass
+        return None
+
     async def query_groups(self, page_offset: int = 1, page_size: int = 100) -> Dict[str, Any]:
         """Query the bot's group ID list via GET /v2/groups/fetch.
 
@@ -1157,7 +1190,8 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             logger.error("[Lansenger] Send text+media error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
-    async def upload_media_file(self, file_path: str, media_type: int) -> Optional[str]:
+    async def upload_media_file(self, file_path: str, media_type: int,
+                                  width: int = None, height: int = None, duration: int = None) -> Optional[str]:
         """Upload a media file to Lansenger and return mediaId.
 
         Uses /v1/app/medias/create (4.5.4) — supports larger files
@@ -1165,7 +1199,10 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
 
         Args:
             file_path: Path to the local file
-            media_type: 1=video, 2=image, 3=file
+            media_type: 1=video, 2=image, 3=file, 4=audio
+            width: Video/image width (auto-detected via ffprobe if not provided)
+            height: Video/image height (auto-detected via ffprobe if not provided)
+            duration: Video/audio duration in seconds (auto-detected via ffprobe if not provided)
 
         Returns:
             mediaId string on success, None on failure
@@ -1178,8 +1215,23 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         type_map = {1: "video", 2: "image", 3: "file", 4: "audio"}
         type_str = type_map.get(media_type, "file")
 
+        extra_params = {}
+        if type_str in ("video", "image"):
+            w, h = (width, height) if width and height else self._probe_video_size(file_path)
+            if w:
+                extra_params["width"] = w
+            if h:
+                extra_params["height"] = h
+        if type_str in ("video", "audio"):
+            d = duration or self._probe_duration(file_path)
+            if d:
+                extra_params["duration"] = d
+
         try:
-            url = f"{self._api_gateway_url}/v1/app/medias/create?type={type_str}&app_token={token}"
+            query = f"type={type_str}&app_token={token}"
+            for k, v in extra_params.items():
+                query += f"&{k}={v}"
+            url = f"{self._api_gateway_url}/v1/app/medias/create?{query}"
 
             with open(file_path, 'rb') as f:
                 file_content = f.read()
@@ -1202,32 +1254,33 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             logger.error("[Lansenger] Upload media error: %s", e)
             return None
 
-    async def send_file(self, chat_id: str, file_path: str, caption: str = "", media_type: int = 3) -> SendResult:
+    async def send_file(self, chat_id: str, file_path: str, caption: str = "", media_type: int = 3,
+                          width: int = None, height: int = None, duration: int = None) -> SendResult:
         """Send a file/image/video message.
         
         Args:
             chat_id: Recipient user ID
             file_path: Path to the local file
             caption: Optional caption text (plain text, Markdown NOT supported with media)
-            media_type: 1=video, 2=image, 3=file (default: 3)
+            media_type: 1=video, 2=image, 3/file, 4=audio (default: 3)
+            width: Video/image width (auto-detected via ffprobe if not provided)
+            height: Video/image height (auto-detected via ffprobe if not provided)
+            duration: Video/audio duration in seconds (auto-detected via ffprobe if not provided)
             
         Returns:
             SendResult with success status
             
         Note: Uses msgType='text' which doesn't support Markdown. For Markdown, send separately.
         """
-        # Graceful degradation: skip non-existent files instead of crashing
-        # (base's extract_local_files can misidentify placeholder paths)
         if not os.path.isfile(file_path):
             logger.warning("[Lansenger] File not found: %s — skipping", file_path)
             return SendResult(success=False, error=f"File not found: {file_path}")
 
-        # Upload file first
-        media_id = await self.upload_media_file(file_path, media_type)
+        media_id = await self.upload_media_file(file_path, media_type,
+                                                 width=width, height=height, duration=duration)
         if not media_id:
             return SendResult(success=False, error="Failed to upload file")
         
-        # Send message with media attachment (uses msgType='text', not formatText)
         return await self.send_text_with_media(chat_id, caption, media_type=media_type, media_ids=[media_id])
 
     async def send_image_file(self, chat_id: str, image_path: str, caption: Optional[str] = None, **kwargs) -> SendResult:

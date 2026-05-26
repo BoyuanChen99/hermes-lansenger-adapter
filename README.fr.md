@@ -185,7 +185,7 @@ hermes gateway restart
 - appCard div-style corrigé selon spec API (font-size/text-indent uniquement dans les champs supportés)
 - Corrections bugs `_running` et `import json` manquant
 - Script d'expansion installe automatiquement la compétence; journalisation WS améliorée
-- Upload média: passage à `/v1/app/medias/create` (fichiers plus volumineux, type=video/image/file/audio)
+- Upload média: passage à `/v1/app/medias/create` (fichiers plus volumineux, type=video/image/file/audio, auto-detection width/height/duration via ffprobe)
 - Correction `home_channel` champ `platform` manquant causant KeyError
 
 ### v2.5 — appArticles, appCard, carte dynamique, routage groupe

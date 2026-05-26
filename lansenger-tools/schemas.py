@@ -218,9 +218,30 @@ LANSENGER_SEND_FILE = {
             "media_type": {
                 "type": "integer",
                 "description": (
-                    "Media type hint: 1=video, 2=image, 3=file/document (default: auto-detect from extension)."
+                    "Media type hint: 1=video, 2=image, 3=file/document, 4=audio (default: auto-detect from extension)."
                 ),
-                "enum": [1, 2, 3],
+                "enum": [1, 2, 3, 4],
+            },
+            "width": {
+                "type": "integer",
+                "description": (
+                    "Video/image width in pixels (optional; auto-detected via ffprobe if available). "
+                    "Required for video uploads if ffprobe is not installed."
+                ),
+            },
+            "height": {
+                "type": "integer",
+                "description": (
+                    "Video/image height in pixels (optional; auto-detected via ffprobe if available). "
+                    "Required for video uploads if ffprobe is not installed."
+                ),
+            },
+            "duration": {
+                "type": "integer",
+                "description": (
+                    "Video/audio duration in seconds (optional; auto-detected via ffprobe if available). "
+                    "Required for video/audio uploads if ffprobe is not installed."
+                ),
             },
         },
         "required": ["chat_id", "file_path"],

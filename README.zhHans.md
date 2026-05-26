@@ -185,7 +185,7 @@ hermes gateway restart
 - appCard div-style 按 API spec 修正（font-size/text-indent 仅在支持的字段）
 - 修复 `_running` 标志和缺少 `import json` 的 Bug
 - 展开脚本自动安装 skill；WS 连接日志改进
-- 文件上传改用 `/v1/app/medias/create`（支持大文件，type=video/image/file/audio）
+- 文件上传改用 `/v1/app/medias/create`（支持大文件，type=video/image/file/audio，ffprobe 自动提取视频宽高时长）
 - 修复 `home_channel` 缺少 `platform` 字段导致 KeyError 崩溃
 
 ### v2.5 — appArticles、appCard、动态卡片、群路由

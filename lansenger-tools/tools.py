@@ -339,11 +339,13 @@ async def _send_markdown_async(chat_id: str, content: str,
         return {"success": False, "error": str(e)}
 
 
-async def _send_file_async(chat_id: str, file_path: str, caption: str, media_type: int) -> dict:
+async def _send_file_async(chat_id: str, file_path: str, caption: str, media_type: int,
+                                  width: int = None, height: int = None, duration: int = None) -> dict:
     """Async: send file/image/video only (msgType=text, attachment only)."""
     adapter = await _create_ephemeral_adapter()
     try:
-        result = await adapter.send_file(chat_id, file_path, caption, media_type)
+        result = await adapter.send_file(chat_id, file_path, caption, media_type,
+                                         width=width, height=height, duration=duration)
         await adapter._http_client.aclose()
 
         if result.success:
@@ -638,6 +640,9 @@ def lansenger_send_file(args: dict, **kwargs) -> str:
     file_path = args.get("file_path", "").strip()
     caption = args.get("caption", "").strip()
     media_type = args.get("media_type")
+    width = args.get("width")
+    height = args.get("height")
+    duration = args.get("duration")
 
     if not chat_id:
         return json.dumps({"error": "chat_id is required"})
@@ -658,7 +663,7 @@ def lansenger_send_file(args: dict, **kwargs) -> str:
         return json.dumps(env_result)
 
     try:
-        result = _run_async(_send_file_async(chat_id, file_path, caption, media_type))
+        result = _run_async(_send_file_async(chat_id, file_path, caption, media_type, width, height, duration))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})

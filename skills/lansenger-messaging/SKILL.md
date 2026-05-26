@@ -83,7 +83,12 @@ Uses `/v1/app/medias/create` (not `/v1/medias/create` — that one is for avatar
 - **Video**: must provide `width`, `height`, `duration` query params; requires cover image (2 mediaIds: [videoId, coverImageId])
 - **Image**: optional `width`, `height` query params
 - **Audio**: optional `duration` query param
-- **File size**: image up to 10MB, others up to 20MB (org config may differ)
+- **Media Upload**: uses `/v1/app/medias/create` (not `/v1/medias/create` — that's for avatars, 1MB limit only).
+  - **type** param: `video` / `image` / `file` / `audio` (string, not numeric)
+  - **Video**: requires `width`, `height`, `duration` params (auto-detected via ffprobe if available; pass explicitly if ffprobe not installed); requires cover image (2 mediaIds: [videoId, coverImageId])
+  - **Image**: optional `width`, `height` params (auto-detected via ffprobe)
+  - **Audio**: optional `duration` param (auto-detected via ffprobe)
+  - **File size**: image up to 10MB, others up to 20MB (org config may differ)
 
 ## Token & Credentials
 
