@@ -118,6 +118,7 @@ class LansengerAdapter(BasePlatformAdapter):
         self._ws_task: Optional[asyncio.Task] = None
         self._http_client: Optional["httpx.AsyncClient"] = None
         self._ws_url: Optional[str] = None
+        self._ws_ping_interval: int = 50
 
         # Message deduplication
         self._dedup = MessageDeduplicator(max_size=1000)
@@ -197,6 +198,7 @@ class LansengerAdapter(BasePlatformAdapter):
                 logger.info("[Lansenger] Got WS endpoint: url=%s, expiresIn=%ds, pingInterval=%ds",
                             ws_url, expires_in, ping_interval)
                 self._ws_url = ws_url
+                self._ws_ping_interval = ping_interval
                 return ws_url
             else:
                 logger.error("[Lansenger] WebSocket endpoint error: errCode=%s, errMsg=%s",
@@ -216,15 +218,23 @@ class LansengerAdapter(BasePlatformAdapter):
         try:
             while self._running:
                 try:
-                    logger.info("[Lansenger] Connecting to WebSocket: %s", ws_url)
-                    async with websockets.connect(ws_url, ping_interval=30, ping_timeout=10) as ws:
-                        self._ws_client = ws
-                        backoff_idx = 0
-                        self._mark_connected()
-                        logger.info("[Lansenger] WebSocket connected (ping_interval=30s, ping_timeout=10s)")
+                    ping_interval = self._ws_ping_interval
+                    ping_timeout = max(10, ping_interval // 3)
+                    logger.info("[Lansenger] Connecting to WebSocket: %s (ping_interval=%ds, ping_timeout=%ds)",
+                                ws_url, ping_interval, ping_timeout)
+                    try:
+                        async with websockets.connect(ws_url, ping_interval=ping_interval,
+                                                      ping_timeout=ping_timeout, close_timeout=10) as ws:
+                            self._ws_client = ws
+                            backoff_idx = 0
+                            self._mark_connected()
+                            logger.info("[Lansenger] WebSocket connected (ping_interval=%ds, ping_timeout=%ds)",
+                                        ping_interval, ping_timeout)
 
-                        async for message in ws:
-                            await self._on_message(message)
+                            async for message in ws:
+                                await self._on_message(message)
+                    except websockets.exceptions.ConnectionClosedOK as e:
+                        logger.info("[Lansenger] WebSocket closed normally by server (code=%d)", e.code)
                 except asyncio.CancelledError:
                     return
                 except websockets.exceptions.InvalidStatusCode as e:
@@ -274,23 +284,27 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.critical("[Lansenger] WebSocket task died with unhandled exception: %s (type=%s)", exc, type(exc).__name__)
         if self._running:
             logger.warning("[Lansenger] WebSocket task ended while _running=True — scheduling restart in 30s")
-            asyncio.get_event_loop().call_later(30, self._restart_ws_task)
+            asyncio.get_running_loop().call_later(30, self._restart_ws_task)
 
     def _restart_ws_task(self) -> None:
-        """Restart the WebSocket task after an unexpected death."""
+        """Restart the WebSocket task after an unexpected death — fetches fresh ticket."""
         if not self._running:
             logger.info("[Lansenger] Not running — skipping WS restart")
             return
         if self._ws_task is not None and not self._ws_task.done():
             logger.info("[Lansenger] WS task still running — skipping restart")
             return
-        logger.warning("[Lansenger] Restarting WebSocket task after unexpected termination")
-        ws_url = self._ws_url or ""
-        if not ws_url:
-            logger.error("[Lansenger] No cached WS URL — cannot restart; will retry on next connect()")
-            return
-        self._ws_task = asyncio.create_task(self._run_ws(ws_url))
-        self._ws_task.add_done_callback(self._on_ws_task_done)
+        logger.warning("[Lansenger] Restarting WebSocket task — fetching fresh ticket")
+
+        async def _restart_with_fresh_ticket():
+            ws_url = await self._get_websocket_url()
+            if ws_url:
+                self._ws_task = asyncio.create_task(self._run_ws(ws_url))
+                self._ws_task.add_done_callback(self._on_ws_task_done)
+            else:
+                logger.error("[Lansenger] Failed to get fresh ticket for restart — will retry on next cycle")
+
+        asyncio.create_task(_restart_with_fresh_ticket())
 
     async def disconnect(self) -> None:
         """Disconnect from Lansenger."""
