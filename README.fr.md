@@ -178,35 +178,7 @@ hermes gateway restart
 
 ## Journal des modifications
 
-### v2.6 — Cartes d'approbation, formatText @mention, WS lifecycle, corrections
-
-- Cartes d'approbation avec mises à jour en place (isDynamic + headStatusInfo)
-- formatText @mention; détection de langue par utilisateur (zh/en)
-- appCard div-style corrigé selon spec API (font-size/text-indent uniquement dans les champs supportés)
-- Corrections bugs `_running` et `import json` manquant
-- Script d'expansion installe automatiquement la compétence; journalisation WS améliorée
-- Upload média: passage à `/v1/app/medias/create` (fichiers plus volumineux, type=video/image/file/audio, auto-detection width/height/duration via ffprobe)
-- Correction `home_channel` champ `platform` manquant causant KeyError
-
-### v2.5 — appArticles, appCard, carte dynamique, routage groupe
-
-- appArticles, appCard, mise à jour dynamique, routage groupe, requête groupes
-
-### v2.4 — Installation bundle, canal d'accueil
-
-- Expansion automatique du bundle à l'installation; canal d'accueil auto-amélioré (DM > groupe)
-
-### v2.3 — Mode plugin
-
-- Expansion automatique du bundle + flux d'installation simplifié; corrections
-
-### v2.2 — @mention chat groupe
-
-- Support des @mentions pour chat groupe
-
-### v2.1 — Migration plugin
-
-- Migration en mode plugin — zéro modification core
+Voir [CHANGELOG.md](CHANGELOG.md) pour l’historique détaillé des versions.
 
 ## Licence
 

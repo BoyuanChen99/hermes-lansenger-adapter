@@ -688,6 +688,48 @@ class LansengerAdapter(BasePlatformAdapter):
             except: pass
             return ""
 
+    # -- Tool event formatting (formatText / Markdown) ----------------------
+
+    def format_tool_event(self, event: Any, *, mode: str = "all",
+                          preview_max_len: int = 40) -> Optional[str]:
+        """Return Markdown-formatted tool chrome for Lansenger formatText.
+
+        Overrides the base class plain-text output to leverage Lansenger's
+        Markdown renderer (bold tool names, code blocks for args, bullet
+        lists for results).
+        """
+        from gateway.stream_events import ToolCallChunk
+        if not isinstance(event, ToolCallChunk):
+            return None
+
+        from agent.display import get_tool_emoji
+        emoji = get_tool_emoji(event.tool_name, default="⚙️")
+
+        if mode == "verbose":
+            if event.args:
+                arg_lines = []
+                for k, v in event.args.items():
+                    val_str = str(v)
+                    if preview_max_len > 0 and len(val_str) > preview_max_len:
+                        val_str = val_str[:preview_max_len - 3] + "..."
+                    arg_lines.append(f"**{k}**：{val_str}")
+                header = f"{emoji} **{event.tool_name}** `{list(event.args.keys())}`"
+                return header + "\n" + "\n".join(arg_lines)
+            if event.preview:
+                preview = event.preview
+                if preview_max_len > 0 and len(preview) > preview_max_len:
+                    preview = preview[:preview_max_len - 3] + "..."
+                return f"{emoji} **{event.tool_name}**：{preview}"
+            return f"{emoji} **{event.tool_name}** ..."
+
+        preview = event.preview
+        if preview:
+            cap = preview_max_len if preview_max_len > 0 else 40
+            if len(preview) > cap:
+                preview = preview[:cap - 3] + "..."
+            return f"{emoji} **{event.tool_name}**：{preview}"
+        return f"{emoji} **{event.tool_name}** ..."
+
     # -- Outbound message sending -------------------------------------------
 
     async def send(self, chat_id: str, content: str, **kwargs) -> SendResult:

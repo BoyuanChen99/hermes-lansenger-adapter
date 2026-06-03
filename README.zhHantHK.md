@@ -178,32 +178,8 @@ hermes gateway restart
 
 ## 更新日誌
 
-### v2.6 — 審批卡片、formatText @提及、WS 生命週期、Bug 修復
+詳見 [CHANGELOG.md](CHANGELOG.md)。
 
-- 審批卡片支援原地狀態更新（isDynamic + headStatusInfo）
-- formatText @提及支援；按使用者語言偵測（中/英）
-- appCard div-style 按 API spec 修正（font-size/text-indent 僅在支援的欄位）
-- 修復 `_running` 標誌和缺少 `import json` 的 Bug
-- 展開腳本自動安裝 skill；WS 連線日誌改進
-- 檔案上傳改用 `/v1/app/medias/create`（支援大檔案，type=video/image/file/audio，ffprobe 自動提取影片寬高時長）
-- 修復 `home_channel` 缺少 `platform` 欄位導致 KeyError 崩溃
+## 授權條款
 
-### v2.5 — appArticles、appCard、動態卡片、群路由
-
-- appArticles、appCard、動態卡片更新、群訊息路由、群 ID 查詢
-
-### v2.4 — Bundle 安裝、Home channel
-
-- Bundle 安裝時自動展開；Home channel 自動升級（DM > 群）
-
-### v2.3 — 插件模式
-
-- Bundle 自動展開 + 簡化安裝流程；Bug 修復
-
-### v2.2 — 群聊 @提及
-
-- Reminder (@提及) 支援群聊
-
-### v2.1 — 插件遷移
-
-- 插件模式遷移——零核心修改
+MIT——詳見 [LICENSE](LICENSE)。

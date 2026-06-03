@@ -178,36 +178,7 @@ hermes gateway restart
 
 ## Changelog
 
-### v2.6 — Approval cards, formatText @mention, WS lifecycle, bug fixes
-
-- Approval cards with in-place status updates (isDynamic + headStatusInfo)
-- formatText @mention support; language detection per user (zh/en)
-- appCard div-style fixes per API spec (font-size/text-indent only in supported fields)
-- Fixed `_running` flag and missing `import json` bug
-- Expand script auto-installs skill alongside sub-plugins
-- WS connection lifecycle logging improvements
-- Media upload: switched to `/v1/app/medias/create` (supports larger files, type=video/image/file/audio, auto-detects video width/height/duration via ffprobe)
-- Fixed `home_channel` missing `platform` field causing KeyError crash
-
-### v2.5 — appArticles, appCard, dynamic card, group routing
-
-- appArticles, appCard, dynamic card update, group routing, group query
-
-### v2.4 — Bundle install, home channel
-
-- Bundle auto-expand on install; home channel auto-upgrade (DM > group)
-
-### v2.3 — Plugin mode
-
-- Bundle auto-expand + simplified install flow; bug fixes
-
-### v2.2 — Group chat @mention
-
-- Reminder (@mentions) support for group chat
-
-### v2.1 — Plugin migration
-
-- Plugin mode migration — zero core modification
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ## License
 
