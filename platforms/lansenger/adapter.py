@@ -273,6 +273,8 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.info("[Lansenger] _run_ws cancelled — exiting")
         except Exception as e:
             logger.critical("[Lansenger] _run_ws crashed unexpectedly: %s (type=%s)", e, type(e).__name__)
+            self._ws_client = None
+            self._mark_disconnected()
 
     def _on_ws_task_done(self, task: asyncio.Task) -> None:
         """Callback when _run_ws task finishes — log crashes and restart if unexpected."""
@@ -1358,14 +1360,16 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         if media_type == 1:
             cover_path = self._extract_video_cover(file_path)
             if cover_path:
-                cover_id = await self.upload_media_file(cover_path, 2,
-                                                         width=width, height=height)
-                if cover_id:
-                    media_ids = [media_id, cover_id]
                 try:
-                    os.unlink(cover_path)
-                except Exception:
-                    pass
+                    cover_id = await self.upload_media_file(cover_path, 2,
+                                                             width=width, height=height)
+                    if cover_id:
+                        media_ids = [media_id, cover_id]
+                finally:
+                    try:
+                        os.unlink(cover_path)
+                    except Exception:
+                        pass
             else:
                 logger.warning("[Lansenger] Could not extract video cover frame — sending with single mediaId")
 
@@ -1394,6 +1398,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         import tempfile
         import httpx
         
+        temp_path = None
         try:
             async with httpx.AsyncClient() as client:
                 try:
@@ -1418,12 +1423,16 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             os.write(fd, image_bytes)
             os.close(fd)
             
-            media_type = 2
-            
-            return await self.send_file(chat_id, temp_path, caption or "", media_type=media_type)
+            return await self.send_file(chat_id, temp_path, caption or "", media_type=2)
         except Exception as e:
             logger.error("[Lansenger] Send image error: %s", e)
             return SendResult(success=False, error=str(e))
+        finally:
+            if temp_path:
+                try:
+                    os.unlink(temp_path)
+                except Exception:
+                    pass
 
     async def send_document(self, chat_id: str, file_path: str, caption: Optional[str] = None, **kwargs) -> SendResult:
         """Send a document file.
