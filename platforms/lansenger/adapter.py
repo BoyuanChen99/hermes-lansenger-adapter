@@ -225,8 +225,17 @@ class LansengerAdapter(BasePlatformAdapter):
                     logger.info("[Lansenger] Connecting to WebSocket: %s (ping_interval=%ds, ping_timeout=%ds)",
                                 ws_url, ping_interval, ping_timeout)
                     try:
-                        async with websockets.connect(ws_url, ping_interval=ping_interval,
-                                                      ping_timeout=ping_timeout, close_timeout=10) as ws:
+                        ws = await asyncio.wait_for(
+                            websockets.connect(ws_url, ping_interval=ping_interval,
+                                              ping_timeout=ping_timeout, close_timeout=10,
+                                              open_timeout=10),
+                            timeout=15,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.error("[Lansenger] WebSocket connect timed out (15s) — server may not accept this ticket, will discard and retry")
+                        raise
+                    try:
+                        async with ws:
                             self._ws_client = ws
                             backoff_idx = 0
                             self._mark_connected()
