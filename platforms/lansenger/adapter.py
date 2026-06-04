@@ -25,6 +25,7 @@ import asyncio
 import logging
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -126,6 +127,7 @@ class LansengerAdapter(BasePlatformAdapter):
         # Chat type cache: maps chat_id → "group" or "dm"
         # Populated from inbound messages so outbound can route correctly
         self._chat_type_map: Dict[str, str] = {}
+        self._chat_type_map_dirty: bool = False
         self._chat_type_file = Path.home() / ".hermes" / "lansenger_chat_types.json"
         self._load_chat_type_map()
 
@@ -335,7 +337,6 @@ class LansengerAdapter(BasePlatformAdapter):
         """Load owner ID from file."""
         try:
             if self._owner_id_file.exists():
-                import json
                 data = json.loads(self._owner_id_file.read_text())
                 self._owner_id = data.get("owner_id")
                 if self._owner_id:
@@ -346,7 +347,6 @@ class LansengerAdapter(BasePlatformAdapter):
     def _save_owner_id(self) -> None:
         """Save owner ID to file."""
         try:
-            import json
             self._owner_id_file.parent.mkdir(parents=True, exist_ok=True)
             self._owner_id_file.write_text(json.dumps({"owner_id": self._owner_id}, indent=2))
             logger.info("[Lansenger] Saved owner ID: %s", self._owner_id[:20] if self._owner_id else None)
@@ -356,7 +356,6 @@ class LansengerAdapter(BasePlatformAdapter):
     def _load_chat_type_map(self) -> None:
         try:
             if self._chat_type_file.exists():
-                import json
                 data = json.loads(self._chat_type_file.read_text())
                 if isinstance(data, dict):
                     self._chat_type_map.update(data)
@@ -365,8 +364,10 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.warning("[Lansenger] Failed to load chat type map: %s", e)
 
     def _persist_chat_type_map(self) -> None:
+        if not self._chat_type_map_dirty:
+            return
+        self._chat_type_map_dirty = False
         try:
-            import json
             self._chat_type_file.parent.mkdir(parents=True, exist_ok=True)
             self._chat_type_file.write_text(json.dumps(self._chat_type_map, indent=2))
             logger.debug("[Lansenger] Persisted %d chat type mappings", len(self._chat_type_map))
@@ -432,8 +433,6 @@ class LansengerAdapter(BasePlatformAdapter):
 
     async def _on_message(self, raw_message: str) -> None:
         """Process an incoming Lansenger message."""
-        import json
-
         try:
             data = json.loads(raw_message)
         except json.JSONDecodeError:
@@ -443,6 +442,8 @@ class LansengerAdapter(BasePlatformAdapter):
         events = data.get("events", [])
         for event_data in events:
             await self._process_event(event_data)
+
+        self._persist_chat_type_map()
 
     async def _process_event(self, event_data: Dict[str, Any]) -> None:
         """Process a single event."""
@@ -470,7 +471,7 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # Cache chat type for outbound routing
         self._chat_type_map[chat_id] = "group" if is_group else "dm"
-        self._persist_chat_type_map()
+        self._chat_type_map_dirty = True
 
         # Cache user language from message text (for appCard language selection)
         text_content = msg_data.get("text", {}).get("content", "")
@@ -611,9 +612,10 @@ class LansengerAdapter(BasePlatformAdapter):
 
             self._app_token = data.get("data", {}).get("appToken")
             expires_in = data.get("data", {}).get("expiresIn", 7200)
-            self._token_expiry = datetime.now().timestamp() + expires_in - 300
+            persist_expiry = datetime.now().timestamp() + expires_in
+            self._token_expiry = persist_expiry - 300  # cache expiry: 5min early refresh buffer
 
-            self._persist_token(self._app_token, self._token_expiry + 300)
+            self._persist_token(self._app_token, persist_expiry)
 
             logger.info("[Lansenger] Got new access token (expires in %ds)", expires_in)
             return self._app_token
@@ -730,6 +732,34 @@ class LansengerAdapter(BasePlatformAdapter):
             return f"{emoji} **{event.tool_name}**：{preview}"
         return f"{emoji} **{event.tool_name}** ..."
 
+    def _resolve_chat_type(self, chat_id: str) -> Optional[str]:
+        """Resolve chat type ('group' or 'dm') for outbound routing.
+
+        Returns the cached value if known, None if ambiguous.
+        Logs a warning on ambiguous routing so operators can diagnose.
+        """
+        known = self._chat_type_map.get(chat_id)
+        if known:
+            return known
+        logger.warning("[Lansenger] chat_id %s not in _chat_type_map — routing may be incorrect", chat_id)
+        return None
+
+    def _is_group_chat(self, chat_id: str) -> bool:
+        """Check if chat_id is a group chat, with heuristic fallback.
+
+        Primary: cached _chat_type_map (populated from inbound messages).
+        Fallback: chat_id starting with 'group:' is treated as group.
+        """
+        known = self._chat_type_map.get(chat_id)
+        if known:
+            return known == "group"
+        if chat_id.startswith("group:"):
+            self._chat_type_map[chat_id] = "group"
+            self._chat_type_map_dirty = True
+            return True
+        logger.warning("[Lansenger] chat_id %s not in _chat_type_map — assuming DM", chat_id)
+        return False
+
     # -- Outbound message sending -------------------------------------------
 
     async def send(self, chat_id: str, content: str, **kwargs) -> SendResult:
@@ -759,7 +789,7 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         try:
-            is_group = self._chat_type_map.get(chat_id) == "group"
+            is_group = self._is_group_chat(chat_id)
 
             if is_group:
                 # Group message: use /v1/messages/group/create
@@ -825,7 +855,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                 return SendResult(success=False, error="No access token")
 
             try:
-                is_group = self._chat_type_map.get(chat_id) == "group"
+                is_group = self._is_group_chat(chat_id)
 
                 format_text_data: Dict[str, Any] = {
                     "formatType": 1,
@@ -891,7 +921,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             )
             val = result.stdout.strip()
             if val and val.replace(".", "", 1).isdigit():
-                return int(float(val))
+                return max(1, round(float(val)))
         except Exception:
             pass
         return None
@@ -987,7 +1017,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             return SendResult(success=False, error="No access token")
 
         try:
-            is_group = self._chat_type_map.get(chat_id) == "group"
+            is_group = self._is_group_chat(chat_id)
 
             if is_group:
                 url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
@@ -1077,7 +1107,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             return SendResult(success=False, error="No access token")
 
         try:
-            is_group = self._chat_type_map.get(chat_id) == "group"
+            is_group = self._is_group_chat(chat_id)
 
             if is_group:
                 url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
@@ -1085,10 +1115,10 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                 url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
 
             app_card_data: Dict[str, Any] = {
-                "headTitle": self._convert_font_px_to_pt(head_title),
+                "headTitle": self._fix_app_card_styles(head_title),
                 "headIconUrl": head_icon_url,
                 "isDynamic": is_dynamic,
-                "bodyTitle": self._convert_font_px_to_pt(body_title),
+                "bodyTitle": self._fix_app_card_styles(body_title),
                 "cardLink": card_link,
                 "pcCardLink": pc_card_link,
             }
@@ -1103,11 +1133,11 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                 app_card_data["headStatusInfo"] = head_status_info
 
             if body_sub_title:
-                app_card_data["bodySubTitle"] = self._convert_font_px_to_pt(body_sub_title)
+                app_card_data["bodySubTitle"] = self._fix_app_card_styles(body_sub_title)
             if body_content:
-                app_card_data["bodyContent"] = self._convert_font_px_to_pt(body_content)
+                app_card_data["bodyContent"] = self._fix_app_card_styles(body_content, is_body_content=True)
             if signature:
-                app_card_data["signature"] = self._convert_font_px_to_pt(signature)
+                app_card_data["signature"] = self._fix_app_card_styles(signature)
             if staff_id:
                 app_card_data["staffId"] = staff_id
             if fields:
@@ -1264,7 +1294,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             return SendResult(success=False, error="No access token")
 
         try:
-            is_group = self._chat_type_map.get(chat_id) == "group"
+            is_group = self._is_group_chat(chat_id)
 
             if is_group:
                 url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
@@ -1572,7 +1602,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             return SendResult(success=False, error="Failed to get token")
 
         try:
-            is_group = self._chat_type_map.get(chat_id) == "group"
+            is_group = self._is_group_chat(chat_id)
 
             if is_group:
                 url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
@@ -1715,7 +1745,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         }
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            url = self._build_send_url(chat_id, token)
             app_card_data = {
                 "headTitle": head_title,
                 "headIconUrl": "",
@@ -1730,11 +1760,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                 "pcCardLink": "",
             }
 
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "appCard",
-                "msgData": {"appCard": app_card_data},
-            }
+            payload = self._build_app_card_payload(chat_id, app_card_data)
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -1754,9 +1780,27 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             logger.error("[Lansenger] Send appCard approval error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
-    # ------------------------------------------------------------------
-    # Slash-command confirmation (gateway destructive_slash_confirm gate)
-    # ------------------------------------------------------------------
+    def _build_app_card_payload(self, chat_id: str, app_card_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Build the outer payload for an appCard message with correct routing."""
+        is_group = self._is_group_chat(chat_id)
+        if is_group:
+            return {
+                "groupId": chat_id,
+                "msgType": "appCard",
+                "msgData": {"appCard": app_card_data},
+            }
+        return {
+            "userIdList": [chat_id],
+            "msgType": "appCard",
+            "msgData": {"appCard": app_card_data},
+        }
+
+    def _build_send_url(self, chat_id: str, token: str) -> str:
+        """Build the correct endpoint URL based on chat type."""
+        is_group = self._is_group_chat(chat_id)
+        if is_group:
+            return f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+        return f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
     async def send_slash_confirm(
         self,
         chat_id: str,
@@ -1822,7 +1866,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         }
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            url = self._build_send_url(chat_id, token)
             app_card_data = {
                 "headTitle": head_title,
                 "headIconUrl": "",
@@ -1836,11 +1880,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                 "pcCardLink": "",
             }
 
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "appCard",
-                "msgData": {"appCard": app_card_data},
-            }
+            payload = self._build_app_card_payload(chat_id, app_card_data)
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -2003,25 +2043,21 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         }
 
         try:
-            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+            url = self._build_send_url(chat_id, token)
             app_card_data = {
                 "headTitle": head_title,
                 "headIconUrl": "",
                 "isDynamic": True,
                 "headStatusInfo": head_status_info,
                 "bodyTitle": f'<div style="color:#000;font-size:15pt;text-align:left">{body_title}</div>',
-"bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left;text-indent:0em">{body_content}</div>',
-            "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
-            "fields": fields,
-            "cardLink": "",
-            "pcCardLink": "",
-        }
-
-            payload = {
-                "userIdList": [chat_id],
-                "msgType": "appCard",
-                "msgData": {"appCard": app_card_data},
+                "bodyContent": f'<div style="color:#000;font-size:13pt;text-align:left;text-indent:0em">{body_content}</div>',
+                "signature": f'<div style="color:rgba(0,0,0,.47)">{signature}</div>',
+                "fields": fields,
+                "cardLink": "",
+                "pcCardLink": "",
             }
+
+            payload = self._build_app_card_payload(chat_id, app_card_data)
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -2092,7 +2128,6 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                                 return name
 
             # Try markdown body — look for **Name:** pattern
-            import re
             match = re.search(r"\*?\*?Name:?\*?\*?\s*:?\s*(.+)", content, re.IGNORECASE)
             if match:
                 name = match.group(1).strip()
@@ -2131,13 +2166,14 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         }
     
     def _escape_html(self, text: str) -> str:
-        """Escape < and > to prevent HTML tag parsing.
-        
+        """Escape <, >, and & to prevent HTML tag parsing.
+
         Client doesn't support HTML entities like &quot; or &amp;,
         but we need to escape < and > to prevent them from being
-        parsed as HTML tags.
+        parsed as HTML tags, and & to prevent misinterpretation
+        as entity references.
         """
-        return text.replace("<", "&lt;").replace(">", "&gt;")
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     def _convert_font_px_to_pt(self, text: str) -> str:
         """Convert font-size px values to pt in div-style HTML strings.
@@ -2146,7 +2182,6 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         1px ≈ 0.75pt. Common sizes: 14px→10.5pt, 16px→12pt, 18px→13.5pt.
         Only converts numeric px values; pt values are left unchanged.
         """
-        import re
         def _px_to_pt(m):
             px_val = float(m.group(1))
             pt_val = px_val * 0.75
@@ -2155,20 +2190,34 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
             return f"font-size:{pt_val}pt"
         return re.sub(r'font-size:(\d+(?:\.\d+)?)px', _px_to_pt, text)
 
+    def _fix_text_indent(self, text: str) -> str:
+        """Fix bare text-indent:0 to text-indent:0em in div-style strings.
+
+        Lansenger API rejects text-indent without a unit (bare '0').
+        Per spec, text-indent only applies to bodyContent.
+        """
+        if not text:
+            return text
+        return re.sub(r'text-indent:0(?![\d.em])', 'text-indent:0em', text)
+
+    def _fix_app_card_styles(self, field: str, is_body_content: bool = False) -> str:
+        """Apply all div-style fixes for appCard fields.
+
+        Per Lansenger API spec:
+        - font-size px→pt: applies to headTitle, bodyTitle, bodySubTitle, bodyContent
+        - text-indent bare-0→0em: applies only to bodyContent
+        """
+        field = self._convert_font_px_to_pt(field)
+        if is_body_content:
+            field = self._fix_text_indent(field)
+        return field
+
     def _detect_lang(self, text: str) -> str:
         """Detect language from user message text. Returns 'zh' or 'en'.
 
         Simple heuristic: if text contains any CJK Unicode range characters,
         treat as Chinese. Otherwise, English.
         """
-        import unicodedata
-        for ch in text:
-            try:
-                if unicodedata.category(ch).startswith("Lo"):  # Letter, Other = CJK
-                    return "zh"
-            except Exception:
-                pass
-        # Also check for common CJK ranges directly
         for ch in text:
             cp = ord(ch)
             if (0x4E00 <= cp <= 0x9FFF) or (0x3400 <= cp <= 0x4DBF) or \
@@ -2402,7 +2451,7 @@ def _interactive_setup():
                 key, _, value = line.partition("=")
                 existing_values[key.strip()] = value.strip()
     
-    def _prompt_field(env_key: str, label: str, default: str = "", sensitive: bool = False) -> str | None:
+    def _prompt_field(env_key: str, label: str, default: str = "", sensitive: bool = False) -> Optional[str]:
         """Prompt for a single env var. Returns new value or None if unchanged."""
         current = existing_values.get(env_key, "")
         if current:

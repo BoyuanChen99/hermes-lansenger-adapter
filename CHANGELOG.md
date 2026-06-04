@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.10] - 2026-06-04
+
+### Bug Fixes (Issue #1 — Code Audit)
+
+- **Bug 1: `_run_async` thread pool deadlock** (tools.py). Replaced `ThreadPoolExecutor(max_workers=1)` fallback with `asyncio.run_coroutine_threadsafe(coro, loop)` — injects coroutines into the gateway's existing event loop instead of spinning a new thread+loop per tool call. Eliminates single-worker queue deadlock and 30s timeout on large file uploads. Timeout raised to 120s.
+- **Bug 2: `_chat_type_map` routing failure for unknown chat IDs**. Added `_is_group_chat(chat_id)` helper with heuristic fallback: `group:` prefix → group, otherwise → DM (with warning log). Replaced all 6 `self._chat_type_map.get(chat_id) == "group"` checks.
+- **Bug 3: `_persist_chat_type_map` writes on every inbound message**. Introduced `_chat_type_map_dirty` flag — `_persist_chat_type_map()` now skips disk I/O when the map hasn't changed. Persists once at the end of `_on_message` (per-batch) instead of per-event.
+- **Bug 4: NOT A BUG**. `send_text_with_media` uses numeric `mediaType` (1/2/3) per Lansenger send API spec; `upload_media_file` uses string type (`video`/`image`/`file`/`audio`) per upload API spec. These are two different APIs with different parameter types — both correct.
+- **Bug 5: Ephemeral adapter creates new httpx per tool call**. Introduced `_get_shared_http_client()` singleton with `atexit` cleanup — all tool invocations reuse the same TCP+TLS connection pool. Removed all `await adapter._http_client.aclose()` calls from tool handlers.
+- **Bug 6: `_send_image_url_async` lacks separate connect/read timeouts**. Changed `timeout=30` → `httpx.Timeout(10.0, read=60.0)` — 10s connect timeout, 60s read timeout for large image downloads.
+- **Bug 7: Approval/confirm/update_prompt cards hardcoded to private endpoint**. Added `_build_send_url(chat_id, token)` and `_build_app_card_payload(chat_id, app_card_data)` helpers. All three card methods now route to the correct endpoint (private vs group) based on `_is_group_chat(chat_id)`.
+- **Bug 8: `send_app_card` missing text-indent fix**. Added `_fix_text_indent()` method (regex: `text-indent:0` → `text-indent:0em`) and `_fix_app_card_styles(field, is_body_content=False)` that applies both px→pt conversion and text-indent fix. `bodyContent` now gets `is_body_content=True` so bare-zero text-indent is always fixed.
+- **Bug 9: `_probe_duration` truncates to int → duration=0 risk**. Changed `int(float(val))` → `max(1, round(float(val)))` — 0.5s video no longer becomes `duration=0`; minimum duration is 1.
+
+### Code Quality (Issue #1 — Low Priority)
+
+- **Issue 10**: `_escape_html` now also escapes `&` → `&amp;` (prevents misinterpretation as HTML entity references in div-style content).
+- **Issue 11**: `_detect_lang` merged double-loop (unicodedata + CJK range) into single loop over CJK Unicode ranges only — removes `unicodedata` dependency and halves iteration count.
+- **Issue 12**: Removed redundant `import json` inside `_load_owner_id`, `_save_owner_id`, `_on_message`, `_load_chat_type_map`, `_persist_chat_type_map`, `_convert_font_px_to_pt`, `_get_agent_name`. `json` and `re` now at top-level imports only.
+- **Issue 13**: Changed `str | None` → `Optional[str]` in `_prompt_field` for Python <3.10 compatibility.
+- **Issue 14**: Token expiry double-offset refactored — `persist_expiry = timestamp + expires_in; cache_expiry = persist_expiry - 300`. No longer `self._token_expiry + 300` confusing restore.
+
 ## [2.6.9] - 2026-06-03
 
 ### Tool Progress Formatting

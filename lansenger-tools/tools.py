@@ -49,6 +49,7 @@ import logging
 import os
 import re
 import tempfile
+from typing import Any, Optional
 
 logger = logging.getLogger("lansenger-tools")
 
@@ -174,17 +175,59 @@ def _make_config(env_config: dict):
 def _run_async(coro):
     """Run an async coroutine from a synchronous context.
 
-    Uses asyncio.run() in a fresh event loop, with a thread-pool fallback
-    for cases where an event loop is already running (e.g. in gateway mode).
+    When the gateway event loop is already running, injects the coroutine
+    into it via asyncio.run_coroutine_threadsafe instead of spinning a new
+    thread+loop (which caused max_workers=1 deadlock and 30s timeout on
+    large file uploads).  Falls back to asyncio.run() only when no loop
+    exists (standalone CLI / cron mode).
     """
     try:
-        return asyncio.run(coro)
+        loop = asyncio.get_running_loop()
     except RuntimeError:
-        # asyncio.run() fails inside an existing event loop
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(asyncio.run, coro)
-            return future.result(timeout=30)
+        loop = None
+
+    if loop and loop.is_running():
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result(timeout=120)
+
+    return asyncio.run(coro)
+
+
+# --- Shared connection pool (Bug 5 fix) ---
+
+_shared_http_client: Optional[Any] = None
+
+
+def _get_shared_http_client():
+    """Return a module-level httpx.AsyncClient (singleton connection pool).
+
+    Avoids creating a new TCP+TLS connection per tool invocation.
+    Uses atexit cleanup to close the pool when the process exits.
+    """
+    global _shared_http_client
+    if _shared_http_client is None or _shared_http_client.is_closed:
+        import httpx
+        _shared_http_client = httpx.AsyncClient(timeout=30.0)
+        import atexit
+        atexit.register(_close_shared_http_client)
+    return _shared_http_client
+
+
+def _close_shared_http_client():
+    """Close the shared httpx client at process exit (atexit handler).
+
+    httpx.AsyncClient.aclose() is async, so we use asyncio.run()
+    in a best-effort fashion.  If an event loop is already running,
+    we skip — the OS will reclaim sockets anyway.
+    """
+    global _shared_http_client
+    if _shared_http_client is None or _shared_http_client.is_closed:
+        return
+    try:
+        asyncio.run(_shared_http_client.aclose())
+    except RuntimeError:
+        pass
+    _shared_http_client = None
 
 
 # --- Async implementations (shared by all handlers) ---
@@ -196,10 +239,9 @@ async def _create_ephemeral_adapter():
     Pre-loads persisted appToken so the ephemeral adapter can reuse it
     without calling /v1/apptoken/create on every invocation.
 
-    Returns the adapter instance. The adapter's _http_client is already set.
+    Uses the shared httpx connection pool to avoid per-invocation
+    TCP+TLS overhead.
     """
-    import httpx
-
     LansengerAdapter = _get_adapter_class()
     env_config = _check_env()
     if "error" in env_config:
@@ -207,7 +249,7 @@ async def _create_ephemeral_adapter():
 
     config = _make_config(env_config)
     adapter = LansengerAdapter(config)
-    adapter._http_client = httpx.AsyncClient(timeout=30.0)
+    adapter._http_client = _get_shared_http_client()
 
     _load_persisted_token_into_adapter(adapter)
     _load_persisted_chat_types_into_adapter(adapter)
@@ -293,7 +335,7 @@ async def _send_text_async(chat_id: str, content: str,
             # Pure text, no attachment
             result = await adapter.send_text(chat_id, content, reminder=reminder)
 
-        await adapter._http_client.aclose()
+        
         return {
             "success": result.success,
             "message_id": result.message_id,
@@ -303,7 +345,7 @@ async def _send_text_async(chat_id: str, content: str,
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -323,7 +365,7 @@ async def _send_markdown_async(chat_id: str, content: str,
             }
 
         result = await adapter.send_format_text(chat_id, content, reminder=reminder)
-        await adapter._http_client.aclose()
+        
         return {
             "success": result.success,
             "message_id": result.message_id,
@@ -333,7 +375,7 @@ async def _send_markdown_async(chat_id: str, content: str,
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -346,7 +388,7 @@ async def _send_file_async(chat_id: str, file_path: str, caption: str, media_typ
     try:
         result = await adapter.send_file(chat_id, file_path, caption, media_type,
                                          width=width, height=height, duration=duration)
-        await adapter._http_client.aclose()
+        
 
         if result.success:
             return {
@@ -361,7 +403,7 @@ async def _send_file_async(chat_id: str, file_path: str, caption: str, media_typ
             return {"success": False, "error": result.error}
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -373,7 +415,7 @@ async def _send_image_url_async(chat_id: str, image_url: str, caption: str) -> d
 
     try:
         async with _httpx.AsyncClient() as client:
-            resp = await client.get(image_url, timeout=30, follow_redirects=True)
+            resp = await client.get(image_url, timeout=_httpx.Timeout(10.0, read=60.0), follow_redirects=True)
             resp.raise_for_status()
             image_bytes = resp.content
 
@@ -417,7 +459,7 @@ async def _revoke_async(message_ids: list, chat_type: str, sender_id: str) -> di
             chat_type=chat_type,
             sender_id=sender_id,
         )
-        await adapter._http_client.aclose()
+        
         return {
             "success": result.success,
             "error": result.error,
@@ -426,7 +468,7 @@ async def _revoke_async(message_ids: list, chat_type: str, sender_id: str) -> di
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -449,7 +491,7 @@ async def _send_link_card_async(chat_id: str, title: str, link: str,
             from_name=from_name,
             from_icon_link=from_icon_link,
         )
-        await adapter._http_client.aclose()
+        
         return {
             "success": result.success,
             "message_id": result.message_id,
@@ -459,7 +501,7 @@ async def _send_link_card_async(chat_id: str, title: str, link: str,
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -470,7 +512,7 @@ async def _send_app_articles_async(chat_id: str, articles: list) -> dict:
     adapter = await _create_ephemeral_adapter()
     try:
         result = await adapter.send_app_articles(chat_id=chat_id, articles=articles)
-        await adapter._http_client.aclose()
+        
         return {
             "success": result.success,
             "message_id": result.message_id,
@@ -480,7 +522,7 @@ async def _send_app_articles_async(chat_id: str, articles: list) -> dict:
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -502,7 +544,7 @@ async def _send_app_card_async(
             is_dynamic=is_dynamic, head_status_info=head_status_info,
             staff_id=staff_id, head_icon_url=head_icon_url,
         )
-        await adapter._http_client.aclose()
+        
         return {
             "success": result.success,
             "message_id": result.message_id,
@@ -512,7 +554,7 @@ async def _send_app_card_async(
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -528,7 +570,7 @@ async def _update_dynamic_card_async(
             msg_id=msg_id, head_status_info=head_status_info,
             links=links, is_last_update=is_last_update,
         )
-        await adapter._http_client.aclose()
+        
         return {
             "success": result.success,
             "error": result.error,
@@ -537,7 +579,7 @@ async def _update_dynamic_card_async(
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
@@ -548,7 +590,7 @@ async def _query_groups_async(page_offset: int, page_size: int) -> dict:
     adapter = await _create_ephemeral_adapter()
     try:
         result = await adapter.query_groups(page_offset=page_offset, page_size=page_size)
-        await adapter._http_client.aclose()
+        
         return {
             "success": True,
             "total_group_ids": result.get("totalGroupIds", 0),
@@ -558,7 +600,7 @@ async def _query_groups_async(page_offset: int, page_size: int) -> dict:
         }
     except Exception as e:
         try:
-            await adapter._http_client.aclose()
+            
         except Exception:
             pass
         return {"success": False, "error": str(e)}
