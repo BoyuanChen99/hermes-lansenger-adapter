@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    { name = "Lansenger PM Team" },
+    { name = "Lanxin Mobile (Beijing) Technology Co., ltd." },
 ]
 keywords = ["hermes", "agent", "lansenger", "chatbot", "messaging", "media", "enterprise-chat"]
 classifiers = [
