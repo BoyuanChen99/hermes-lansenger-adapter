@@ -4,13 +4,13 @@
 
 > 💠 藍信閘道轉接器 + 媒體與訊息工具插件，供 Hermes Agent 使用。
 
-透過 WebSocket 長連線接收即時訊息，並透過 HTTP API 發送訊息，將 Hermes Agent 連接至藍信——一個企業即時通訊平台。
+透過 WebSocket 長連線接收即時訊息，並透過 HTTP API 傳送訊息，將 Hermes Agent 連接至藍信——一個企業即時通訊平台。
 
 此儲存庫包含**兩個插件**：
 
 | 插件 | 類型 | 功能說明 |
 |--------|------|-------------|
-| `platforms/lansenger/` | platform | 閘道通道轉接器——接收與發送訊息 |
+| `platforms/lansenger/` | platform | 閘道通道轉接器——接收與傳送訊息 |
 | `lansenger-tools/` | standalone (tool) | Agent 可呼叫的工具：傳送訊息/卡片/檔案、撤回訊息、查詢群組 |
 
 ## 功能特色
