@@ -2435,15 +2435,20 @@ def _register_lansenger_hooks(ctx):
     
     Priority: env var > config > default (true)
     
-    Hermes core supported hooks:
-        - pre_tool_call, post_tool_call
-        - on_session_start, on_session_end, on_session_finalize, on_session_reset
-        - pre_gateway_dispatch
-        - pre_llm_call, post_llm_call
-        - pre_api_request, post_api_request, api_request_error
-        - subagent_start, subagent_stop
-        - pre_approval_request, post_approval_response
-        - transform_* hooks
+    Hermes core invoke_hook kwargs per event:
+        pre_tool_call:   tool_name, args, task_id, session_id, tool_call_id,
+                         turn_id, api_request_id, middleware_trace
+        post_tool_call:  tool_name, args, result, task_id, session_id,
+                         tool_call_id, turn_id, api_request_id, duration_ms,
+                         status, error_type, error_message
+        pre_llm_call:    session_id, task_id, turn_id, user_message,
+                         conversation_history, is_first_turn, model, platform,
+                         sender_id
+        pre_gateway_dispatch: event(MessageEvent), gateway(GatewayRunner),
+                                session_store
+
+    Note: on_session_start / on_session_end are context engine methods,
+    NOT triggered via invoke_hook — do not register them.
     """
     # Check if hook logging is enabled
     # Priority: env var > config > default (true)
@@ -2469,80 +2474,70 @@ def _register_lansenger_hooks(ctx):
         except Exception:
             hook_logging_enabled = True  # default on error
 
-    def _on_session_start(context: dict):
-        """Log new session creation for Lansenger."""
+    def _on_pre_llm_call(**kwargs):
+        """Log LLM call initiation (fires per turn, useful as session-start indicator)."""
         if not hook_logging_enabled:
             return
-        platform = context.get("platform")
+        platform = kwargs.get("platform")
         if platform != "lansenger":
             return
-        user_id = context.get("user_id")
-        session_key = context.get("session_key", "")[:16]
+        session_id = str(kwargs.get("session_id", ""))[:16]
+        sender_id = kwargs.get("sender_id", "")
+        model = kwargs.get("model", "")
+        is_first_turn = kwargs.get("is_first_turn", False)
         logger.info(
-            "[Lansenger Hook] Session started: platform=%s, user_id=%s, session=%s",
-            platform, user_id, session_key
+            "[Lansenger Hook] LLM call: platform=%s, session=%s, sender=%s, model=%s, first_turn=%s",
+            platform, session_id, sender_id, model, is_first_turn
         )
 
-    def _on_session_end(context: dict):
-        """Log session termination for Lansenger."""
-        if not hook_logging_enabled:
-            return
-        platform = context.get("platform")
-        if platform != "lansenger":
-            return
-        user_id = context.get("user_id")
-        session_key = context.get("session_key", "")[:16]
-        logger.info(
-            "[Lansenger Hook] Session ended: platform=%s, user_id=%s, session=%s",
-            platform, user_id, session_key
-        )
-
-    def _on_pre_tool_call(context: dict):
+    def _on_pre_tool_call(**kwargs):
         """Log tool calls before execution for Lansenger sessions."""
         if not hook_logging_enabled:
             return
-        platform = context.get("platform")
+        platform = kwargs.get("platform")
         if platform != "lansenger":
             return
-        tool_name = context.get("tool_name")
-        session_key = context.get("session_key", "")[:16]
+        tool_name = kwargs.get("tool_name")
+        session_id = str(kwargs.get("session_id", ""))[:16]
         logger.info(
             "[Lansenger Hook] Pre tool call: platform=%s, tool=%s, session=%s",
-            platform, tool_name, session_key
+            platform, tool_name, session_id
         )
 
-    def _on_post_tool_call(context: dict):
+    def _on_post_tool_call(**kwargs):
         """Log tool execution results for Lansenger sessions."""
         if not hook_logging_enabled:
             return
-        platform = context.get("platform")
+        platform = kwargs.get("platform")
         if platform != "lansenger":
             return
-        tool_name = context.get("tool_name")
-        success = context.get("success", False)
-        session_key = context.get("session_key", "")[:16]
+        tool_name = kwargs.get("tool_name")
+        status = kwargs.get("status")
+        session_id = str(kwargs.get("session_id", ""))[:16]
         logger.info(
-            "[Lansenger Hook] Post tool call: platform=%s, tool=%s, session=%s, success=%s",
-            platform, tool_name, session_key, success
+            "[Lansenger Hook] Post tool call: platform=%s, tool=%s, session=%s, status=%s",
+            platform, tool_name, session_id, status
         )
 
-    def _on_pre_gateway_dispatch(context: dict):
+    def _on_pre_gateway_dispatch(**kwargs):
         """Log messages before dispatch to Lansenger gateway."""
         if not hook_logging_enabled:
             return
-        platform = context.get("platform")
+        event = kwargs.get("event")
+        if event is None:
+            return
+        platform = getattr(event, "platform", None)
         if platform != "lansenger":
             return
-        chat_id = context.get("chat_id")
-        message_type = context.get("message_type", "text")
+        chat_id = getattr(event, "chat_id", None)
+        message_type = getattr(event, "message_type", "text")
         logger.info(
             "[Lansenger Hook] Pre gateway dispatch: platform=%s, chat_id=%s, type=%s",
             platform, chat_id, message_type
         )
 
-    # Register hooks using correct API: ctx.register_hook(event_name, callback)
-    ctx.register_hook("on_session_start", _on_session_start)
-    ctx.register_hook("on_session_end", _on_session_end)
+    # Register hooks: callback(event_name, callable)
+    ctx.register_hook("pre_llm_call", _on_pre_llm_call)
     ctx.register_hook("pre_tool_call", _on_pre_tool_call)
     ctx.register_hook("post_tool_call", _on_post_tool_call)
     ctx.register_hook("pre_gateway_dispatch", _on_pre_gateway_dispatch)

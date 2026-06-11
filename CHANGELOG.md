@@ -8,11 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### New Features
 
-- **Plugin Hooks for monitoring and observability**: Registered 5 event hooks via `ctx.register_hook()` using Hermes core-supported hook names:
-  - `on_session_start` — Log new session creation
-  - `on_session_end` — Log session termination
+- **Plugin Hooks for monitoring and observability**: Registered 4 event hooks via `ctx.register_hook()` using Hermes core `invoke_hook`-triggered hook names:
+  - `pre_llm_call` — Log LLM call initiation (platform, session_id, sender, model, first_turn)
   - `pre_tool_call` — Log tool calls before execution
-  - `post_tool_call` — Log tool execution results
+  - `post_tool_call` — Log tool execution results (status)
   - `pre_gateway_dispatch` — Log messages before gateway dispatch
 
 - **Hook logging toggle**: Hook logging can be controlled via:
@@ -29,7 +28,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 
-- **Hook names corrected to match Hermes core VALID_HOOKS**: Previous version used non-existent hook names (`message:received`, `message:sent`, `tool:call`, `tool:result`, `session:start`, `session:end`) which were never triggered. Now using correct names (`on_session_start`, `on_session_end`, `pre_tool_call`, `post_tool_call`, `pre_gateway_dispatch`).
+- **Hook names corrected to match Hermes core invoke_hook kwargs contract**:
+  - Callback signatures changed from `context: dict` to `**kwargs` (Hermes passes scattered keyword args, not a single dict)
+  - Fixed kwargs key names: `session_key` → `session_id`, `success` → `status`, `pre_gateway_dispatch` uses `getattr(event, ...)` on the `event` object
+  - Removed `on_session_start` / `on_session_end` (not triggered via `invoke_hook`, only context engine methods)
+  - Added `pre_llm_call` as a working session-start indicator
 
 ### Compatibility
 
