@@ -26,14 +26,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - After: `env var` > `config.yaml extra`
   - Affected fields: `LANSENGER_APP_ID`, `LANSENGER_APP_SECRET`, `LANSENGER_API_GATEWAY_URL`
 
-### Fixed
-
-- **Hook names corrected to match Hermes core invoke_hook kwargs contract**:
-  - Callback signatures changed from `context: dict` to `**kwargs` (Hermes passes scattered keyword args, not a single dict)
-  - Fixed kwargs key names: `session_key` → `session_id`, `success` → `status`, `pre_gateway_dispatch` uses `getattr(event, ...)` on the `event` object
-  - Removed `on_session_start` / `on_session_end` (not triggered via `invoke_hook`, only context engine methods)
-  - Added `pre_llm_call` as a working session-start indicator
-
 ### Compatibility
 
 - **Hermes v0.16.0 compatible**: Verified compatibility with Hermes Agent v0.16.0 (The Surface Release). No breaking changes required for:
