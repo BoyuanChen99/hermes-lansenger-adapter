@@ -2469,8 +2469,7 @@ def _register_lansenger_hooks(ctx):
         except Exception:
             hook_logging_enabled = True  # default on error
 
-    @ctx.register_hook("on_session_start")
-    def _on_session_start(event_type: str, context: dict):
+    def _on_session_start(context: dict):
         """Log new session creation for Lansenger."""
         if not hook_logging_enabled:
             return
@@ -2484,8 +2483,7 @@ def _register_lansenger_hooks(ctx):
             platform, user_id, session_key
         )
 
-    @ctx.register_hook("on_session_end")
-    def _on_session_end(event_type: str, context: dict):
+    def _on_session_end(context: dict):
         """Log session termination for Lansenger."""
         if not hook_logging_enabled:
             return
@@ -2499,8 +2497,7 @@ def _register_lansenger_hooks(ctx):
             platform, user_id, session_key
         )
 
-    @ctx.register_hook("pre_tool_call")
-    def _on_pre_tool_call(event_type: str, context: dict):
+    def _on_pre_tool_call(context: dict):
         """Log tool calls before execution for Lansenger sessions."""
         if not hook_logging_enabled:
             return
@@ -2514,8 +2511,7 @@ def _register_lansenger_hooks(ctx):
             platform, tool_name, session_key
         )
 
-    @ctx.register_hook("post_tool_call")
-    def _on_post_tool_call(event_type: str, context: dict):
+    def _on_post_tool_call(context: dict):
         """Log tool execution results for Lansenger sessions."""
         if not hook_logging_enabled:
             return
@@ -2530,8 +2526,7 @@ def _register_lansenger_hooks(ctx):
             platform, tool_name, session_key, success
         )
 
-    @ctx.register_hook("pre_gateway_dispatch")
-    def _on_pre_gateway_dispatch(event_type: str, context: dict):
+    def _on_pre_gateway_dispatch(context: dict):
         """Log messages before dispatch to Lansenger gateway."""
         if not hook_logging_enabled:
             return
@@ -2544,6 +2539,13 @@ def _register_lansenger_hooks(ctx):
             "[Lansenger Hook] Pre gateway dispatch: platform=%s, chat_id=%s, type=%s",
             platform, chat_id, message_type
         )
+
+    # Register hooks using correct API: ctx.register_hook(event_name, callback)
+    ctx.register_hook("on_session_start", _on_session_start)
+    ctx.register_hook("on_session_end", _on_session_end)
+    ctx.register_hook("pre_tool_call", _on_pre_tool_call)
+    ctx.register_hook("post_tool_call", _on_post_tool_call)
+    ctx.register_hook("pre_gateway_dispatch", _on_pre_gateway_dispatch)
 
 
 def _interactive_setup():
