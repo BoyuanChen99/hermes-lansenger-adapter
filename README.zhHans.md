@@ -91,13 +91,23 @@ hermes gateway restart
 | `LANSENGER_ALLOWED_USERS` | 允许的用户 ID（逗号分隔） | — |
 | `LANSENGER_ALLOW_ALL_USERS` | 允许所有用户（仅开发环境） | `false` |
 | `LANSENGER_HOME_CHANNEL` | 默认定时推送的聊天 ID | 自动检测 |
+| `LANSENGER_HOOK_LOGGING` | 启用/禁用钩子日志 | `true` |
 
 ### config.yaml
+
+凭证可通过环境变量（推荐）或 config.yaml 配置。环境变量优先级更高。
 
 ```yaml
 platforms:
   lansenger:
     enabled: true
+    extra:
+      # 凭证（若已通过环境变量设置则可省略；环境变量优先）
+      # app_id: "your-app-id"
+      # app_secret: "your-app-secret"
+      # api_gateway_url: "https://open.e.lanxin.cn/open/apigw"
+      # 可选：禁用钩子日志（默认：true）
+      # hook_logging: false
 ```
 
 ## 媒体与消息工具（来自 lansenger-tools）

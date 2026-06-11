@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.11] - 2026-06-11
+
+### New Features
+
+- **Plugin Hooks for monitoring and observability**: Registered 6 event hooks via `ctx.register_hook()` for Lansenger session monitoring:
+  - `message:received` — Log incoming messages (chat_id, user_id, text preview)
+  - `message:sent` — Log outgoing messages (chat_id, message_id, success status)
+  - `tool:call` — Log tool calls initiated from Lansenger sessions
+  - `tool:result` — Log tool execution results (success/failure)
+  - `session:start` — Log new session creation
+  - `session:end` — Log session termination
+
+- **Hook logging toggle**: Hook logging can be controlled via:
+  - Environment variable: `LANSENGER_HOOK_LOGGING=true/false`
+  - config.yaml: `platforms.lansenger.extra.hook_logging: true/false`
+  - Priority: env var > config > default (true)
+
+### Changed
+
+- **Credential priority adjusted to match Hermes convention**: Environment variables now take precedence over config.yaml `extra` fields. This aligns with 12-Factor App principles and simplifies containerized deployments.
+  - Before: `config.yaml extra` > `env var`
+  - After: `env var` > `config.yaml extra`
+  - Affected fields: `LANSENGER_APP_ID`, `LANSENGER_APP_SECRET`, `LANSENGER_API_GATEWAY_URL`
+
+### Compatibility
+
+- **Hermes v0.16.0 compatible**: Verified compatibility with Hermes Agent v0.16.0 (The Surface Release). No breaking changes required for:
+  - Configuration format v28 → v29 (write_approval migration)
+  - Gateway post-delivery behavior changes
+  - Streaming socket read timeout adjustments
+
 ## [2.6.10] - 2026-06-04
 
 ### Bug Fixes (Issue #2 — WebSocket Reconnect Hang)

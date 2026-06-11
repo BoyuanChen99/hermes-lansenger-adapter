@@ -1,7 +1,7 @@
 name: lansenger-platform
 label: Lansenger (蓝信)
 kind: platform
-version: 2.6.10
+version: 2.6.11
 description: >
   Lansenger (蓝信) gateway adapter for Hermes Agent.
   Connects to Lansenger Bot API via WebSocket long-connection for
@@ -33,4 +33,8 @@ optional_env:
   - name: LANSENGER_HOME_CHANNEL
     description: "Default chat ID for cron / notification delivery (auto-detected from first p2p message)"
     prompt: "Home channel (or empty for auto-detect)"
+    password: false
+  - name: LANSENGER_HOOK_LOGGING
+    description: "Enable/disable plugin hook logging (default: true)"
+    prompt: "Hook logging enabled? (true/false)"
     password: false

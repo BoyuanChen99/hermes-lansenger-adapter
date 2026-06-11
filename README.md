@@ -91,13 +91,23 @@ Add these to `~/.hermes/.env`:
 | `LANSENGER_ALLOWED_USERS` | Allowed user IDs (comma-separated) | — |
 | `LANSENGER_ALLOW_ALL_USERS` | Allow any user (dev only) | `false` |
 | `LANSENGER_HOME_CHANNEL` | Default cron delivery chat ID | Auto-detected |
+| `LANSENGER_HOOK_LOGGING` | Enable/disable hook logging | `true` |
 
 ### config.yaml
+
+Credentials can be configured via environment variables (recommended) or config.yaml. Environment variables take precedence.
 
 ```yaml
 platforms:
   lansenger:
     enabled: true
+    extra:
+      # Credentials (optional if set via env vars; env vars take precedence)
+      # app_id: "your-app-id"
+      # app_secret: "your-app-secret"
+      # api_gateway_url: "https://open.e.lanxin.cn/open/apigw"
+      # Optional: disable hook logging (default: true)
+      # hook_logging: false
 ```
 
 ## Media & Message Tools (from lansenger-tools)

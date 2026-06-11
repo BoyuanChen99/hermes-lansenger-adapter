@@ -91,13 +91,23 @@ Ajoutez ces variables à `~/.hermes/.env` :
 | `LANSENGER_ALLOWED_USERS` | IDs d’utilisateurs autorisés (séparés par des virgules) | — |
 | `LANSENGER_ALLOW_ALL_USERS` | Autoriser tous les utilisateurs (développement uniquement) | `false` |
 | `LANSENGER_HOME_CHANNEL` | ID de chat par défaut pour la livraison planifiée | Détection automatique |
+| `LANSENGER_HOOK_LOGGING` | Activer/désactiver la journalisation des hooks | `true` |
 
 ### config.yaml
+
+Les identifiants peuvent être configurés via des variables d'environnement (recommandé) ou config.yaml. Les variables d'environnement sont prioritaires.
 
 ```yaml
 platforms:
   lansenger:
     enabled: true
+    extra:
+      # Identifiants (optionnel si défini via variables d'env; variables d'env prioritaires)
+      # app_id: "your-app-id"
+      # app_secret: "your-app-secret"
+      # api_gateway_url: "https://open.e.lanxin.cn/open/apigw"
+      # Optionnel : désactiver la journalisation des hooks (défaut : true)
+      # hook_logging: false
 ```
 
 ## Outils média & messages (de lansenger-tools)

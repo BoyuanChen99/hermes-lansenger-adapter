@@ -106,9 +106,10 @@ class LansengerAdapter(BasePlatformAdapter):
         super().__init__(config, Platform("lansenger"))
 
         extra = config.extra or {}
-        self._app_id: str = extra.get("app_id") or os.getenv("LANSENGER_APP_ID", "")
-        self._app_secret: str = extra.get("app_secret") or os.getenv("LANSENGER_APP_SECRET", "")
-        self._api_gateway_url: str = extra.get("api_gateway_url") or os.getenv("LANSENGER_API_GATEWAY_URL", DEFAULT_API_GATEWAY_URL)
+        # Priority: env var > config.yaml extra (matches Hermes convention)
+        self._app_id: str = os.getenv("LANSENGER_APP_ID") or extra.get("app_id", "")
+        self._app_secret: str = os.getenv("LANSENGER_APP_SECRET") or extra.get("app_secret", "")
+        self._api_gateway_url: str = os.getenv("LANSENGER_API_GATEWAY_URL") or extra.get("api_gateway_url") or DEFAULT_API_GATEWAY_URL
 
         # Home channel from PlatformConfig.home_channel (standard Hermes structure)
         self._home_channel_id: Optional[str] = None
@@ -2287,8 +2288,9 @@ def check_requirements() -> bool:
 def validate_config(config) -> bool:
     """Check if Lansenger is properly configured (env vars or config.yaml extra)."""
     extra = getattr(config, "extra", None) or {}
-    app_id = extra.get("app_id") or os.getenv("LANSENGER_APP_ID", "")
-    app_secret = extra.get("app_secret") or os.getenv("LANSENGER_APP_SECRET", "")
+    # Priority: env var > config.yaml extra (matches Hermes convention)
+    app_id = os.getenv("LANSENGER_APP_ID") or extra.get("app_id", "")
+    app_secret = os.getenv("LANSENGER_APP_SECRET") or extra.get("app_secret", "")
     return bool(app_id and app_secret)
 
 
@@ -2419,6 +2421,136 @@ def register(ctx):
             "approval workflows (status updates in-place).  Keep responses concise and professional."
         ),
     )
+
+    # Register hooks for monitoring and observability
+    _register_lansenger_hooks(ctx)
+
+
+def _register_lansenger_hooks(ctx):
+    """Register plugin hooks for Lansenger adapter monitoring.
+    
+    Hook logging can be controlled via:
+        1. Environment variable: LANSENGER_HOOK_LOGGING=true/false
+        2. config.yaml: platforms.lansenger.extra.hook_logging: true/false
+    
+    Priority: env var > config > default (true)
+    """
+    # Check if hook logging is enabled
+    # Priority: env var > config > default (true)
+    hook_logging_env = os.getenv("LANSENGER_HOOK_LOGGING", "").lower()
+    if hook_logging_env:
+        hook_logging_enabled = hook_logging_env in ("true", "1", "yes")
+    else:
+        # Try to read from config.yaml: platforms.lansenger.extra.hook_logging
+        try:
+            from hermes_constants import get_hermes_home
+            import yaml
+            config_path = get_hermes_home() / "config.yaml"
+            if config_path.exists():
+                with open(config_path, encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                hook_logging_cfg = cfg.get("platforms", {}).get("lansenger", {}).get("extra", {}).get("hook_logging")
+                if hook_logging_cfg is not None:
+                    hook_logging_enabled = bool(hook_logging_cfg)
+                else:
+                    hook_logging_enabled = True  # default
+            else:
+                hook_logging_enabled = True  # default
+        except Exception:
+            hook_logging_enabled = True  # default on error
+
+    @ctx.register_hook("message:received")
+    def _on_message_received(event_type: str, context: dict):
+        """Log incoming messages from Lansenger."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        chat_id = context.get("chat_id")
+        user_id = context.get("user_id")
+        message_text = context.get("text", "")[:100]
+        logger.info(
+            "[Lansenger Hook] Message received: platform=%s, chat_id=%s, user_id=%s, text=%s",
+            platform, chat_id, user_id, message_text
+        )
+
+    @ctx.register_hook("message:sent")
+    def _on_message_sent(event_type: str, context: dict):
+        """Log outgoing messages to Lansenger."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        chat_id = context.get("chat_id")
+        message_id = context.get("message_id")
+        success = context.get("success", False)
+        logger.info(
+            "[Lansenger Hook] Message sent: platform=%s, chat_id=%s, message_id=%s, success=%s",
+            platform, chat_id, message_id, success
+        )
+
+    @ctx.register_hook("tool:call")
+    def _on_tool_call(event_type: str, context: dict):
+        """Log tool calls initiated from Lansenger sessions."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        tool_name = context.get("tool_name")
+        session_key = context.get("session_key", "")[:16]
+        logger.info(
+            "[Lansenger Hook] Tool call: platform=%s, tool=%s, session=%s",
+            platform, tool_name, session_key
+        )
+
+    @ctx.register_hook("tool:result")
+    def _on_tool_result(event_type: str, context: dict):
+        """Log tool execution results for Lansenger sessions."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        tool_name = context.get("tool_name")
+        success = context.get("success", False)
+        session_key = context.get("session_key", "")[:16]
+        logger.info(
+            "[Lansenger Hook] Tool result: platform=%s, tool=%s, session=%s, success=%s",
+            platform, tool_name, session_key, success
+        )
+
+    @ctx.register_hook("session:start")
+    def _on_session_start(event_type: str, context: dict):
+        """Log new session creation for Lansenger."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        user_id = context.get("user_id")
+        session_key = context.get("session_key", "")[:16]
+        logger.info(
+            "[Lansenger Hook] Session started: platform=%s, user_id=%s, session=%s",
+            platform, user_id, session_key
+        )
+
+    @ctx.register_hook("session:end")
+    def _on_session_end(event_type: str, context: dict):
+        """Log session termination for Lansenger."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        user_id = context.get("user_id")
+        session_key = context.get("session_key", "")[:16]
+        logger.info(
+            "[Lansenger Hook] Session ended: platform=%s, user_id=%s, session=%s",
+            platform, user_id, session_key
+        )
 
 
 def _interactive_setup():
