@@ -8,13 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### New Features
 
-- **Plugin Hooks for monitoring and observability**: Registered 6 event hooks via `ctx.register_hook()` for Lansenger session monitoring:
-  - `message:received` — Log incoming messages (chat_id, user_id, text preview)
-  - `message:sent` — Log outgoing messages (chat_id, message_id, success status)
-  - `tool:call` — Log tool calls initiated from Lansenger sessions
-  - `tool:result` — Log tool execution results (success/failure)
-  - `session:start` — Log new session creation
-  - `session:end` — Log session termination
+- **Plugin Hooks for monitoring and observability**: Registered 5 event hooks via `ctx.register_hook()` using Hermes core-supported hook names:
+  - `on_session_start` — Log new session creation
+  - `on_session_end` — Log session termination
+  - `pre_tool_call` — Log tool calls before execution
+  - `post_tool_call` — Log tool execution results
+  - `pre_gateway_dispatch` — Log messages before gateway dispatch
 
 - **Hook logging toggle**: Hook logging can be controlled via:
   - Environment variable: `LANSENGER_HOOK_LOGGING=true/false`
@@ -27,6 +26,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
   - Before: `config.yaml extra` > `env var`
   - After: `env var` > `config.yaml extra`
   - Affected fields: `LANSENGER_APP_ID`, `LANSENGER_APP_SECRET`, `LANSENGER_API_GATEWAY_URL`
+
+### Fixed
+
+- **Hook names corrected to match Hermes core VALID_HOOKS**: Previous version used non-existent hook names (`message:received`, `message:sent`, `tool:call`, `tool:result`, `session:start`, `session:end`) which were never triggered. Now using correct names (`on_session_start`, `on_session_end`, `pre_tool_call`, `post_tool_call`, `pre_gateway_dispatch`).
 
 ### Compatibility
 

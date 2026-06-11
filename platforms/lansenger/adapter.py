@@ -2434,6 +2434,16 @@ def _register_lansenger_hooks(ctx):
         2. config.yaml: platforms.lansenger.extra.hook_logging: true/false
     
     Priority: env var > config > default (true)
+    
+    Hermes core supported hooks:
+        - pre_tool_call, post_tool_call
+        - on_session_start, on_session_end, on_session_finalize, on_session_reset
+        - pre_gateway_dispatch
+        - pre_llm_call, post_llm_call
+        - pre_api_request, post_api_request, api_request_error
+        - subagent_start, subagent_stop
+        - pre_approval_request, post_approval_response
+        - transform_* hooks
     """
     # Check if hook logging is enabled
     # Priority: env var > config > default (true)
@@ -2459,70 +2469,7 @@ def _register_lansenger_hooks(ctx):
         except Exception:
             hook_logging_enabled = True  # default on error
 
-    @ctx.register_hook("message:received")
-    def _on_message_received(event_type: str, context: dict):
-        """Log incoming messages from Lansenger."""
-        if not hook_logging_enabled:
-            return
-        platform = context.get("platform")
-        if platform != "lansenger":
-            return
-        chat_id = context.get("chat_id")
-        user_id = context.get("user_id")
-        message_text = context.get("text", "")[:100]
-        logger.info(
-            "[Lansenger Hook] Message received: platform=%s, chat_id=%s, user_id=%s, text=%s",
-            platform, chat_id, user_id, message_text
-        )
-
-    @ctx.register_hook("message:sent")
-    def _on_message_sent(event_type: str, context: dict):
-        """Log outgoing messages to Lansenger."""
-        if not hook_logging_enabled:
-            return
-        platform = context.get("platform")
-        if platform != "lansenger":
-            return
-        chat_id = context.get("chat_id")
-        message_id = context.get("message_id")
-        success = context.get("success", False)
-        logger.info(
-            "[Lansenger Hook] Message sent: platform=%s, chat_id=%s, message_id=%s, success=%s",
-            platform, chat_id, message_id, success
-        )
-
-    @ctx.register_hook("tool:call")
-    def _on_tool_call(event_type: str, context: dict):
-        """Log tool calls initiated from Lansenger sessions."""
-        if not hook_logging_enabled:
-            return
-        platform = context.get("platform")
-        if platform != "lansenger":
-            return
-        tool_name = context.get("tool_name")
-        session_key = context.get("session_key", "")[:16]
-        logger.info(
-            "[Lansenger Hook] Tool call: platform=%s, tool=%s, session=%s",
-            platform, tool_name, session_key
-        )
-
-    @ctx.register_hook("tool:result")
-    def _on_tool_result(event_type: str, context: dict):
-        """Log tool execution results for Lansenger sessions."""
-        if not hook_logging_enabled:
-            return
-        platform = context.get("platform")
-        if platform != "lansenger":
-            return
-        tool_name = context.get("tool_name")
-        success = context.get("success", False)
-        session_key = context.get("session_key", "")[:16]
-        logger.info(
-            "[Lansenger Hook] Tool result: platform=%s, tool=%s, session=%s, success=%s",
-            platform, tool_name, session_key, success
-        )
-
-    @ctx.register_hook("session:start")
+    @ctx.register_hook("on_session_start")
     def _on_session_start(event_type: str, context: dict):
         """Log new session creation for Lansenger."""
         if not hook_logging_enabled:
@@ -2537,7 +2484,7 @@ def _register_lansenger_hooks(ctx):
             platform, user_id, session_key
         )
 
-    @ctx.register_hook("session:end")
+    @ctx.register_hook("on_session_end")
     def _on_session_end(event_type: str, context: dict):
         """Log session termination for Lansenger."""
         if not hook_logging_enabled:
@@ -2550,6 +2497,52 @@ def _register_lansenger_hooks(ctx):
         logger.info(
             "[Lansenger Hook] Session ended: platform=%s, user_id=%s, session=%s",
             platform, user_id, session_key
+        )
+
+    @ctx.register_hook("pre_tool_call")
+    def _on_pre_tool_call(event_type: str, context: dict):
+        """Log tool calls before execution for Lansenger sessions."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        tool_name = context.get("tool_name")
+        session_key = context.get("session_key", "")[:16]
+        logger.info(
+            "[Lansenger Hook] Pre tool call: platform=%s, tool=%s, session=%s",
+            platform, tool_name, session_key
+        )
+
+    @ctx.register_hook("post_tool_call")
+    def _on_post_tool_call(event_type: str, context: dict):
+        """Log tool execution results for Lansenger sessions."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        tool_name = context.get("tool_name")
+        success = context.get("success", False)
+        session_key = context.get("session_key", "")[:16]
+        logger.info(
+            "[Lansenger Hook] Post tool call: platform=%s, tool=%s, session=%s, success=%s",
+            platform, tool_name, session_key, success
+        )
+
+    @ctx.register_hook("pre_gateway_dispatch")
+    def _on_pre_gateway_dispatch(event_type: str, context: dict):
+        """Log messages before dispatch to Lansenger gateway."""
+        if not hook_logging_enabled:
+            return
+        platform = context.get("platform")
+        if platform != "lansenger":
+            return
+        chat_id = context.get("chat_id")
+        message_type = context.get("message_type", "text")
+        logger.info(
+            "[Lansenger Hook] Pre gateway dispatch: platform=%s, chat_id=%s, type=%s",
+            platform, chat_id, message_type
         )
 
 
