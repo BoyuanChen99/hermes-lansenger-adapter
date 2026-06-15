@@ -36,9 +36,11 @@ hermes setup gateway
 ```yaml
 platforms:
   lansenger:
-    app_id: "YOUR_APP_ID"
-    app_secret: "YOUR_APP_SECRET"
-    api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # 或您的自訂網關 URL
+    enabled: true
+    extra:
+      app_id: "YOUR_APP_ID"
+      app_secret: "YOUR_APP_SECRET"
+      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # 或您的自訂網關 URL
 ```
 
 ### 方式 C：.env 檔案（手動）

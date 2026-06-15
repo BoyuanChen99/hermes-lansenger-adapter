@@ -36,9 +36,11 @@ Add the following to `~/.hermes/config.yaml` under `platforms.lansenger`:
 ```yaml
 platforms:
   lansenger:
-    app_id: "YOUR_APP_ID"
-    app_secret: "YOUR_APP_SECRET"
-    api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # or your custom gateway URL
+    enabled: true
+    extra:
+      app_id: "YOUR_APP_ID"
+      app_secret: "YOUR_APP_SECRET"
+      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # or your custom gateway URL
 ```
 
 ### Option C: .env file (manual)
