@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.12] - 2026-06-15
+
+### Fixed
+
+- **WebSocket reconnect hang (Issue #3)**: Three fixes for the reconnection loop that caused silent, permanent disconnection:
+  - **Fix 1 — httpx client refresh**: Close and recreate `AsyncClient` on each reconnect attempt to avoid stale connection pool zombies (30s hang on `_get_websocket_url()`)
+  - **Fix 2 — stale ticket detection**: Compare new ticket UUID against the previous one; skip connect and retry if Lansenger API returns the same expired ticket
+  - **Fix 3 — idle timeout**: Wrap `async for message in ws` with `asyncio.timeout(600)` (10 min) to force reconnect when the connection opens but delivers no data
+
 ## [2.6.11] - 2026-06-11
 
 ### New Features

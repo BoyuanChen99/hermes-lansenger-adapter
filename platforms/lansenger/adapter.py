@@ -215,8 +215,27 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.error("[Lansenger] Error getting WebSocket URL: %s", e)
             return None
 
+    @staticmethod
+    def _ticket_from_url(url: str) -> str:
+        """Extract the ticket UUID from a Lansenger WebSocket URL."""
+        import urllib.parse
+        qs = urllib.parse.urlparse(url).query
+        return urllib.parse.parse_qs(qs).get("ticket", [""])[0]
+
+    async def _recreate_http_client(self) -> None:
+        """Close and recreate the httpx client to avoid stale connection pool zombies."""
+        if self._http_client is not None:
+            try:
+                await self._http_client.aclose()
+            except Exception:
+                pass
+        self._http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(10.0, connect=5.0)
+        )
+
     async def _run_ws(self, ws_url: str) -> None:
         """Run WebSocket client with auto-reconnection."""
+        self._ws_url = ws_url
         backoff_idx = 0
         try:
             while self._running:
@@ -243,8 +262,15 @@ class LansengerAdapter(BasePlatformAdapter):
                             logger.info("[Lansenger] WebSocket connected (ping_interval=%ds, ping_timeout=%ds)",
                                         ping_interval, ping_timeout)
 
-                            async for message in ws:
-                                await self._on_message(message)
+                            # Fix 3: idle timeout — if no messages for 10 min, force reconnect
+                            try:
+                                async with asyncio.timeout(600):
+                                    async for message in ws:
+                                        await self._on_message(message)
+                            except asyncio.TimeoutError:
+                                logger.warning(
+                                    "[Lansenger] WebSocket idle timeout (600s) — no messages received, reconnecting"
+                                )
                     except websockets.exceptions.ConnectionClosedOK as e:
                         logger.info("[Lansenger] WebSocket closed normally by server (code=%d)", e.code)
                 except asyncio.CancelledError:
@@ -273,9 +299,21 @@ class LansengerAdapter(BasePlatformAdapter):
                 backoff_idx += 1
 
                 try:
+                    # Fix 1: recreate httpx client to avoid stale connection pool zombies
+                    await self._recreate_http_client()
                     new_url = await self._get_websocket_url()
                     if new_url:
+                        # Fix 2: skip if API returned the same stale ticket
+                        new_ticket = self._ticket_from_url(new_url)
+                        old_ticket = self._ticket_from_url(self._ws_url or "")
+                        if new_ticket and new_ticket == old_ticket:
+                            logger.warning(
+                                "[Lansenger] Got same stale ticket (%s) — skipping connect, will retry",
+                                new_ticket[:8]
+                            )
+                            continue  # skip connect, retry from top of loop
                         ws_url = new_url
+                        self._ws_url = new_url
                         logger.info("[Lansenger] Will reconnect with fresh ticket")
                     else:
                         logger.error("[Lansenger] Failed to get new ticket, cannot reconnect — retrying next cycle")
@@ -311,6 +349,7 @@ class LansengerAdapter(BasePlatformAdapter):
         logger.warning("[Lansenger] Restarting WebSocket task — fetching fresh ticket")
 
         async def _restart_with_fresh_ticket():
+            await self._recreate_http_client()
             ws_url = await self._get_websocket_url()
             if ws_url:
                 self._ws_task = asyncio.create_task(self._run_ws(ws_url))
