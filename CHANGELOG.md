@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.13] - 2026-06-18
+
+### Fixed
+
+- **Infinite reconnect loop from stale ticket guard (Issue #5)**: v2.6.12's Fix 2 had a control-flow defect where `continue` skipped the `ws_url` update, causing the loop to retry with the same expired URL. Two failure modes:
+  - **Zombie connection** — server accepted the handshake but the session was dead, leading to 600s idle timeout → repeat
+  - **Timeout spiral** — ticket fully expired, 15s connect timeout → repeat
+  Added stale retry counter (limit 3) with progressive backoff (10s, 20s, 30s). After 3 retries, forces a clean reconnect cycle to fetch a fresh ticket. Counter resets on successful connection.
+
+### Changed
+
+- **Unified plugin.yaml field names**: `lansenger-tools/plugin.yaml` changed `secret` → `password` and added missing `prompt` fields, matching `platforms/lansenger/plugin.yaml` and Hermes built-in plugin conventions
+- **Author attribution**: Replaced "Lansenger PM Team" with "Lanxin Mobile (Beijing) Technology Co., ltd." across all `plugin.yaml` files, matching `pyproject.toml`
+
 ## [2.6.12] - 2026-06-15
 
 ### Fixed
