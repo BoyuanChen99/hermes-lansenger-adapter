@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.15] - 2026-06-18
+
+### Fixed
+
+- **Empty try blocks in lansenger-tools (SyntaxError)**: 9 async message handlers had empty `try: / except Exception: pass` wrappers syntactically invalid in Python 3, preventing the lansenger-tools module from loading (since e116215)
+- **Reconnect logic rollback (v2.6.12 Fix 2 & Fix 3)**: 
+  - Removed stale ticket detection — Lansenger API returns the same ticket for its entire 2h validity window, making the guard counterproductive
+  - Removed 600s idle timeout — websockets library's built-in ping/pong keep-alive already detects dead connections
+
+### Changed
+
+- **Unified plugin.yaml field names**: `lansenger-tools/plugin.yaml` changed `secret` → `password` and added missing `prompt` fields
+- **Author attribution**: Replaced "Lansenger PM Team" with company name across all `plugin.yaml` files
+
 ## [2.6.14] - 2026-06-18
 
 ### Fixed
