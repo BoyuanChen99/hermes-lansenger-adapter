@@ -344,10 +344,6 @@ async def _send_text_async(chat_id: str, content: str,
             "msg_type": "text",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
         return {"success": False, "error": str(e)}
 
 
@@ -374,10 +370,7 @@ async def _send_markdown_async(chat_id: str, content: str,
             "msg_type": "formatText",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
@@ -402,10 +395,7 @@ async def _send_file_async(chat_id: str, file_path: str, caption: str, media_typ
         else:
             return {"success": False, "error": result.error}
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
@@ -467,10 +457,7 @@ async def _revoke_async(message_ids: list, chat_type: str, sender_id: str) -> di
             "operation": "revoke",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
@@ -500,10 +487,7 @@ async def _send_link_card_async(chat_id: str, title: str, link: str,
             "operation": "linkCard",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
@@ -521,10 +505,7 @@ async def _send_app_articles_async(chat_id: str, articles: list) -> dict:
             "operation": "appArticles",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
@@ -553,10 +534,7 @@ async def _send_app_card_async(
             "operation": "appCard",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
@@ -578,10 +556,7 @@ async def _update_dynamic_card_async(
             "operation": "dynamic_card_update",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
@@ -599,10 +574,7 @@ async def _query_groups_async(page_offset: int, page_size: int) -> dict:
             "operation": "query_groups",
         }
     except Exception as e:
-        try:
-            
-        except Exception:
-            pass
+
         return {"success": False, "error": str(e)}
 
 
