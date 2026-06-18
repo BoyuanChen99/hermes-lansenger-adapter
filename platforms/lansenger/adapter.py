@@ -215,13 +215,6 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.error("[Lansenger] Error getting WebSocket URL: %s", e)
             return None
 
-    @staticmethod
-    def _ticket_from_url(url: str) -> str:
-        """Extract the ticket UUID from a Lansenger WebSocket URL."""
-        import urllib.parse
-        qs = urllib.parse.urlparse(url).query
-        return urllib.parse.parse_qs(qs).get("ticket", [""])[0]
-
     async def _recreate_http_client(self) -> None:
         """Close and recreate the httpx client to avoid stale connection pool zombies."""
         if self._http_client is not None:
@@ -237,8 +230,6 @@ class LansengerAdapter(BasePlatformAdapter):
         """Run WebSocket client with auto-reconnection."""
         self._ws_url = ws_url
         backoff_idx = 0
-        stale_retries = 0
-        STALE_RETRY_LIMIT = 3
         try:
             while self._running:
                 try:
@@ -260,12 +251,11 @@ class LansengerAdapter(BasePlatformAdapter):
                         async with ws:
                             self._ws_client = ws
                             backoff_idx = 0
-                            stale_retries = 0
                             self._mark_connected()
                             logger.info("[Lansenger] WebSocket connected (ping_interval=%ds, ping_timeout=%ds)",
                                         ping_interval, ping_timeout)
 
-                            # Fix 3: idle timeout — if no messages for 10 min, force reconnect
+                            # Idle timeout — if no messages for 10 min, force reconnect
                             try:
                                 async with asyncio.timeout(600):
                                     async for message in ws:
@@ -302,34 +292,13 @@ class LansengerAdapter(BasePlatformAdapter):
                 backoff_idx += 1
 
                 try:
-                    # Fix 1: recreate httpx client to avoid stale connection pool zombies
+                    # Recreate httpx client to avoid stale connection pool zombies
                     await self._recreate_http_client()
                     new_url = await self._get_websocket_url()
                     if new_url:
-                        # Fix 2: skip if API returned the same stale ticket
-                        new_ticket = self._ticket_from_url(new_url)
-                        old_ticket = self._ticket_from_url(self._ws_url or "")
-                        if new_ticket and new_ticket == old_ticket:
-                            stale_retries += 1
-                            if stale_retries >= STALE_RETRY_LIMIT:
-                                logger.warning(
-                                    "[Lansenger] Stale ticket returned %d times — forcing reconnect cycle to get fresh ticket",
-                                    stale_retries
-                                )
-                                self._ws_url = None
-                                ws_url = None
-                                stale_retries = 0
-                            else:
-                                wait = stale_retries * 10
-                                logger.warning(
-                                    "[Lansenger] Got same stale ticket (%s) — retry #%d, waiting %ds",
-                                    new_ticket[:8], stale_retries, wait
-                                )
-                                await asyncio.sleep(wait)
-                            continue
                         ws_url = new_url
                         self._ws_url = new_url
-                        logger.info("[Lansenger] Will reconnect with fresh ticket")
+                        logger.info("[Lansenger] Will reconnect with new WebSocket URL")
                     else:
                         logger.error("[Lansenger] Failed to get new ticket, cannot reconnect — retrying next cycle")
                 except Exception as e:
