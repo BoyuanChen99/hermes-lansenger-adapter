@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **Rolled back v2.6.12 Fix 2 (stale ticket detection)**: The Lansenger API returns the same WebSocket ticket for its entire 2-hour validity window. The stale ticket guard blocked all reconnects during the window because the API never returns a different ticket until the old one expires. Replaced with simple reconnect: accept whatever URL the API returns, reconnect with it.
 - **Rolled back v2.6.12 Fix 3 (600s idle timeout)**: Unnecessary — the websockets library's built-in ping/pong keep-alive already detects dead connections. Forcing reconnect after 10 minutes of inactivity disrupted healthy connections.
+- **Empty try blocks in lansenger-tools (SyntaxError)**: 9 async message handlers had empty `try: / except Exception: pass` wrappers that were syntactically invalid in Python 3, preventing the lansenger-tools module from loading and causing all tool calls to fail.
 
 ### Changed
 
