@@ -255,15 +255,8 @@ class LansengerAdapter(BasePlatformAdapter):
                             logger.info("[Lansenger] WebSocket connected (ping_interval=%ds, ping_timeout=%ds)",
                                         ping_interval, ping_timeout)
 
-                            # Idle timeout — if no messages for 10 min, force reconnect
-                            try:
-                                async with asyncio.timeout(600):
-                                    async for message in ws:
-                                        await self._on_message(message)
-                            except asyncio.TimeoutError:
-                                logger.warning(
-                                    "[Lansenger] WebSocket idle timeout (600s) — no messages received, reconnecting"
-                                )
+                            async for message in ws:
+                                await self._on_message(message)
                     except websockets.exceptions.ConnectionClosedOK as e:
                         logger.info("[Lansenger] WebSocket closed normally by server (code=%d)", e.code)
                 except asyncio.CancelledError:
