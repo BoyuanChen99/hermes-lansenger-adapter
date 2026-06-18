@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.14] - 2026-06-18
+
+### Fixed
+
+- **Rolled back v2.6.12 Fix 2 (stale ticket detection)**: The Lansenger API returns the same WebSocket ticket for its entire 2-hour validity window. The stale ticket guard blocked all reconnects during the window because the API never returns a different ticket until the old one expires. Replaced with simple reconnect: accept whatever URL the API returns, reconnect with it.
+- **Rolled back v2.6.12 Fix 3 (600s idle timeout)**: Unnecessary — the websockets library's built-in ping/pong keep-alive already detects dead connections. Forcing reconnect after 10 minutes of inactivity disrupted healthy connections.
+
+### Changed
+
+- **Unified plugin.yaml field names**: `lansenger-tools/plugin.yaml` changed `secret` → `password` and added missing `prompt` fields, matching `platforms/lansenger/plugin.yaml` and Hermes built-in plugin conventions
+- **Author attribution**: Replaced "Lansenger PM Team" with "Lanxin Mobile (Beijing) Technology Co., ltd." across all `plugin.yaml` files, matching `pyproject.toml`
+
 ## [2.6.13] - 2026-06-18
 
 ### Fixed
