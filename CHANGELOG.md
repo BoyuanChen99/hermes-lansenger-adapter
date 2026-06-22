@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.7.1] - 2026-06-22
+
+### Fixed
+
+- **`page_offset` defaults to 1 instead of 0**: The V2 `/v2/groups/fetch` API expects `page_offset` to start from 0, but the adapter, tool handler, and schema all defaulted to 1, causing the first page of group results to be skipped. Changed default to 0 in all three locations.
+
 ## [2.7.0] - 2026-06-22
 
 ### New Features
