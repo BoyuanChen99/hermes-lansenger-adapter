@@ -24,6 +24,11 @@
 - **定時傳送**——透過 `standalone_sender_fn` 傳送排程通知
 - **使用者授權**——透過環境變數設定允許的使用者或允許所有使用者
 - **零核心修改**——純插件模式，`git diff HEAD` 保持 PRISTINE
+- **群組聊天策略**——開放/白名單/停用，支援逐群覆寫（require_mention、auto_mention_reply、auto_quote_reply、allow_from 發送者過濾）
+- **自動 @提及回覆**——在群組回覆中自動 @提及發送者（使用者使用 userIds，機器人使用 botIds，根據 fromType 0/1 判斷）
+- **自動引用回覆**——自動包含引用入站訊息的 refMsgId（群組 + 私聊）
+- **多工作區支援**——遵循 HERMES_HOME 環境變數；所有 token/chat_type/owner 檔案作用域限定於當前設定檔
+- **FormatText 入站解析**——正確解析來自 OpenClaw 及其他機器人的 msgType=format Markdown 訊息
 
 ### 媒體與訊息工具插件
 - **lansenger_send_text** — 傳送純文字，可選 @提及和附件

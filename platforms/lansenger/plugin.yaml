@@ -38,3 +38,21 @@ optional_env:
     description: "Enable/disable plugin hook logging (default: true)"
     prompt: "Hook logging enabled? (true/false)"
     password: false
+  - name: LANSENGER_GROUP_POLICY
+    description: "Group chat policy: open (all groups), allowlist (selected groups), disabled (no groups). Default: open"
+    prompt: "Group policy (open/allowlist/disabled)"
+    password: false
+  - name: LANSENGER_GROUP_ALLOW_FROM
+    description: "Comma-separated group IDs allowed to trigger the bot (effective when groupPolicy=allowlist)"
+    prompt: "Allowed group IDs (comma-separated)"
+    password: false
+  - name: LANSENGER_REQUIRE_MENTION
+    description: "Require @mention to trigger in groups (true/false, default: true). Can be overridden per-group in config.yaml extra.groups.<chatId>.require_mention"
+    prompt: "Require @mention in groups? (true/false)"
+    password: false
+# Per-group config: set in config.yaml platforms.lansenger.extra.groups:
+#   groups:
+#     "group-chat-id-1":
+#       enabled: false             # disable this group
+#       require_mention: false     # override global require_mention
+#       allow_from: ["user-id-1"]  # restrict senders in this group

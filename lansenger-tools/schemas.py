@@ -15,12 +15,12 @@ Lansenger (蓝信) has multiple message/card types with different capabilities:
   All message types support both private and group chat. The adapter auto-routes
   to the correct endpoint based on the chat_id (private → userIdList, group → groupId).
 
-  NOTE: formatText supports @mention (reminder) on newer Lansenger versions,
+  NOTE: formatText and text both support @mention (reminder) on newer Lansenger versions,
   with reminder.all, reminder.userIds, and reminder.botIds fields.
-  This is a newer API capability — older Lansenger versions silently accept
-  the reminder field but do NOT trigger client-side @mention notifications.
-  In group chat, it is recommended to include @姓名 in the text content
-  when replying to someone. Private chat supports reminder but it is unnecessary.
+  The API automatically prepends @displayName to the message based on the reminder
+  parameters — do NOT manually write @name in the text content.
+  Older Lansenger versions silently accept the reminder field but do NOT
+  trigger client-side @mention notifications. Private chat supports reminder but it is unnecessary.
 
   Card types:
   - appCard: supports isDynamic + headStatusInfo (dynamic update), single language
@@ -52,9 +52,8 @@ LANSENGER_SEND_TEXT = {
         "Uses msgType=text: supports plain text, optional @mentions, and optional "
         "file/image/video attachments. Does NOT support Markdown formatting. "
         "If you need Markdown, use lansenger_send_markdown instead. "
-        "In group chats, it is recommended to include @姓名 in the text content "
-        "when replying to a specific person, so others know who the message is for. "
-        "Private chat also supports @mentions but they are unnecessary (only one participant). "
+        "The API automatically prepends @displayName when reminder is provided — "
+        "do NOT write @name in the text content. "
         "If you need both Markdown AND a file, send them as two separate messages "
         "(lansenger_send_markdown for the formatted text, then lansenger_send_file for the attachment)."
     ),
@@ -71,8 +70,7 @@ LANSENGER_SEND_TEXT = {
             "content": {
                 "type": "string",
                 "description": (
-                    "Plain text content. No Markdown. In group chat, recommended to include "
-                    "@姓名 when replying to someone (e.g. '@张三 查看报告')."
+                    "Plain text content. No Markdown."
                 ),
             },
             "file_path": {
@@ -100,8 +98,7 @@ LANSENGER_SEND_TEXT = {
                 "type": "boolean",
                 "description": (
                     "Set to true to @mention all members in a group chat. "
-                    "Recommended in group chat when addressing everyone. "
-                    "Private chat supports this but it is unnecessary."
+                    "The API automatically prepends @displayName — do NOT write @all in text."
                 ),
             },
             "reminder_user_ids": {
@@ -109,9 +106,8 @@ LANSENGER_SEND_TEXT = {
                 "items": {"type": "string"},
                 "description": (
                     "List of user IDs to @mention in a group chat. "
-                    "Recommended in group chat when replying to specific people — "
-                    "also include @姓名 in the content text. "
-                    "Private chat supports this but it is unnecessary. "
+                    "The API automatically prepends @displayName based on these IDs — "
+                    "do NOT write @name in the text content. "
                     "Matches the reminder.userIds field in the Lansenger API."
                 ),
             },
@@ -130,9 +126,8 @@ LANSENGER_SEND_MARKDOWN = {
         "Send a Markdown-formatted message to a Lansenger (蓝信) user or group. "
         "Uses msgType=formatText: supports Markdown formatting (headings, bold, italic, "
         "code blocks, lists, links, etc) and optional @mentions (reminder). "
-        "In group chat, it is recommended to include @姓名 in the text content "
-        "when replying to a specific person. Private chat supports @mentions "
-        "but they are unnecessary (only one participant). "
+        "The API automatically prepends @displayName based on reminder parameters — "
+        "do NOT write @name in the text content. "
         "Older Lansenger versions silently accept the reminder field without "
         "triggering client-side @mention notifications. "
         "Does NOT support file/image/video attachments. "
@@ -152,8 +147,6 @@ LANSENGER_SEND_MARKDOWN = {
                     "Markdown-formatted content. "
                     "Supports: headings, bold, italic, code blocks, inline code, "
                     "lists, links, tables. "
-                    "In group chat, recommended to include @姓名 when replying to someone "
-                    "(e.g. '@张三 请查收报告'). "
                     "Does NOT support: attachments."
                 ),
             },
@@ -161,8 +154,7 @@ LANSENGER_SEND_MARKDOWN = {
                 "type": "boolean",
                 "description": (
                     "Set to true to @mention all members in a group chat. "
-                    "Recommended in group chat when addressing everyone. "
-                    "Private chat supports this but it is unnecessary. "
+                    "The API automatically prepends @displayName — do NOT write @all in text. "
                     "Older Lansenger versions silently accept this without triggering notification."
                 ),
             },
@@ -171,9 +163,8 @@ LANSENGER_SEND_MARKDOWN = {
                 "items": {"type": "string"},
                 "description": (
                     "List of user IDs to @mention in a group chat. "
-                    "Recommended in group chat when replying to specific people — "
-                    "also include @姓名 in the content text. "
-                    "Private chat supports this but it is unnecessary. "
+                    "The API automatically prepends @displayName based on these IDs — "
+                    "do NOT write @name in the text content. "
                     "Older Lansenger versions silently accept this without triggering notification."
                 ),
             },

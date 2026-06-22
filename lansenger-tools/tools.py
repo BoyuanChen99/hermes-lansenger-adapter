@@ -93,12 +93,14 @@ def _get_adapter_class():
         pass
 
     # Path 2: Direct import from expanded bundle location
-    # The bundle __init__.py copies sub-plugins to ~/.hermes/plugins/<name>/,
-    # so lansenger-platform lands at ~/.hermes/plugins/lansenger-platform/
+    # The bundle __init__.py copies sub-plugins to <hermes_home>/plugins/<name>/,
+    # so lansenger-platform lands at <hermes_home>/plugins/lansenger-platform/
+    from pathlib import Path
+    _hermes_home = Path(os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes")))
     adapter_paths = [
-        os.path.expanduser("~/.hermes/plugins/lansenger-platform/adapter.py"),
+        str(_hermes_home / "plugins" / "lansenger-platform" / "adapter.py"),
         # Legacy fallback: platforms/lansenger subdirectory (pre-bundle layout)
-        os.path.expanduser("~/.hermes/plugins/platforms/lansenger/adapter.py"),
+        str(_hermes_home / "plugins" / "platforms" / "lansenger" / "adapter.py"),
     ]
 
     for path in adapter_paths:
@@ -268,7 +270,7 @@ def _load_persisted_token_into_adapter(adapter) -> None:
     from datetime import datetime
     from pathlib import Path
 
-    token_file = Path.home() / ".hermes" / "lansenger_token.json"
+    token_file = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "lansenger_token.json"
     try:
         if not token_file.exists():
             return
@@ -293,7 +295,7 @@ def _load_persisted_chat_types_into_adapter(adapter) -> None:
     import json
     from pathlib import Path
 
-    chat_type_file = Path.home() / ".hermes" / "lansenger_chat_types.json"
+    chat_type_file = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "lansenger_chat_types.json"
     try:
         if not chat_type_file.exists():
             return

@@ -35,7 +35,7 @@ _SUB_PLUGINS = {
     "lansenger-tools":     ("lansenger-tools",   "lansenger_tools"),
 }
 
-_SKILL_DIR = "skills/lansenger-messaging"
+_SKILL_DIRS = ["skills/lansenger-messaging", "skills/lansenger-setup"]
 _SKILL_CATEGORY = "lansenger"
 
 
@@ -79,16 +79,17 @@ def _expand_sub_plugins() -> None:
         shutil.copytree(str(src), str(dest))
         logger.info("Expanded '%s' → %s", sub_name, dest)
 
-    skill_src = bundle_dir / _SKILL_DIR
-    if skill_src.is_dir():
-        skills_dir = Path.home() / ".hermes" / "skills" / _SKILL_CATEGORY
-        skill_dest = skills_dir / _SKILL_DIR.split("/")[-1]
-        if skill_dest.is_dir():
-            shutil.rmtree(str(skill_dest))
-        shutil.copytree(str(skill_src), str(skill_dest))
-        logger.info("Installed skill → %s", skill_dest)
-    else:
-        logger.warning("Skill directory not found at %s — skipping", skill_src)
+    for skill_rel in _SKILL_DIRS:
+        skill_src = bundle_dir / skill_rel
+        if skill_src.is_dir():
+            skills_dir = Path.home() / ".hermes" / "skills" / _SKILL_CATEGORY
+            skill_dest = skills_dir / skill_rel.split("/")[-1]
+            if skill_dest.is_dir():
+                shutil.rmtree(str(skill_dest))
+            shutil.copytree(str(skill_src), str(skill_dest))
+            logger.info("Installed skill → %s", skill_dest)
+        else:
+            logger.warning("Skill directory not found at %s — skipping", skill_src)
 
     _expand_done = True
 

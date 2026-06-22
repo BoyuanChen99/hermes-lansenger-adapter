@@ -2,18 +2,11 @@
 
 # 💠 Adaptateur Lansenger — Configuration post-installation
 
-Un plugin Bundle et une compétence ont été installés :
+Un plugin Bundle et deux compétences ont été installés :
 
 1. **hermes-lansenger-adapter** — Conteneur Bundle (s'auto-expand en `lansenger-platform` + `lansenger-tools`)
 2. **lansenger-messaging** — Compétence qui enseigne à l'Agent comment choisir le bon outil Lansenger
-
-> ⚠️ **Ne pas exécuter `hermes plugins enable lansenger-platform` ou `hermes plugins enable lansenger-tools` manuellement** — le bundle auto-expand et auto-active les deux sous-plugins au redémarrage du gateway. L'activation manuelle échouera car les sous-plugins sont encore dans le bundle.
-
-> 💡 Si vous devez activer les sous-plugins *avant* le redémarrage du gateway, exécutez d'abord le script d'expansion (il installe aussi la compétence automatiquement) :
-> ```bash
-> python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
-> ```
-> Vous pouvez ensuite exécuter `hermes plugins enable lansenger-platform` et `hermes plugins enable lansenger-tools`.
+3. **lansenger-setup** — Compétence qui enseigne à l'Agent comment configurer le plugin Lansenger
 
 ## Configuration
 
@@ -66,6 +59,71 @@ hermes gateway restart
 Vérifiez que le plugin est chargé :
 - `hermes tools list` devrait afficher `lansenger-tools` dans la section Plugin toolsets
 - `hermes plugins list` devrait afficher `lansenger-platform` et `lansenger-tools` comme activés
+
+## Configuration des groupes
+
+Tous les paramètres utilisent des **booléens natifs YAML** (`true`/`false`, sans guillemets). Les variables d'environnement utilisent des chaînes.
+
+### Paramètres globaux
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      group_policy: open              # open | allowlist | disabled
+      require_mention: true           # @bot requis dans les groupes
+      auto_mention_reply: false       # @expéditeur auto dans les réponses de groupe
+      auto_quote_reply: false         # refMsgId auto dans les réponses (groupes + DMs)
+```
+
+### Remplacements par groupe
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      groups:
+        "<group_id>":
+          enabled: true
+          require_mention: false
+          auto_mention_reply: true
+          auto_quote_reply: true
+          allow_from:
+            - "<staff_id>"
+```
+
+### Priorité de décision (de haut en bas, première correspondance)
+
+1. `enabled: false` par groupe → bloqué
+2. `allow_from` par groupe non vide et expéditeur absent de la liste → bloqué
+3. `enabled: true` par groupe → ignore la politique globale
+4. `group_policy` global → `disabled` bloque tout / `allowlist` vérifie la liste globale
+5. `require_mention` (par groupe > global) est true et `is_at_me=false` → bloqué
+
+## Fonctionnalités de réponse automatique
+
+### autoMentionReply
+
+Lorsqu'il est activé, les réponses de groupe mentionnent automatiquement l'expéditeur avec @. Utilise `fromType` pour distinguer :
+- `fromType=0` (utilisateur) → `reminder.userIds`
+- `fromType=1` (application/bot) → `reminder.botIds`
+
+### autoQuoteReply
+
+Lorsqu'il est activé, les réponses incluent automatiquement `refMsgId` faisant référence au message entrant. Fonctionne dans les groupes et les discussions privées.
+
+## Multi-espace de travail (Profiles)
+
+Hermes prend en charge plusieurs espaces de travail isolés via les Profiles :
+
+```bash
+hermes profile create bot-prod
+hermes profile create bot-test
+hermes -p bot-prod gateway start
+hermes -p bot-test gateway start
+```
+
+Chaque profil possède son propre config.yaml, sessions, mémoires, compétences, journaux et fichiers de données (token, chat_type, owner).
 
 ## Vue d'ensemble des outils
 

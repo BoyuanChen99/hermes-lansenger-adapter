@@ -24,6 +24,11 @@ This repo contains **two plugins**:
 - **Cron delivery** — scheduled notifications via `standalone_sender_fn`
 - **User authorization** — allowed users / allow all users via env vars
 - **Zero core modification** — pure plugin mode, `git diff HEAD` stays PRISTINE
+- **Group chat policy** — open/allowlist/disabled with per-group overrides (require_mention, allow_from sender filtering)
+- **Auto @mention reply** — auto @sender in group replies using fromType (0=user→userIds, 1=bot→botIds)
+- **Auto quote reply** — auto refMsgId referencing inbound message (groups + DMs)
+- **Multi-workspace support** — respects HERMES_HOME; token/chat_type/owner files scoped per profile
+- **FormatText inbound** — parses msgType=format Markdown from OpenClaw and other bots
 
 ### Media & Message Tools Plugin
 - **lansenger_send_text** — Send plain text with optional @mentions and attachments

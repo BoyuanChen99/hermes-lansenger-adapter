@@ -24,6 +24,11 @@
 - **定时推送** — 通过 `standalone_sender_fn` 实现计划通知
 - **用户授权** — 通过环境变量设置允许的用户 / 允许所有用户
 - **零核心修改** — 纯插件模式，`git diff HEAD` 保持纯净
+- **群聊策略** — 开放/白名单/禁用，支持逐群覆盖（require_mention、auto_mention_reply、auto_quote_reply、allow_from 发送者过滤）
+- **自动 @提及回复** — 在群聊回复中自动 @提及发送者（用户使用 userIds，机器人使用 botIds，根据 fromType 0/1 判断）
+- **自动引用回复** — 自动包含引用入站消息的 refMsgId（群聊 + 私聊）
+- **多工作区支持** — 遵循 HERMES_HOME 环境变量；所有 token/chat_type/owner 文件作用域限定于当前配置文件
+- **FormatText 入站解析** — 正确解析来自 OpenClaw 及其他机器人的 msgType=format Markdown 消息
 
 ### 媒体与消息工具插件
 - **lansenger_send_text** — 发送纯文本，可选 @提及和附件

@@ -2,36 +2,27 @@
 
 # 💠 Lansenger Adapter — Post-Install Setup
 
-A bundle plugin and one skill were installed:
+A bundle plugin and two skills were installed:
 
 1. **hermes-lansenger-adapter** — Bundle container (auto-expands into `lansenger-platform` + `lansenger-tools`)
 2. **lansenger-messaging** — Skill that teaches the Agent how to choose the right Lansenger tool
+3. **lansenger-setup** — Skill that teaches the Agent how to configure the Lansenger plugin
 
-> ⚠️ **Do NOT run `hermes plugins enable lansenger-platform` or `hermes plugins enable lansenger-tools` manually** — the bundle auto-expands and auto-enables both sub-plugins on gateway restart. Manual enable will fail because sub-plugins live inside the bundle until it is loaded.
-
-> 💡 If you need to enable sub-plugins *before* restarting the gateway, run the expand script first (it also installs the skill automatically):
-> ```bash
-> python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
-> ```
-> Then you can run `hermes plugins enable lansenger-platform` and `hermes plugins enable lansenger-tools`.
+> ⚠️ **Do NOT run `hermes plugins enable lansenger-platform` or `hermes plugins enable lansenger-tools` manually** — the bundle auto-expands and auto-enables both sub-plugins on gateway restart.
 
 ## Configuration
 
 ### Option A: Interactive setup wizard (recommended)
 
-Run the built-in setup wizard — it guides you through each credential step by step:
-
 ```bash
 hermes setup gateway
 ```
 
-Select **Lansenger** from the platform list, then paste your App ID, App Secret, and optionally confirm the API Gateway URL. Already-configured values are shown (secrets are masked) and can be overwritten.
+Select **Lansenger** from the platform list, then paste your App ID, App Secret, and optionally confirm the API Gateway URL.
 
 > 💡 App ID and App Secret can be found in Lansenger desktop → Contacts → Bots → Personal Bots → ℹ️ icon (mobile does not support viewing credentials)
 
 ### Option B: config.yaml
-
-Add the following to `~/.hermes/config.yaml` under `platforms.lansenger`:
 
 ```yaml
 platforms:
@@ -40,12 +31,10 @@ platforms:
     extra:
       app_id: "YOUR_APP_ID"
       app_secret: "YOUR_APP_SECRET"
-      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # or your custom gateway URL
+      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"  # or your custom gateway URL
 ```
 
-### Option C: .env file (manual)
-
-Edit `~/.hermes/.env` and add:
+### Option C: .env file
 
 ```
 LANSENGER_APP_ID=YOUR_APP_ID
@@ -55,17 +44,79 @@ LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
 
 ## Restart Gateway
 
-After configuration, restart the Hermes gateway:
-
 ```bash
 hermes gateway restart
 ```
 
 ## Verify
 
-Check that the plugin is loaded:
 - `hermes tools list` should show `lansenger-tools` in the Plugin toolsets section
-- `hermes plugins list` should show `lansenger-platform` and `lansenger-tools` as enabled (bundle auto-expanded)
+- `hermes plugins list` should show `lansenger-platform` and `lansenger-tools` as enabled
+
+## Group Chat Configuration
+
+All settings use **YAML native booleans** (`true`/`false`, no quotes). Env vars use strings.
+
+### Global settings
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      group_policy: open              # open | allowlist | disabled
+      require_mention: true           # @bot required in groups
+      auto_mention_reply: false       # auto @sender in group replies
+      auto_quote_reply: false         # auto refMsgId in replies (groups + DMs)
+```
+
+### Per-group overrides
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      groups:
+        "<group_id>":
+          enabled: true
+          require_mention: false
+          auto_mention_reply: true
+          auto_quote_reply: true
+          allow_from:
+            - "<staff_id>"
+```
+
+### Decision priority (top-down, first match wins)
+
+1. per-group `enabled: false` → blocked
+2. per-group `allow_from` non-empty and sender not in list → blocked
+3. per-group `enabled: true` → skip global policy
+4. global `group_policy` → `disabled` blocks all / `allowlist` checks global list
+5. `require_mention` (per-group > global) is true and `is_at_me=false` → blocked
+
+## Auto-Reply Features
+
+### autoMentionReply
+
+When enabled, group replies automatically @mention the sender. Uses `fromType` to distinguish:
+- `fromType=0` (user) → `reminder.userIds`
+- `fromType=1` (app/bot) → `reminder.botIds`
+
+### autoQuoteReply
+
+When enabled, replies automatically include `refMsgId` referencing the inbound message. Works in both group and private chats.
+
+## Multi-Workspace (Profiles)
+
+Hermes supports multiple isolated workspaces via Profiles:
+
+```bash
+hermes profile create bot-prod
+hermes profile create bot-test
+hermes -p bot-prod gateway start
+hermes -p bot-test gateway start
+```
+
+Each profile has its own config.yaml, sessions, memories, skills, logs, and data files (token, chat_type, owner).
 
 ## Tools Overview
 
@@ -84,9 +135,4 @@ Check that the plugin is loaded:
 │  lansenger_revoke_message     │  —           │  —           │  —           │
 │  lansenger_query_groups       │  —           │  —           │  —           │
 └───────────────────────────────┴──────────────┴──────────────┴──────────────┘
-
-@mention notes:
-- send_text: works in group chat; private chat supports but unnecessary (only one participant)
-- send_markdown: newer API capability; older versions silently accept
-  without triggering notification. In group chat, recommended to include @姓名 in text.
 ```

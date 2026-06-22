@@ -24,6 +24,11 @@ Ce dépôt contient **deux plugins** :
 - **Livraison planifiée** — notifications planifiées via `standalone_sender_fn`
 - **Autorisation des utilisateurs** — utilisateurs autorisés / autoriser tous les utilisateurs via des variables d’environnement
 - **Zéro modification du core** — mode plugin pur, `git diff HEAD` reste INTACT
+- **Politique de chat de groupe** — ouvert/liste blanche/désactivé avec dérogations par groupe (require_mention, auto_mention_reply, auto_quote_reply, filtrage allow_from par expéditeur)
+- **Réponse automatique @mention** — @mentionne automatiquement l'expéditeur dans les réponses de groupe (userIds pour les utilisateurs, botIds pour les robots selon fromType 0/1)
+- **Réponse automatique avec citation** — inclut automatiquement refMsgId faisant référence au message entrant (groupes + DMs)
+- **Support multi-espace de travail** — respecte la variable d'environnement HERMES_HOME ; tous les fichiers token/chat_type/owner sont limités au profil actif
+- **Analyse FormatText entrante** — analyse correctement les messages Markdown msgType=format provenant d'OpenClaw et d'autres robots
 
 ### Plugin d’outils média & messages
 - **lansenger_send_text** — Envoyer du texte brut avec @mentions optionnelles et pièces jointes

@@ -2,18 +2,13 @@
 
 # 💠 藍信轉接器——安裝後設定
 
-一個 Bundle 插件和一個技能已安裝：
+一個 Bundle 插件和兩個技能已安裝：
 
 1. **hermes-lansenger-adapter** — Bundle 容器（自動展開為 `lansenger-platform` + `lansenger-tools`）
 2. **lansenger-messaging** — 教 Agent 選擇正確藍信工具的技能
+3. **lansenger-setup** — 教 Agent 如何配置藍信插件的技能
 
 > ⚠️ **不要手動執行 `hermes plugins enable lansenger-platform` 或 `hermes plugins enable lansenger-tools`** — Bundle 在閘道重啟時會自動展開並啟用兩個子插件。手動啟用會失敗，因為子插件此時還在 Bundle 內部。
-
-> 💡 如果你需要在重啟閘道 *之前*啟用子插件，先執行展開腳本（也會自動安裝技能）：
-> ```bash
-> python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
-> ```
-> 然後就可以執行 `hermes plugins enable lansenger-platform` 和 `hermes plugins enable lansenger-tools`。
 
 ## 設定
 
@@ -40,7 +35,7 @@ platforms:
     extra:
       app_id: "YOUR_APP_ID"
       app_secret: "YOUR_APP_SECRET"
-      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # 或您的自訂閘道 URL
+      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # 或你的自訂閘道網址
 ```
 
 ### 方式 C：.env 檔案（手動）
@@ -66,6 +61,69 @@ hermes gateway restart
 檢查插件是否已載入：
 - `hermes tools list` 應在 Plugin toolsets 段顯示 `lansenger-tools`
 - `hermes plugins list` 應顯示 `lansenger-platform` 和 `lansenger-tools` 已啟用（Bundle 自動展開）
+
+## 群聊配置
+
+所有設定使用 **YAML 原生布林值**（`true`/`false`，不加引號）。環境變數使用字串。
+
+### 全域設定
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      group_policy: deny       # deny | allow — 是否允許群聊
+      require_mention: true     # 是否僅回應 @提及
+      auto_mention_reply: true  # 自動 @回覆傳送者
+      auto_quote_reply: true    # 自動引用原訊息
+```
+
+### 按群覆寫
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      groups:
+        "chat_id_here":
+          group_policy: allow
+          require_mention: false
+```
+
+### 決策優先級（從上到下，命中即停止）
+
+- 全域 `group_policy: deny` → 禁止所有群聊
+- 按群覆寫 `group_policy: allow` → 允許特定群聊
+- 按群覆寫 `group_policy: deny` → 禁止特定群聊（即使全域 allow）
+- 按群覆寫未設定 → 繼承全域設定
+- 私聊不受 `group_policy` 影響
+
+## 自動回覆功能
+
+### autoMentionReply（自動 @傳送者）
+
+啟用後，群聊回覆自動 @傳送者。根據 `fromType` 區分：
+- `fromType=0`（使用者）→ `reminder.userIds`
+- `fromType=1`（應用/機器人）→ `reminder.botIds`
+
+### autoQuoteReply（自動引用訊息）
+
+啟用後，回覆自動攜帶 `refMsgId` 引用原訊息。群聊和私聊都支援。
+
+## 多 Workspace（Profiles）
+
+支援多組藍信憑證透過 Hermes profiles 管理：
+
+```bash
+hermes profile create my-org \
+  --set platforms.lansenger.enabled=true \
+  --set platforms.lansenger.extra.app_id=YOUR_APP_ID \
+  --set platforms.lansenger.extra.app_secret=YOUR_APP_SECRET
+```
+
+```bash
+hermes profile use my-org
+```
 
 ## 工具總覽
 

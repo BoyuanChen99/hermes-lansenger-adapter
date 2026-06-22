@@ -129,7 +129,8 @@ class LansengerAdapter(BasePlatformAdapter):
         # Populated from inbound messages so outbound can route correctly
         self._chat_type_map: Dict[str, str] = {}
         self._chat_type_map_dirty: bool = False
-        self._chat_type_file = Path.home() / ".hermes" / "lansenger_chat_types.json"
+        _hermes_home = self._resolve_hermes_home()
+        self._chat_type_file = _hermes_home / "lansenger_chat_types.json"
         self._load_chat_type_map()
 
         # User language cache: maps chat_id → "zh" or "en"
@@ -139,11 +140,11 @@ class LansengerAdapter(BasePlatformAdapter):
         # Token cache
         self._app_token: Optional[str] = None
         self._token_expiry: float = 0
-        self._token_file = Path.home() / ".hermes" / "lansenger_token.json"
+        self._token_file = _hermes_home / "lansenger_token.json"
 
         # Owner ID (the user who bound the bot)
         self._owner_id: Optional[str] = None
-        self._owner_id_file = Path.home() / ".hermes" / "lansenger_owner.json"
+        self._owner_id_file = _hermes_home / "lansenger_owner.json"
         self._load_owner_id()
 
         # Auto-sethome: first DM becomes home channel if none configured.
@@ -153,6 +154,37 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # Pairing state
         self._pending_pairings: Dict[str, Dict[str, Any]] = {}
+
+        # Group chat policy — env var > config.yaml extra (Hermes convention)
+        _group_policy = os.getenv("LANSENGER_GROUP_POLICY") or extra.get("group_policy", "open")
+        self._group_policy: str = _group_policy if _group_policy in ("open", "allowlist", "disabled") else "open"
+
+        _group_allow_from = os.getenv("LANSENGER_GROUP_ALLOW_FROM") or extra.get("group_allow_from", "")
+        self._group_allow_from: List[str] = [g.strip() for g in _group_allow_from.split(",") if g.strip()] if _group_allow_from else []
+
+        _require_mention = os.getenv("LANSENGER_REQUIRE_MENTION") or extra.get("require_mention", "true")
+        self._require_mention: bool = str(_require_mention).lower() in ("true", "1", "yes")
+
+        # Per-group overrides (config.yaml extra.groups only, no env var equivalent)
+        # Format: {"chat_id": {"enabled": bool, "require_mention": bool, "allow_from": [sender_ids]}}
+        _raw_groups = extra.get("groups", {}) or {}
+        self._groups_config: Dict[str, Dict[str, Any]] = {}
+        for gid, cfg in _raw_groups.items():
+            if isinstance(cfg, dict):
+                self._groups_config[str(gid)] = cfg
+
+        # Auto @mention reply in groups
+        _auto_mention = os.getenv("LANSENGER_AUTO_MENTION_REPLY") or extra.get("auto_mention_reply", "false")
+        self._auto_mention_reply: bool = str(_auto_mention).lower() in ("true", "1", "yes")
+
+        # Auto quote reply (refMsgId) — groups and private chats
+        _auto_quote = os.getenv("LANSENGER_AUTO_QUOTE_REPLY") or extra.get("auto_quote_reply", "false")
+        self._auto_quote_reply: bool = str(_auto_quote).lower() in ("true", "1", "yes")
+
+        # Last sender per chat (for autoMentionReply)
+        self._chat_last_sender: Dict[str, str] = {}
+        self._chat_last_from_type: Dict[str, str] = {}
+        self._chat_last_msg_id: Dict[str, str] = {}
 
     # -- Connection lifecycle -----------------------------------------------
 
@@ -362,6 +394,19 @@ class LansengerAdapter(BasePlatformAdapter):
 
     # -- Inbound message processing -----------------------------------------
 
+    @staticmethod
+    def _resolve_hermes_home() -> Path:
+        """Resolve Hermes home directory, respecting HERMES_HOME env var.
+
+        Uses the HERMES_HOME environment variable (set by profiles system)
+        so that different profiles get independent token/chat_type/owner files.
+        Falls back to ~/.hermes when HERMES_HOME is not set.
+        """
+        env_home = os.environ.get("HERMES_HOME", "").strip()
+        if env_home:
+            return Path(env_home)
+        return Path.home() / ".hermes"
+
     def _load_owner_id(self) -> None:
         """Load owner ID from file."""
         try:
@@ -462,6 +507,7 @@ class LansengerAdapter(BasePlatformAdapter):
 
     async def _on_message(self, raw_message: str) -> None:
         """Process an incoming Lansenger message."""
+        logger.info("[Lansenger] WS raw data received (%d bytes)", len(raw_message) if raw_message else 0)
         try:
             data = json.loads(raw_message)
         except json.JSONDecodeError:
@@ -469,63 +515,147 @@ class LansengerAdapter(BasePlatformAdapter):
             return
 
         events = data.get("events", [])
+        if events:
+            event_types = [e.get("type", "?") for e in events]
+            logger.info("[Lansenger] Received %d WS event(s): %s", len(events), event_types)
         for event_data in events:
             await self._process_event(event_data)
 
         self._persist_chat_type_map()
 
     async def _process_event(self, event_data: Dict[str, Any]) -> None:
-        """Process a single event."""
-        # Debug: log raw event structure
+        """Process a single event.
+
+        Handles bot_private_message (DM) and bot_group_message (group chat)
+        events per the official Lansenger OpenAPI callback event spec.
+        """
+        # 1. Filter by event type — only handle bot message events
+        event_type = event_data.get("type", "")
+        if event_type not in ("bot_private_message", "bot_group_message"):
+            logger.info("[Lansenger] Skipping non-message event type: %s", event_type)
+            return
+
+        is_group = event_type == "bot_group_message"
         msg_data = event_data.get("data", {})
         msg_type = msg_data.get("msgType", "text")
-        logger.debug("[Lansenger] Raw event msgType=%s, data keys=%s", msg_type, list(msg_data.keys()) if msg_data else "None")
-        
-        msg_id = msg_data.get("messageId") or uuid.uuid4().hex
+
+        # 2. Message ID — msgId is carried for both group and private messages
+        msg_id = msg_data.get("msgId") or uuid.uuid4().hex
+        logger.info("[Lansenger] msg_id=%s (group=%s)", msg_id[:30], is_group)
 
         if self._dedup.is_duplicate(msg_id):
             logger.debug("[Lansenger] Duplicate message %s, skipping", msg_id)
             return
 
+        # 3. Self-echo prevention: skip messages sent by our own bot in groups
+        sender_id = msg_data.get("from", "")
+        self_bot_id: Optional[str] = None
+        if is_group:
+            self_bot_id = msg_data.get("botId")
+            if self_bot_id and sender_id == self_bot_id:
+                logger.debug("[Lansenger] Skipping self-echo from bot %s", self_bot_id)
+                return
+
+        # 4. Extract message text (handles text, image, video, file, voice, position, card, sticker)
         text = await self._extract_text(msg_data)
         if not text:
-            logger.debug("[Lansenger] Empty message (msgType=%s), skipping", msg_type)
+            logger.info("[Lansenger] Empty message (msgType=%s), skipping — data keys=%s", msg_type, list(msg_data.keys()))
+            # Dump raw msgData for unsupported msgTypes so we can add support
+            raw_msg_data = msg_data.get("msgData", {})
+            logger.info("[Lansenger] RAW msgData for %s: %s", msg_type, json.dumps(raw_msg_data, ensure_ascii=False))
             return
 
-        # Chat context
-        chat_type = msg_data.get("chatType", "p2p")
-        is_group = chat_type == "group"
-        sender_id = msg_data.get("from", "")
-        chat_id = msg_data.get("conversationId") or sender_id
+        # 5. Chat context — group vs private uses different fields
+        if is_group:
+            chat_id = msg_data.get("groupId") or sender_id
+            chat_name = msg_data.get("groupName", "")
+            # Reminder / @mention info
+            reminder = msg_data.get("reminder", {}) or {}
+            is_at_me = bool(reminder.get("isAtMe", False))
+            is_at_all = bool(reminder.get("isAtAll", False))
+            mentioned_staffs = reminder.get("staffs", []) or []
+            mentioned_bots = reminder.get("bots", []) or []
+            logger.info("[Lansenger] Group msg parsed: chat=%s from=%s(%s) is_at_me=%s is_at_all=%s bots=%s staffs=%s",
+                        chat_id[:20], sender_id[:20], msg_data.get("fromType", "?"), is_at_me, is_at_all,
+                        [b.get("botName", "?") for b in mentioned_bots] if isinstance(mentioned_bots, list) else "?",
+                        len(mentioned_staffs) if isinstance(mentioned_staffs, list) else "?")
 
-        # Cache chat type for outbound routing
+            # Strip trailing @botName so slash commands work correctly
+            # Lansenger appends "@botName" to the end of group messages.
+            if is_at_me and self_bot_id:
+                our_bot_name: Optional[str] = None
+                for bot in mentioned_bots:
+                    if isinstance(bot, dict) and bot.get("botId") == self_bot_id:
+                        our_bot_name = bot.get("botName")
+                        break
+                if our_bot_name:
+                    at_name = f"@{our_bot_name}"
+                    if text.endswith(at_name):
+                        text = text[:-len(at_name)].strip()
+        else:
+            chat_id = sender_id
+            chat_name = msg_data.get("conversationTitle", "")
+            reminder = {}
+            is_at_me = False
+            is_at_all = False
+            mentioned_staffs = []
+            mentioned_bots = []
+
+        # 6. Group chat entry policy check (per-group > global)
+        if is_group:
+            if self._check_group_policy(chat_id, sender_id, is_at_me):
+                logger.info("[Lansenger] Group policy BLOCKED: chat=%s sender=%s is_at_me=%s group_policy=%s require_mention=%s",
+                            chat_id[:20], sender_id[:20], is_at_me, self._group_policy, self._require_mention)
+                return
+
+        # 7. Parse quoted message (referenceMsg) if present
+        ref_text = self._extract_reference_text(msg_data.get("referenceMsg"))
+        if ref_text:
+            text = f"[引用消息] {ref_text}\n---\n{text}"
+
+        # 8. Cache chat type for outbound routing
         self._chat_type_map[chat_id] = "group" if is_group else "dm"
         self._chat_type_map_dirty = True
 
-        # Cache user language from message text (for appCard language selection)
-        text_content = msg_data.get("text", {}).get("content", "")
-        if text_content:
-            self._user_lang_map[chat_id] = self._detect_lang(text_content)
+        # 8a. Cache last sender, fromType, and msgId for autoMentionReply and reply ref
+        self._chat_last_sender[chat_id] = sender_id
+        self._chat_last_from_type[chat_id] = msg_data.get("fromType", 0)
+        self._chat_last_msg_id[chat_id] = msg_id
 
-        # Record owner ID on first p2p message
+        # 9. Cache user language from message text (for appCard language selection)
+        # Read text content from msgData.text.content (not the already-extracted text
+        # which includes ref_msg prefix and may have been modified).
+        raw_content = msg_data.get("msgData", {}).get("text", {}).get("content", "")
+        if raw_content:
+            self._user_lang_map[chat_id] = self._detect_lang(raw_content)
+
+        # 10. Record owner ID on first private message
         if not is_group and not self._owner_id and sender_id:
             self._owner_id = sender_id
             self._save_owner_id()
             logger.info("[Lansenger] Recorded owner ID from first message: %s", sender_id)
 
-        # Auto-sethome: designate the first DM as home channel.
-        # If no home_channel is configured, or the existing one is a group,
-        # the first DM overrides it (DM > group upgrade, same as Yuanbao).
+        # 11. Auto-sethome: designate the first DM as home channel.
         if not is_group:
             await self._auto_sethome(chat_id)
 
+        # 12. Build source & event
         source = self.build_source(
             chat_id=chat_id,
-            chat_name=msg_data.get("conversationTitle"),
+            chat_name=chat_name or None,
             chat_type="group" if is_group else "dm",
             user_id=sender_id,
             user_name=msg_data.get("senderName", sender_id),
         )
+
+        # Attach group context in raw_message for downstream consumers
+        enriched_raw: Dict[str, Any] = dict(msg_data)
+        if is_group:
+            enriched_raw["_is_at_me"] = is_at_me
+            enriched_raw["_is_at_all"] = is_at_all
+            enriched_raw["_mentioned_staffs"] = mentioned_staffs
+            enriched_raw["_mentioned_bots"] = mentioned_bots
+            enriched_raw["_bot_id"] = self_bot_id
 
         timestamp = datetime.now(tz=timezone.utc)
 
@@ -534,12 +664,13 @@ class LansengerAdapter(BasePlatformAdapter):
             message_type=MessageType.TEXT,
             source=source,
             message_id=msg_id,
-            raw_message=msg_data,
+            raw_message=enriched_raw,
             timestamp=timestamp,
         )
 
-        logger.debug("[Lansenger] Message from %s in %s: %s",
-                     source.user_name, chat_id[:20] if chat_id else "?", text[:50])
+        logger.debug("[Lansenger] Message from %s in %s(%s): %s",
+                     source.user_name, source.chat_type,
+                     chat_id[:20] if chat_id else "?", text[:80])
         await self.handle_message(event)
 
     async def _extract_text(self, msg_data: Dict[str, Any]) -> str:
@@ -552,6 +683,12 @@ class LansengerAdapter(BasePlatformAdapter):
 
         if msg_type == "text":
             return msg_payload.get("text", {}).get("content", "").strip()
+        
+        elif msg_type in ("format", "formatText"):
+            # WS event uses "format" (not "formatText") as msgData key
+            # Format: {"format": {"formatType": "markdown", "text": "...", "sequence": N}}
+            fmt = msg_payload.get("format") or msg_payload.get("formatText", {})
+            return fmt.get("text", "") if isinstance(fmt, dict) else ""
         
         elif msg_type == "image":
             media_ids = msg_payload.get("image", {}).get("mediaIds", [])
@@ -604,6 +741,100 @@ class LansengerAdapter(BasePlatformAdapter):
             return f"[Sticker] {sticker_id}" if sticker_id else "[Sticker]"
 
         return ""
+
+    @staticmethod
+    def _extract_reference_text(reference_msg: Optional[Dict[str, Any]]) -> str:
+        """Extract displayable text from a referenceMsg (quoted message).
+
+        Lansenger sends referenceMsg alongside the main message when a user
+        replies by quoting an earlier message.  Only the first level is
+        returned — the API does not support recursive nested references.
+
+        Returns empty string if reference_msg is None or has no text content.
+        """
+        if not reference_msg or not isinstance(reference_msg, dict):
+            return ""
+
+        msg_type = reference_msg.get("msgType", "text")
+        msg_payload = reference_msg.get("msgData", {}) or {}
+
+        if msg_type == "text":
+            return msg_payload.get("text", {}).get("content", "").strip()
+
+        if msg_type == "image":
+            count = len(msg_payload.get("image", {}).get("mediaIds", []))
+            return "[Image]" if count <= 1 else f"[Image: {count}]"
+
+        if msg_type == "video":
+            return "[Video]"
+
+        if msg_type == "file":
+            count = len(msg_payload.get("file", {}).get("mediaIds", []))
+            return "[File]" if count <= 1 else f"[File: {count}]"
+
+        if msg_type == "voice":
+            return "[Voice]"
+
+        if msg_type == "position":
+            pos = msg_payload.get("position", {})
+            name = pos.get("name", "")
+            return f"[Location] {name}" if name else "[Location]"
+
+        if msg_type == "card":
+            staff_id = msg_payload.get("card", {}).get("staffId", "")
+            return f"[Contact Card] {staff_id}" if staff_id else "[Contact Card]"
+
+        return f"[{msg_type}]"
+
+    def _check_group_policy(self, chat_id: str, sender_id: str, is_at_me: bool) -> bool:
+        """Check if a group message should be blocked by policy.
+
+        Order: per-group config takes precedence over global settings.
+
+        Per-group fields (config.yaml extra.groups.<chat_id>):
+          - enabled: false → block this group entirely
+          - allow_from: [sender_id, ...] → only these senders can trigger
+          - require_mention: true/false → override global require_mention
+
+        Returns True if the message should be dropped (blocked).
+        """
+        per_group = self._groups_config.get(chat_id, {})
+
+        # Per-group enabled: false → explicitly disabled
+        if per_group.get("enabled") is False:
+            logger.debug("[Lansenger] Group %s disabled per-group, dropping", chat_id[:20])
+            return True
+
+        # Per-group allow_from: restrict senders within this group
+        per_allow = per_group.get("allow_from", [])
+        if per_allow and isinstance(per_allow, list) and sender_id not in per_allow:
+            logger.debug("[Lansenger] Group %s sender %s not in per-group allow_from, dropping",
+                         chat_id[:20], sender_id[:20])
+            return True
+
+        # If per-group has explicit enabled: true → bypass global policy for this group
+        per_enabled = per_group.get("enabled")
+        if per_enabled is True:
+            pass  # explicitly allowed, skip global policy checks below
+        else:
+            # Global policy applies
+            if self._group_policy == "disabled":
+                logger.debug("[Lansenger] Group policy=disabled, dropping group message from %s", chat_id[:20])
+                return True
+            if self._group_policy == "allowlist" and chat_id not in self._group_allow_from:
+                logger.debug("[Lansenger] Group %s not in global allowlist, dropping", chat_id[:20])
+                return True
+
+        # require_mention: per-group > global
+        if "require_mention" in per_group:
+            require_mention = bool(per_group["require_mention"])
+        else:
+            require_mention = self._require_mention
+        if require_mention and not is_at_me:
+            logger.debug("[Lansenger] requireMention and bot not @mentioned, dropping group message from %s", chat_id[:20])
+            return True
+
+        return False  # allowed
 
     # -- Token management ---------------------------------------------------
 
@@ -792,9 +1023,46 @@ class LansengerAdapter(BasePlatformAdapter):
     # -- Outbound message sending -------------------------------------------
 
     async def send(self, chat_id: str, content: str, **kwargs) -> SendResult:
-        """Send a message (alias for send_format_text)."""
+        """Send a message (alias for send_format_text).
+
+        Auto-populates reminder with the last sender's ID when
+        auto_mention_reply is enabled and this is a group chat.
+        Uses userIds for users, botIds for bots based on fromType (0=user, 1=app).
+        Explicit reminder kwarg always wins.
+
+        Auto-populates refMsgId when auto_quote_reply is enabled.
+        Supports both group and private chats.
+        """
         reminder = kwargs.get("reminder")
-        return await self.send_format_text(chat_id, content, reminder=reminder)
+        if not reminder and self._is_group_chat(chat_id):
+            # Check auto_mention_reply: per-group > global
+            per_group = self._groups_config.get(chat_id, {})
+            auto_mention = per_group.get("auto_mention_reply", self._auto_mention_reply)
+            if isinstance(auto_mention, str):
+                auto_mention = str(auto_mention).lower() in ("true", "1", "yes")
+            if auto_mention:
+                last_sender = self._chat_last_sender.get(chat_id)
+                if last_sender:
+                    from_type = self._chat_last_from_type.get(chat_id, 0)
+                    # fromType: 0=user, 1=app (bot)
+                    if str(from_type) == "1":
+                        reminder = {"botIds": [last_sender]}
+                    else:
+                        reminder = {"userIds": [last_sender]}
+
+        # Auto quote reply: per-group > global (groups), global only (private)
+        ref_msg_id = None
+        if self._is_group_chat(chat_id):
+            per_group = self._groups_config.get(chat_id, {})
+            auto_quote = per_group.get("auto_quote_reply", self._auto_quote_reply)
+        else:
+            auto_quote = self._auto_quote_reply
+        if isinstance(auto_quote, str):
+            auto_quote = str(auto_quote).lower() in ("true", "1", "yes")
+        if auto_quote:
+            ref_msg_id = self._chat_last_msg_id.get(chat_id)
+
+        return await self.send_format_text(chat_id, content, reminder=reminder, ref_msg_id=ref_msg_id)
 
     async def send_typing(self, chat_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """Send typing indicator (not supported by Lansenger)."""
@@ -857,27 +1125,18 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.error("[Lansenger] Send text error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
-    async def send_format_text(self, chat_id: str, content: str, reminder: dict = None) -> SendResult:
-            """Send a formatted text message (Markdown support), optionally with @mentions.
+    async def send_format_text(self, chat_id: str, content: str, reminder: dict = None, ref_msg_id: str = None) -> SendResult:
+            """Send a formatted text message (Markdown support), optionally with @mentions and reply ref.
 
             Routes to /v1/messages/group/create for group chats,
             /v1/bot/messages/create for private chats.
 
-NOTE: formatText @mention (reminder) is a NEWER API capability.
-        Older Lansenger API versions silently accept the reminder field without error
-        but do NOT trigger client-side @mention notifications. On newer versions,
-        reminder triggers the notification. In group chat, it is recommended to
-        include @姓名 in the text content so people know who the reply is for.
-        Private chat supports reminder but it is unnecessary (only one participant).
-
-        Args:
-            chat_id: Recipient user ID or chat ID
-            content: Markdown-formatted text content. In group chat, recommended to
-                     include @姓名 when replying to someone (e.g. "@张三 请查看报告").
-            reminder: Optional dict with 'all' (bool), 'userIds' (list), and
-                      'botIds' (list) for @mentions. Private chat supports this
-                      but it is unnecessary. Old API silently accepts this field
-                      without triggering notifications.
+            Args:
+                chat_id: Recipient user ID or chat ID
+                content: Markdown-formatted text content.
+                reminder: Optional dict with 'all' (bool), 'userIds' (list), and
+                          'botIds' (list) for @mentions.
+                ref_msg_id: Optional msgId to quote/reply to.
             """
             token = await self._get_app_token()
             if not token:
@@ -900,6 +1159,8 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                         "msgType": "formatText",
                         "msgData": {"formatText": format_text_data},
                     }
+                    if ref_msg_id:
+                        payload["refMsgId"] = ref_msg_id
                 else:
                     url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
                     payload = {
@@ -907,6 +1168,8 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
                         "msgType": "formatText",
                         "msgData": {"formatText": format_text_data},
                     }
+                    if ref_msg_id:
+                        payload["refMsgId"] = ref_msg_id
 
                 response = await self._http_client.post(url, json=payload)
                 response.raise_for_status()
@@ -2137,7 +2400,7 @@ NOTE: formatText @mention (reminder) is a NEWER API capability.
         body of ~/.hermes/SOUL.md.  Returns "Hermes" as fallback.
         """
         try:
-            soul_path = Path.home() / ".hermes" / "SOUL.md"
+            soul_path = self._resolve_hermes_home() / "SOUL.md"
             if not soul_path.exists():
                 return "Hermes"
 
@@ -2571,7 +2834,7 @@ def _interactive_setup():
     """
     from pathlib import Path
     
-    hermes_home = Path.home() / ".hermes"
+    hermes_home = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
     env_file = hermes_home / ".env"
     
     # ANSI colors for terminal output

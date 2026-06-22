@@ -2,18 +2,11 @@
 
 # 💠 藍信轉接器——安裝後設定
 
-一個 Bundle 插件和一個技能已安裝：
+一個 Bundle 插件和兩個技能已安裝：
 
 1. **hermes-lansenger-adapter** — Bundle 容器（自動展開為 `lansenger-platform` + `lansenger-tools`）
 2. **lansenger-messaging** — 教 Agent 選擇正確藍信工具的技能
-
-> ⚠️ **不要手動執行 `hermes plugins enable lansenger-platform` 或 `hermes plugins enable lansenger-tools`** — Bundle 在網關重啟時會自動展開並啟用兩個子插件。手動啟用會失敗，因為子插件此時還在 Bundle 內部。
-
-> 💡 如果你需要在重啟網關 *之前*啟用子插件，先執行展開腳本（也會自動安裝技能）：
-> ```bash
-> python3 ~/.hermes/plugins/hermes-lansenger-adapter/expand_sub_plugins.py
-> ```
-> 然後就可以執行 `hermes plugins enable lansenger-platform` 和 `hermes plugins enable lansenger-tools`。
+3. **lansenger-setup** — 教 Agent 設定藍信插件的技能
 
 ## 設定
 
@@ -66,6 +59,71 @@ hermes gateway restart
 檢查插件是否已載入：
 - `hermes tools list` 應在 Plugin toolsets 部分顯示 `lansenger-tools`
 - `hermes plugins list` 應顯示 `lansenger-platform` 和 `lansenger-tools` 已啟用（Bundle 自動展開）
+
+## 群組聊天設定
+
+所有設定使用 **YAML 原生布爾值**（`true`/`false`，無需引號）。環境變數使用字符串。
+
+### 全域設定
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      group_policy: open              # open | allowlist | disabled
+      require_mention: true           # 群組中需要 @bot
+      auto_mention_reply: false       # 群組回覆自動 @發送者
+      auto_quote_reply: false         # 回覆自動引用 refMsgId（群組 + 私聊）
+```
+
+### 單一群組覆寫
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      groups:
+        "<group_id>":
+          enabled: true
+          require_mention: false
+          auto_mention_reply: true
+          auto_quote_reply: true
+          allow_from:
+            - "<staff_id>"
+```
+
+### 決策優先級（由上至下，首次匹配即生效）
+
+1. 單一群組 `enabled: false` → 已封鎖
+2. 單一群組 `allow_from` 非空且發送者不在列表中 → 已封鎖
+3. 單一群組 `enabled: true` → 跳過全域策略
+4. 全域 `group_policy` → `disabled` 封鎖全部 / `allowlist` 檢查全域列表
+5. `require_mention`（單一群組 > 全域）為 true 且 `is_at_me=false` → 已封鎖
+
+## 自動回覆功能
+
+### autoMentionReply
+
+啟用後，群組回覆會自動 @提及發送者。透過 `fromType` 區分：
+- `fromType=0`（用戶）→ `reminder.userIds`
+- `fromType=1`（應用/機械人）→ `reminder.botIds`
+
+### autoQuoteReply
+
+啟用後，回覆會自動包含引用原始訊息的 `refMsgId`。同時適用於群組聊天和私聊。
+
+## 多工作區（Profiles）
+
+Hermes 透過 Profiles 支援多個隔離的工作區：
+
+```bash
+hermes profile create bot-prod
+hermes profile create bot-test
+hermes -p bot-prod gateway start
+hermes -p bot-test gateway start
+```
+
+每個 profile 都擁有獨立的 config.yaml、會話、記憶、技能、日誌及數據檔案（token、chat_type、owner）。
 
 ## 工具概覽
 

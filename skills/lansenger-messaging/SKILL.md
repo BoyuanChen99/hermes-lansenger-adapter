@@ -20,7 +20,7 @@ Lansenger has multiple message types with different capabilities. Picking the wr
 | appCard | ✗ (div-style) | ✗ | ✗ | ✓ |
 | linkCard | ✗ | ✗ | ✗ | ✓ |
 
-- **formatText @mention**: newer Lansenger triggers client notification; older versions silently accept without triggering. In group chat, include `@姓名` (the user's display name) in text content.
+- **formatText @mention**: newer Lansenger triggers client notification; older versions silently accept without triggering. The API automatically prepends `@displayName` to the message based on `reminder.userIds` / `reminder.botIds` — do NOT manually write `@name` in the text content.
 - **linkCard** requires 6 fields: title, description, iconLink, link, fromName, fromIconLink.
 - **video** requires 2 mediaIds: [videoId, coverImageId].
 
@@ -40,7 +40,7 @@ Auto-routing: private → `/v1/bot/messages/create` (userIdList), group → `/v1
 
 1. **Plain text** → `lansenger_send_text`
 2. **Markdown** → `lansenger_send_markdown` (optional reminder for @mention)
-2a. **Markdown + @mention** → `lansenger_send_markdown` with reminder={"all":false,"userIds":["id"]}
+2a. **Markdown + @mention** → `lansenger_send_markdown` with `reminder={"all":false,"userIds":["id"]}` (API auto-prepends @displayName; do NOT write @name in text)
 3. **Text + attachment** → `lansenger_send_text` with file_path
 4. **Markdown + attachment** → two messages: `lansenger_send_markdown` then `lansenger_send_file`
 5. **Pure attachment** → `lansenger_send_file`
