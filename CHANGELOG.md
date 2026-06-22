@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.15] - 2026-06-22
+
+### Fixed
+
+- **_mark_disconnected() killed the reconnect loop (Issue #6)**: `_mark_disconnected()` from base.py sets `self._running = False`, but `_run_ws()` uses `while self._running` to control its reconnect loop. After one disconnect the loop exited immediately — backoff, ticket refresh, everything was skipped. Replaced with direct `_write_runtime_status_safe()` calls in both the normal disconnect path and crash handler.
+
 ## [2.6.14] - 2026-06-18
 
 ### Fixed

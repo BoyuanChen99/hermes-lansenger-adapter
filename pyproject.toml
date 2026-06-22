@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-lansenger-adapter"
-version = "2.6.14"
+version = "2.6.15"
 description = "Lansenger gateway adapter + media tools plugin for Hermes Agent"
 readme = "README.md"
 license = "MIT"
