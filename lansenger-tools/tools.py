@@ -310,32 +310,39 @@ def _load_persisted_chat_types_into_adapter(adapter) -> None:
 async def _send_text_async(chat_id: str, content: str,
                             file_path: str = "", media_type: int = 3,
                             reminder_all: bool = False,
-                            reminder_user_ids: list = None) -> dict:
-    """Async: send plain text message (msgType=text), optionally with attachment and @mentions."""
+                            reminder_user_ids: list = None,
+                            reminder_bot_ids: list = None,
+                            ref_msg_id: str = None) -> dict:
+    """Async: send plain text message (msgType=text), optionally with attachment, @mentions, and reply quote."""
     adapter = await _create_ephemeral_adapter()
     try:
         # Build reminder dict if any @mention params provided
         reminder = None
-        if reminder_all or (reminder_user_ids and len(reminder_user_ids) > 0):
+        uids = reminder_user_ids or []
+        bids = reminder_bot_ids or []
+        if reminder_all or uids or bids:
             reminder = {
                 "all": reminder_all,
-                "userIds": reminder_user_ids or [],
+                "userIds": uids,
             }
+            if bids:
+                reminder["botIds"] = bids
 
         if file_path and os.path.isfile(file_path):
             # Upload media first, then send text+media
             media_id = await adapter.upload_media_file(file_path, media_type)
             if media_id:
                 result = await adapter.send_text_with_media(
-                    chat_id, content, media_type, [media_id], reminder=reminder
+                    chat_id, content, media_type, [media_id],
+                    reminder=reminder, ref_msg_id=ref_msg_id
                 )
             else:
                 # Upload failed — fall back to pure text
                 logger.warning("[Lansenger] Media upload failed, sending plain text only")
-                result = await adapter.send_text(chat_id, content, reminder=reminder)
+                result = await adapter.send_text(chat_id, content, reminder=reminder, ref_msg_id=ref_msg_id)
         else:
             # Pure text, no attachment
-            result = await adapter.send_text(chat_id, content, reminder=reminder)
+            result = await adapter.send_text(chat_id, content, reminder=reminder, ref_msg_id=ref_msg_id)
 
         
         return {
@@ -351,18 +358,24 @@ async def _send_text_async(chat_id: str, content: str,
 
 async def _send_markdown_async(chat_id: str, content: str,
                                 reminder_all: bool = False,
-                                reminder_user_ids: list = None) -> dict:
-    """Async: send Markdown-formatted message (msgType=formatText), optionally with @mentions."""
+                                reminder_user_ids: list = None,
+                                reminder_bot_ids: list = None,
+                                ref_msg_id: str = None) -> dict:
+    """Async: send Markdown-formatted message (msgType=formatText), optionally with @mentions and reply quote."""
     adapter = await _create_ephemeral_adapter()
     try:
         reminder = None
-        if reminder_all or (reminder_user_ids and len(reminder_user_ids) > 0):
+        uids = reminder_user_ids or []
+        bids = reminder_bot_ids or []
+        if reminder_all or uids or bids:
             reminder = {
                 "all": reminder_all,
-                "userIds": reminder_user_ids or [],
+                "userIds": uids,
             }
+            if bids:
+                reminder["botIds"] = bids
 
-        result = await adapter.send_format_text(chat_id, content, reminder=reminder)
+        result = await adapter.send_format_text(chat_id, content, reminder=reminder, ref_msg_id=ref_msg_id)
         
         return {
             "success": result.success,
@@ -542,13 +555,14 @@ async def _send_app_card_async(
 
 async def _update_dynamic_card_async(
     msg_id: str, head_status_info: dict, links: list,
-    is_last_update: bool) -> dict:
+    is_last_update: bool, chat_id: str = None) -> dict:
     """Async: create ephemeral adapter, update dynamic card status, teardown."""
     adapter = await _create_ephemeral_adapter()
     try:
         result = await adapter.update_dynamic_card_status(
             msg_id=msg_id, head_status_info=head_status_info,
             links=links, is_last_update=is_last_update,
+            chat_id=chat_id,
         )
         
         return {
@@ -595,6 +609,8 @@ def lansenger_send_text(args: dict, **kwargs) -> str:
     media_type = args.get("media_type")
     reminder_all = args.get("reminder_all", False)
     reminder_user_ids = args.get("reminder_user_ids") or []
+    reminder_bot_ids = args.get("reminder_bot_ids") or []
+    ref_msg_id = args.get("ref_msg_id") or None
 
     if not chat_id:
         return json.dumps({"error": "chat_id is required"})
@@ -616,7 +632,8 @@ def lansenger_send_text(args: dict, **kwargs) -> str:
 
     try:
         result = _run_async(_send_text_async(chat_id, content, file_path,
-                                              media_type or 3, reminder_all, reminder_user_ids))
+                                              media_type or 3, reminder_all, reminder_user_ids,
+                                              reminder_bot_ids, ref_msg_id))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
@@ -633,6 +650,8 @@ def lansenger_send_markdown(args: dict, **kwargs) -> str:
     content = args.get("content", "").strip()
     reminder_all = args.get("reminder_all", False)
     reminder_user_ids = args.get("reminder_user_ids") or []
+    reminder_bot_ids = args.get("reminder_bot_ids") or []
+    ref_msg_id = args.get("ref_msg_id") or None
 
     if not chat_id:
         return json.dumps({"error": "chat_id is required"})
@@ -644,7 +663,8 @@ def lansenger_send_markdown(args: dict, **kwargs) -> str:
         return json.dumps(env_result)
 
     try:
-        result = _run_async(_send_markdown_async(chat_id, content, reminder_all, reminder_user_ids))
+        result = _run_async(_send_markdown_async(chat_id, content, reminder_all,
+                                                  reminder_user_ids, reminder_bot_ids, ref_msg_id))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
@@ -882,6 +902,7 @@ def lansenger_update_dynamic_card(args: dict, **kwargs) -> str:
     The card must have been sent with is_dynamic=True. Uses /v1/messages/dynamic/update.
     """
     msg_id = args.get("msg_id", "").strip()
+    chat_id = args.get("chat_id") or None
     head_status_info = args.get("head_status_info") or None
     links = args.get("links") or None
     is_last_update = args.get("is_last_update", False)
@@ -894,7 +915,8 @@ def lansenger_update_dynamic_card(args: dict, **kwargs) -> str:
         return json.dumps(env_result)
 
     try:
-        result = _run_async(_update_dynamic_card_async(msg_id, head_status_info, links, is_last_update))
+        result = _run_async(_update_dynamic_card_async(msg_id, head_status_info, links,
+                                                        is_last_update, chat_id))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})

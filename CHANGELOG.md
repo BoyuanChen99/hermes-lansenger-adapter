@@ -11,21 +11,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Group chat policy**: open/allowlist/disabled with per-group overrides. Each group supports `enabled`, `require_mention`, `auto_mention_reply`, `auto_quote_reply`, and `allow_from` (sender ID whitelist). Five-step decision priority: group-level config > global config > defaults.
 - **Auto @mention reply (`auto_mention_reply`)**: Automatically @mention the sender in group replies. Respects `fromType` field: `0` (user) → `reminder.userIds`, `1` (app/bot) → `reminder.botIds`.
 - **Auto quote reply (`auto_quote_reply`)**: Automatically include `refMsgId` referencing the inbound message. Works in both group chats and DMs.
-- **`lansenger-setup` skill**: Teaches the Agent how to configure the Lansenger plugin — finding group IDs, staff IDs, and applying group policies without calling unavailable APIs.
-- **FormatText inbound parsing**: Correctly parses WS events with `msgType=format` (Markdown messages from OpenClaw and other bots). Reads from `msgData.format.text`.
+- **Tools expose `reminder_bot_ids` and `ref_msg_id`**: `lansenger_send_text` and `lansenger_send_markdown` now accept `reminder_bot_ids` (for @mentioning bots) and `ref_msg_id` (for quoting/reply). Adapter `send_text` and `send_text_with_media` also support `ref_msg_id`.
+- **`lansenger-setup` skill**: Teaches the Agent how to configure the Lansenger plugin — finding group IDs, staff IDs, and applying group policies.
+- **FormatText inbound parsing**: Correctly parses WS events with `msgType=format` (Markdown messages from OpenClaw and other bots).
 - **Multi-profile support**: Token, chat_type, and owner files now respect `HERMES_HOME` env var, enabling multiple isolated bot profiles (`hermes profile create`).
+
+### Fixed
+
+- **`update_dynamic_card_status` group/DM routing**: Added `chat_id` parameter through the full chain (tool → handler → adapter) so dynamic appCard status updates can distinguish group vs DM context. `lansenger_update_dynamic_card` tool now accepts optional `chat_id`.
 
 ### Changed
 
 - **YAML native booleans**: All boolean config fields now accept YAML native `true`/`false` (no quotes) in addition to string `"true"`/`"false"` and env vars.
-- **Per-group config fields**: `groups.<id>` now supports `enabled`, `require_mention`, `auto_mention_reply`, `auto_quote_reply`, and `allow_from`.
-- **Private message msgId extraction**: Simplified to `msgData["msgId"]` only; removed nonexistent `messageId` fallback.
-- **fromType caching**: Inbound messages cache `fromType` (0=user, 1=app) per chat for correct `reminder` field routing.
-
-### Infrastructure
-
-- **Sub-plugin expansion supports multiple skill dirs**: `_SKILL_DIRS` changed to list; `_expand_sub_plugins()` loops over all skill directories for auto-install.
-- **Updated all translations**: README and after-install translated to zhHans, zhHant, zhHantHK, and French with new feature docs.
+- **Updated all translations**: README and after-install updated in zhHans, zhHant, zhHantHK, and French with new feature docs.
 
 ## [2.6.15] - 2026-06-22
 

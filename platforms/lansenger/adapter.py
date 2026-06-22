@@ -1068,8 +1068,8 @@ class LansengerAdapter(BasePlatformAdapter):
         """Send typing indicator (not supported by Lansenger)."""
         pass  # Lansenger doesn't support typing indicators
 
-    async def send_text(self, chat_id: str, content: str, reminder: dict = None) -> SendResult:
-        """Send a plain text message, optionally with @mentions.
+    async def send_text(self, chat_id: str, content: str, reminder: dict = None, ref_msg_id: str = None) -> SendResult:
+        """Send a plain text message, optionally with @mentions and reply quote.
         
         Routes to /v1/messages/group/create for group chats,
         /v1/bot/messages/create for private chats.
@@ -1078,8 +1078,9 @@ class LansengerAdapter(BasePlatformAdapter):
             chat_id: Recipient user ID or chat ID
             content: Text content. In group chat, recommended to include @姓名
                      when replying to someone (e.g. "@张三 请查收").
-            reminder: Optional dict with 'all' (bool) and 'userIds' (list) for @mentions.
+            reminder: Optional dict with 'all' (bool), 'userIds' (list), 'botIds' (list) for @mentions.
                       Private chat supports this but it is unnecessary (only one participant).
+            ref_msg_id: Optional msgId to quote/reply to.
         """
         token = await self._get_app_token()
         if not token:
@@ -1099,6 +1100,8 @@ class LansengerAdapter(BasePlatformAdapter):
                     "msgType": "text",
                     "msgData": {"text": text_data},
                 }
+                if ref_msg_id:
+                    payload["refMsgId"] = ref_msg_id
             else:
                 # Private message: use /v1/bot/messages/create
                 url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
@@ -1110,6 +1113,8 @@ class LansengerAdapter(BasePlatformAdapter):
                     "msgType": "text",
                     "msgData": {"text": text_data},
                 }
+                if ref_msg_id:
+                    payload["refMsgId"] = ref_msg_id
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -1531,10 +1536,11 @@ class LansengerAdapter(BasePlatformAdapter):
             return SendResult(success=False, error="No access token")
 
         try:
-            # Build URL with optional user_token for private chat updates
+            # Detect group vs DM for logging and potential future routing
+            is_group = self._is_group_chat(chat_id) if chat_id else None
+            
+            # Build URL: unified endpoint for both group and DM
             url_params = f"app_token={token}"
-            # user_token needed for private chat dynamic updates
-            # For bot messages in groups, user_token is not needed
             url = f"{self._api_gateway_url}{API_ENDPOINTS['message']['dynamic_update']}?{url_params}"
 
             app_card_update: Dict[str, Any] = {
@@ -1560,14 +1566,14 @@ class LansengerAdapter(BasePlatformAdapter):
             if data.get("errCode") != 0:
                 return SendResult(success=False, error=data.get("errMsg"))
 
-            logger.info("[Lansenger] Dynamic card %s updated, isLast=%s", msg_id, is_last_update)
+            logger.info("[Lansenger] Dynamic card %s updated, isLast=%s, group=%s", msg_id, is_last_update, is_group)
             return SendResult(success=True, raw_response=data)
 
         except Exception as e:
             logger.error("[Lansenger] Update dynamic card error: %s", e)
             return SendResult(success=False, error=str(e), retryable=True)
 
-    async def send_text_with_media(self, chat_id: str, content: str, media_type: int, media_ids: List[str], reminder: dict = None) -> SendResult:
+    async def send_text_with_media(self, chat_id: str, content: str, media_type: int, media_ids: List[str], reminder: dict = None, ref_msg_id: str = None) -> SendResult:
         """Send a text message with media attachment (file/image/video), optionally with @mentions.
         
         Args:
@@ -1607,12 +1613,16 @@ class LansengerAdapter(BasePlatformAdapter):
                     "msgType": "text",
                     "msgData": {"text": text_data},
                 }
+                if ref_msg_id:
+                    payload["refMsgId"] = ref_msg_id
             else:
                 payload = {
                     "userIdList": [chat_id],
                     "msgType": "text",
                     "msgData": {"text": text_data},
                 }
+                if ref_msg_id:
+                    payload["refMsgId"] = ref_msg_id
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
@@ -2220,6 +2230,7 @@ class LansengerAdapter(BasePlatformAdapter):
         lang = self._get_lang(chat_id)
 
         try:
+            is_group = self._is_group_chat(chat_id)
             url = f"{self._api_gateway_url}{API_ENDPOINTS['message']['dynamic_update']}?app_token={token}"
 
             # Status text and color based on language
@@ -2258,7 +2269,7 @@ class LansengerAdapter(BasePlatformAdapter):
             if data.get("errCode") != 0:
                 return SendResult(success=False, error=data.get("errMsg"))
 
-            logger.info("[Lansenger] appCard status updated to %s (lang=%s)", status, lang)
+            logger.info("[Lansenger] appCard status updated to %s (lang=%s, group=%s)", status, lang, is_group)
             return SendResult(success=True, raw_response=data)
 
         except Exception as e:

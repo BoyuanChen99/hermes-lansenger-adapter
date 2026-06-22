@@ -111,6 +111,23 @@ LANSENGER_SEND_TEXT = {
                     "Matches the reminder.userIds field in the Lansenger API."
                 ),
             },
+            "reminder_bot_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "List of bot IDs to @mention in a group chat. "
+                    "The API automatically prepends @displayName based on these IDs — "
+                    "do NOT write @name in the text content. "
+                    "Matches the reminder.botIds field in the Lansenger API."
+                ),
+            },
+            "ref_msg_id": {
+                "type": "string",
+                "description": (
+                    "Optional message ID (msgId) to quote/reply to. "
+                    "The quoted message appears above your reply in the Lansenger client."
+                ),
+            },
         },
         "required": ["chat_id", "content"],
     },
@@ -166,6 +183,23 @@ LANSENGER_SEND_MARKDOWN = {
                     "The API automatically prepends @displayName based on these IDs — "
                     "do NOT write @name in the text content. "
                     "Older Lansenger versions silently accept this without triggering notification."
+                ),
+            },
+            "reminder_bot_ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "List of bot IDs to @mention in a group chat. "
+                    "The API automatically prepends @displayName based on these IDs — "
+                    "do NOT write @name in the text content. "
+                    "Older Lansenger versions silently accept this without triggering notification."
+                ),
+            },
+            "ref_msg_id": {
+                "type": "string",
+                "description": (
+                    "Optional message ID (msgId) to quote/reply to. "
+                    "The quoted message appears above your reply in the Lansenger client."
                 ),
             },
         },
@@ -535,6 +569,13 @@ LANSENGER_UPDATE_DYNAMIC_CARD = {
             "msg_id": {
                 "type": "string",
                 "description": "The message ID from the original lansenger_send_app_card response (required)",
+            },
+            "chat_id": {
+                "type": "string",
+                "description": (
+                    "Optional chat ID (recipient user ID or group ID) where the card was sent. "
+                    "Used to detect group vs DM routing for the update endpoint."
+                ),
             },
             "head_status_info": {
                 "type": "object",
