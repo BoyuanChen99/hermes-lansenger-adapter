@@ -927,7 +927,7 @@ def lansenger_query_groups(args: dict, **kwargs) -> str:
 
     Returns totalGroupIds (int) and groupIds (list of str).
     """
-    page_offset = args.get("page_offset", 1)
+    page_offset = args.get("page_offset", 0)
     page_size = args.get("page_size", 100)
 
     env_result = _check_env()

@@ -631,8 +631,8 @@ LANSENGER_QUERY_GROUPS = {
         "properties": {
             "page_offset": {
                 "type": "integer",
-                "description": "Page number (default: 1)",
-                "default": 1,
+                "description": "Page number starting from 0 (default: 0)",
+                "default": 0,
             },
             "page_size": {
                 "type": "integer",

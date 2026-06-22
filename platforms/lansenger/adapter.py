@@ -1245,11 +1245,11 @@ class LansengerAdapter(BasePlatformAdapter):
             pass
         return None
 
-    async def query_groups(self, page_offset: int = 1, page_size: int = 100) -> Dict[str, Any]:
+    async def query_groups(self, page_offset: int = 0, page_size: int = 100) -> Dict[str, Any]:
         """Query the bot's group ID list via GET /v2/groups/fetch.
 
         Args:
-            page_offset: Page number (default 1)
+            page_offset: Page number starting from 0 (default 0)
             page_size: Per-page count (max 100, default 100)
 
         Returns:
