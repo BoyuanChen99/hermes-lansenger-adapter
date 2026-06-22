@@ -276,7 +276,9 @@ class LansengerAdapter(BasePlatformAdapter):
                     return
 
                 self._ws_client = None
-                self._mark_disconnected()
+                # Write disconnected status without touching self._running,
+                # otherwise the while loop exits and reconnection never happens.
+                self._write_runtime_status_safe("disconnected", platform_state="disconnected")
                 logger.warning("[Lansenger] WebSocket disconnected, will reconnect")
 
                 delay = RECONNECT_BACKOFF[min(backoff_idx, len(RECONNECT_BACKOFF) - 1)]
@@ -301,7 +303,8 @@ class LansengerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.critical("[Lansenger] _run_ws crashed unexpectedly: %s (type=%s)", e, type(e).__name__)
             self._ws_client = None
-            self._mark_disconnected()
+            # Keep _running=True so _on_ws_task_done can schedule a restart
+            self._write_runtime_status_safe("disconnected", platform_state="disconnected")
 
     def _on_ws_task_done(self, task: asyncio.Task) -> None:
         """Callback when _run_ws task finishes — log crashes and restart if unexpected."""
