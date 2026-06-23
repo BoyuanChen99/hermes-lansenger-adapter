@@ -22,6 +22,7 @@ register(ctx) entry point.  No modifications to core Hermes code are needed.
 """
 
 import asyncio
+import itertools
 import logging
 import json
 import os
@@ -193,6 +194,19 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # Slash command registration state
         self._commands_registered: bool = False
+
+        # Approval state for approveCard button callbacks
+        # approval_id (str) → session_key
+        self._approval_state: Dict[str, str] = {}
+        self._approval_counter = itertools.count(1)
+
+        # Card type tracking for dynamic status updates
+        # msg_id → "approveCard" | "appCard"
+        self._card_type_map: Dict[str, str] = {}
+
+        # Pending approval card tracking: session_key → msg_id
+        # Used to update the card when the user replies /approve or /deny
+        self._pending_approval_msgs: Dict[str, str] = {}
 
     # -- Connection lifecycle -----------------------------------------------
 
@@ -581,7 +595,12 @@ class LansengerAdapter(BasePlatformAdapter):
         # 1. Filter by event type — only handle bot message events
         event_type = event_data.get("type", "")
         if event_type not in ("bot_private_message", "bot_group_message"):
-            logger.info("[Lansenger] Skipping non-message event type: %s", event_type)
+            # Log FULL raw event for unknown types (e.g. approveCard button callbacks)
+            logger.info(
+                "[Lansenger] 🔔 UNKNOWN EVENT type=%s — raw data:\n%s",
+                event_type,
+                json.dumps(event_data, ensure_ascii=False, indent=2),
+            )
             return
 
         is_group = event_type == "bot_group_message"
@@ -591,6 +610,14 @@ class LansengerAdapter(BasePlatformAdapter):
         # 2. Message ID — msgId is carried for both group and private messages
         msg_id = msg_data.get("msgId") or uuid.uuid4().hex
         logger.info("[Lansenger] msg_id=%s (group=%s)", msg_id[:30], is_group)
+
+        # 2a. Log full raw event for approveCard / verifyCard (button-callback observation)
+        if msg_type in ("approveCard", "verifyCard"):
+            logger.info(
+                "[Lansenger] 🎯 %s EVENT — raw data:\n%s",
+                msg_type,
+                json.dumps(event_data, ensure_ascii=False, indent=2),
+            )
 
         if self._dedup.is_duplicate(msg_id):
             logger.debug("[Lansenger] Duplicate message %s, skipping", msg_id)
@@ -738,6 +765,12 @@ class LansengerAdapter(BasePlatformAdapter):
                 return
 
         await self.handle_message(event)
+
+        # ── Post-approval card update ──
+        # If user sent an /approve or /deny command, update the
+        # corresponding card to reflect the resolved status.
+        if text.startswith("/"):
+            await self._maybe_update_approval_card(chat_id, sender_id, text, is_group)
 
     async def _extract_text(self, msg_data: Dict[str, Any]) -> str:
         """Extract text from message, downloading media if needed.
@@ -2040,6 +2073,264 @@ class LansengerAdapter(BasePlatformAdapter):
         description: str = "dangerous command",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
+        """Send an approval card for a dangerous command.
+
+        Tries approveCard first (native buttons + text instructions).
+        Falls back to appCard if approveCard is not supported.
+        """
+        logger.info("[Lansenger] send_exec_approval: chat_id=%s, session=%s", chat_id, session_key[:16])
+
+        # ── Step 1: Try native approveCard ──
+        try:
+            result = await self._send_approve_card(chat_id, command, description, session_key)
+            if result.success:
+                return result
+            logger.info(
+                "[Lansenger] approveCard not supported (%s), falling back to appCard",
+                result.error,
+            )
+        except Exception as exc:
+            logger.info(
+                "[Lansenger] approveCard failed (%s), falling back to appCard",
+                exc,
+            )
+
+        # ── Step 2: Fall back to dynamic appCard ──
+        return await self._send_appcard_approval(chat_id, command, session_key, description)
+
+    # ── approveCard (Phase 1 — button-observation) ────────────────────────
+
+    async def _send_approve_card(
+        self, chat_id: str, command: str, description: str, session_key: str,
+    ) -> SendResult:
+        """Send a native Lansenger approveCard with clickable buttons.
+
+        Encodes ``ea:{choice}:{approval_id}`` in each button's ``callbackInfo``
+        field so Phase 2 can resolve the approval when button-callback data
+        arrives via WebSocket.
+        """
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="No access token")
+
+        lang = self._get_lang(chat_id)
+        approval_id = str(next(self._approval_counter))
+        cmd_preview = command[:500] + "..." if len(command) > 500 else command
+
+        if lang == "zh":
+            head_title = "⚠️ 危险命令审批"
+            body_title = "以下命令需要审批才能执行"
+            body_text = (
+                f"**命令:**\n```\n{cmd_preview}\n```\n\n"
+                "**审批方式:** 点击下方按钮或回复以下命令:\n"
+                "- `/approve` — 批准执行一次\n"
+                "- `/approve session` — 本次会话有效\n"
+                "- `/approve always` — 永久允许\n"
+                "- `/deny` — 拒绝执行"
+            )
+            status_desc = "待审批"
+            fields = [
+                {"key": "风险说明", "value": description},
+                {"key": "会话 ID", "value": session_key[:32]},
+            ]
+            btn_once = "批准一次"
+            btn_session = "本会话有效"
+            btn_always = "永久允许"
+            btn_deny = "拒绝"
+        else:
+            head_title = "⚠️ Command Approval"
+            body_title = "Dangerous Command Approval Request"
+            body_text = (
+                f"**Command:**\n```\n{cmd_preview}\n```\n\n"
+                "**How to approve:** Click a button below or reply:\n"
+                "- `/approve` — Execute once\n"
+                "- `/approve session` — Allow this session\n"
+                "- `/approve always` — Always allow\n"
+                "- `/deny` — Deny"
+            )
+            status_desc = "Pending"
+            fields = [
+                {"key": "Reason", "value": description},
+                {"key": "Session ID", "value": session_key[:32]},
+            ]
+            btn_once = "Allow Once"
+            btn_session = "This Session"
+            btn_always = "Always"
+            btn_deny = "Deny"
+
+        approve_card_data = {
+            "head": {
+                "title": head_title,
+                "headStatus": {
+                    "describe": status_desc,
+                    "statusIcon": 1,
+                    "colour": "#FFB116",
+                },
+            },
+            "body": {
+                "title": body_title,
+                "content": {
+                    "formatType": 1,  # MARK_DOWN
+                    "text": body_text,
+                },
+                "fields": fields,
+            },
+            "buttons": [
+                {
+                    "text": btn_once,
+                    "buttonTheme": 1,  # 主按钮 (蓝底白字)
+                    "state": 0,
+                    "callbackInfo": f"ea:once:{approval_id}",
+                },
+                {
+                    "text": btn_session,
+                    "buttonTheme": 2,  # 次按钮 (白底蓝字)
+                    "state": 0,
+                    "callbackInfo": f"ea:session:{approval_id}:{session_key}",
+                },
+                {
+                    "text": btn_always,
+                    "buttonTheme": 2,  # 次按钮 (白底蓝字)
+                    "state": 0,
+                    "callbackInfo": f"ea:always:{approval_id}:{session_key}",
+                },
+                {
+                    "text": btn_deny,
+                    "buttonTheme": 4,  # 警告按钮 (红色)
+                    "state": 0,
+                    "callbackInfo": f"ea:deny:{approval_id}",
+                },
+            ],
+            "expireTime": 604800,  # 7 days in seconds (max: 30 days = 2592000)
+        }
+
+        is_group = self._is_group_chat(chat_id)
+        if is_group:
+            payload = {
+                "groupId": chat_id,
+                "msgType": "approveCard",
+                "msgData": {"approveCard": approve_card_data},
+            }
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+        else:
+            payload = {
+                "userIdList": [chat_id],
+                "msgType": "approveCard",
+                "msgData": {"approveCard": approve_card_data},
+            }
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+
+        logger.info(
+            "[Lansenger] Sending approveCard (approval_id=%s, group=%s, expireTime=%ss): %s",
+            approval_id, is_group, approve_card_data.get("expireTime"),
+            json.dumps(payload, ensure_ascii=False)[:800],
+        )
+
+        try:
+            response = await self._http_client.post(url, json=payload)
+            response.raise_for_status()
+
+            if not response.text or len(response.text.strip()) == 0:
+                return SendResult(success=False, error="Empty API response")
+
+            data = response.json()
+            err_code = data.get("errCode", -1)
+            if err_code != 0:
+                logger.warning(
+                    "[Lansenger] approveCard API error: errCode=%s, errMsg=%s",
+                    err_code, data.get("errMsg", ""),
+                )
+                return SendResult(success=False, error=data.get("errMsg", f"errCode={err_code}"))
+
+            msg_id = data.get("data", {}).get("msgId")
+            if msg_id:
+                # Store for Phase 2 callback handling
+                self._approval_state[approval_id] = session_key
+                self._card_type_map[msg_id] = "approveCard"  # track for dynamic update
+                self._pending_approval_msgs[session_key] = msg_id
+                logger.info(
+                    "[Lansenger] ✅ approveCard sent — approval_id=%s, msg_id=%s. "
+                    "Buttons: once/session/deny. Waiting for callback via WebSocket...",
+                    approval_id, msg_id,
+                )
+                return SendResult(success=True, message_id=msg_id, raw_response=data)
+            else:
+                return SendResult(success=False, error="No msgId in response")
+
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "[Lansenger] approveCard HTTP %s: %s", exc.response.status_code, exc,
+            )
+            return SendResult(success=False, error=f"HTTP {exc.response.status_code}")
+        except Exception as exc:
+            logger.warning("[Lansenger] approveCard send error: %s", exc)
+            return SendResult(success=False, error=str(exc))
+
+    # ── Post-approval card updater ──────────────────────────────────────
+
+    async def _maybe_update_approval_card(
+        self, chat_id: str, sender_id: str, text: str, is_group: bool,
+    ) -> None:
+        """Update the approval card if *text* is an /approve or /deny command.
+
+        Hermes resolves the approval internally in its slash command handler,
+        but never notifies the adapter to update the card.  This hook fills
+        that gap by checking if a pending approval card exists for this chat.
+        """
+        if not text.startswith("/"):
+            return
+        cmd = text.split()[0].lower().lstrip("/")
+        if cmd not in ("approve", "deny"):
+            return
+
+        # Parse the approval variant from the suffix
+        # /approve           → once
+        # /approve session   → session
+        # /approve always    → always
+        # /deny              → deny
+        if cmd == "deny":
+            choice = "deny"
+        else:
+            suffix = text[len("/approve"):].strip().lower()
+            if suffix in ("always", "permanent", "permanently"):
+                choice = "always"
+            elif suffix in ("session", "ses"):
+                choice = "session"
+            else:
+                choice = "once"
+
+        # Reconstruct session_key matching Hermes's build_session_key() format
+        chat_type = "group" if is_group else "dm"
+        if is_group:
+            session_key = f"agent:main:lansenger:{chat_type}:{chat_id}:{sender_id}"
+        else:
+            session_key = f"agent:main:lansenger:{chat_type}:{chat_id}"
+
+        msg_id = self._pending_approval_msgs.get(session_key)
+        if not msg_id:
+            logger.debug(
+                "[Lansenger] No pending approval msg for session=%s (cmd=%s) — skipping card update",
+                session_key[:60], cmd,
+            )
+            return
+
+        logger.info(
+            "[Lansenger] Updating approval card after /%s (choice=%s): msg_id=%s, session=%s",
+            cmd, choice, msg_id, session_key[:60],
+        )
+        result = await self.update_approval_status(chat_id, msg_id, "approved" if cmd == "approve" else "denied", choice)
+        if result.success:
+            self._pending_approval_msgs.pop(session_key, None)
+        else:
+            logger.warning(
+                "[Lansenger] Failed to update approval card: %s", result.error,
+            )
+
+    # ── appCard fallback (text-based /approve) ────────────────────────────
+
+    async def _send_appcard_approval(
+        self, chat_id: str, command: str, session_key: str, description: str,
+    ) -> SendResult:
         """Send a dynamic appCard approval card with isDynamic=True.
 
         NOTE: This uses appCard (not i18nAppCard).  appCard supports
@@ -2055,21 +2346,7 @@ class LansengerAdapter(BasePlatformAdapter):
         or /deny, the gateway intercepts those text replies and calls
         update_approval_status(), which uses the dynamic update API to
         change the card status in-place (待审批 → 已批准/已拒绝).
-
-        Args:
-            chat_id: Recipient user ID
-            command: The command to approve
-            session_key: Session identifier for approval resolution
-            description: Reason for approval request
-            metadata: Optional metadata (not used currently)
-
-        Returns:
-            SendResult with message_id for later status updates
         """
-        logger.info("[Lansenger] send_exec_approval called for chat_id=%s", chat_id)
-        token = await self._get_app_token()
-        if not token:
-            return SendResult(success=False, error="No access token")
 
         lang = self._get_lang(chat_id)
         cmd_preview = command[:300] + "..." if len(command) > 300 else command
@@ -2141,6 +2418,8 @@ class LansengerAdapter(BasePlatformAdapter):
                 return SendResult(success=False, error=data.get("errMsg"))
 
             msg_id = data.get("data", {}).get("msgId")
+            self._card_type_map[msg_id] = "appCard"
+            self._pending_approval_msgs[session_key] = msg_id
             logger.info("[Lansenger] appCard approval sent to %s, msgId=%s, lang=%s", chat_id, msg_id, lang)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
 
@@ -2271,71 +2550,105 @@ class LansengerAdapter(BasePlatformAdapter):
 
     async def update_approval_status(
         self, chat_id: str, message_id: str,
-        status: str, user_name: str = ""
+        status: str, choice: str = "",
     ) -> SendResult:
-        """Update a dynamic appCard message status in-place.
+        """Update a dynamic approval card status in-place.
 
-        NOTE: This uses the DynamicMsg appCard update API (appCardUpdateMsg),
-        not i18nAppCard.  i18nAppCard does not support dynamic updates.
+        Supports both approveCard (via ``approveCardUpdateMsg``) and
+        appCard (via ``appCardUpdateMsg``).  Card type is auto-detected
+        from the internal ``_card_type_map``; defaults to appCard mode
+        for backwards compatibility.
 
-        Uses the user's cached language preference for status text.
+        When *choice* is provided (``once``/``session``/``always``/``deny``),
+        the card's buttons are replaced with a single greyed-out button
+        showing the chosen action (e.g. "已允许执行一次" / "已拒绝执行").
 
         Args:
             chat_id: Recipient user ID (used to determine language)
-            message_id: The message ID of the original appCard to update
+            message_id: The message ID of the original card to update
             status: One of 'pending', 'approved', 'denied'
-            user_name: Name of user who made the decision (shown in status)
-
-        Returns:
-            SendResult with success status
+            choice: Optional — 'once', 'session', 'always', 'deny'
         """
         token = await self._get_app_token()
         if not token:
             return SendResult(success=False, error="No access token")
 
+        card_type = self._card_type_map.get(message_id, "appCard")
         lang = self._get_lang(chat_id)
 
         try:
-            is_group = self._is_group_chat(chat_id)
             url = f"{self._api_gateway_url}{API_ENDPOINTS['message']['dynamic_update']}?app_token={token}"
 
-            # Status text and color based on language
-            status_map = {
-                "pending":  {"zh": "待审批",       "en": "Pending",   "color": "#FFB116"},
-                "approved": {"zh": f"已批准 · {user_name}" if user_name else "已批准",
-                             "en": f"Approved · {user_name}" if user_name else "Approved",
-                             "color": "#198754"},
-                "denied":   {"zh": f"已拒绝 · {user_name}" if user_name else "已拒绝",
-                             "en": f"Denied · {user_name}" if user_name else "Denied",
-                             "color": "#dc3545"},
-            }
+            # Status label (short, fits in header)
+            if lang == "zh":
+                status_text = {"pending": "待审批", "approved": "已批准", "denied": "已拒绝"}.get(status, "待审批")
+            else:
+                status_text = {"pending": "Pending", "approved": "Approved", "denied": "Denied"}.get(status, "Pending")
+            status_color = {"pending": "#FFB116", "approved": "#198754", "denied": "#dc3545"}.get(status, "#FFB116")
+            is_final = status != "pending"
 
-            cfg = status_map.get(status, status_map["pending"])
-            text = cfg.get(lang, cfg["en"])
+            if card_type == "approveCard":
+                # Build language-specific result button text
+                choice_labels: Dict[str, Dict[str, str]] = {
+                    "once":    {"zh": "已允许执行一次", "en": "Allowed once"},
+                    "session": {"zh": "已允许本会话有效", "en": "Allowed this session"},
+                    "always":  {"zh": "已永久允许", "en": "Allowed permanently"},
+                    "deny":    {"zh": "已拒绝执行", "en": "Denied"},
+                }
+                buttons = []
+                if choice and is_final:
+                    label = choice_labels.get(choice, {}).get(lang, choice_labels.get(choice, {}).get("en", choice))
+                    buttons = [{
+                        "text": label,
+                        "buttonTheme": 3,  # 次按钮 (白底黑字)
+                        "state": 1,        # 禁用
+                    }]
 
-            # appCardUpdateMsg — dynamic update payload
-            payload = {
-                "msgId": message_id,
-                "msgType": "appCard",
-                "msgData": {
-                    "appCardUpdateMsg": {
-                        "isLastUpdate": (status != "pending"),  # Final state locks the card
-                        "headStatusInfo": {
-                            "description": self._build_status_div(text, cfg["color"]),
-                            "colour": cfg["color"],
-                        },
+                payload = {
+                    "msgId": message_id,
+                    "msgType": "approveCard",
+                    "msgData": {
+                        "approveCardUpdateMsg": {
+                            "headStatus": {
+                                "describe": status_text,
+                                "statusIcon": 1,
+                                "colour": status_color,
+                            },
+                            "buttons": buttons,
+                        }
                     }
                 }
-            }
+            else:
+                # appCardUpdateMsg — dynamic update for appCard (legacy)
+                payload = {
+                    "msgId": message_id,
+                    "msgType": "appCard",
+                    "msgData": {
+                        "appCardUpdateMsg": {
+                            "isLastUpdate": is_final,
+                            "headStatusInfo": {
+                                "description": self._build_status_div(status_text, status_color),
+                                "colour": status_color,
+                            },
+                        }
+                    }
+                }
 
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
 
             if data.get("errCode") != 0:
+                logger.warning(
+                    "[Lansenger] Update card status failed (type=%s): errCode=%s, errMsg=%s",
+                    card_type, data.get("errCode"), data.get("errMsg"),
+                )
                 return SendResult(success=False, error=data.get("errMsg"))
 
-            logger.info("[Lansenger] appCard status updated to %s (lang=%s, group=%s)", status, lang, is_group)
+            logger.info(
+                "[Lansenger] Card status updated to %s (type=%s, lang=%s, choice=%s)",
+                status, card_type, lang, choice or "-",
+            )
             return SendResult(success=True, raw_response=data)
 
         except Exception as e:

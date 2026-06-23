@@ -18,7 +18,7 @@ This repo contains **two plugins**:
 ### Platform Adapter
 - **Real-time messaging** via WebSocket long-connection (built-in ping/pong)
 - **Markdown support** using `formatText` msgType (with optional @mentions, newer API)
-- **Approval cards** — appCard with dynamic in-place status updates after approval/rejection
+- **Approval cards** — appCard / approveCard with dynamic in-place status updates after approval/rejection
 - **Home channel auto-detection** — first p2p message sets the default delivery target
 - **Chat type persistence** — inbound chat_id→group/dm map persisted for cross-process routing
 - **Cron delivery** — scheduled notifications via `standalone_sender_fn`

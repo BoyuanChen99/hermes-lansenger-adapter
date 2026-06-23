@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.8.1] - 2026-06-23
+
+### New Features
+
+- **approveCard support**: Native Lansenger approveCard with 4 clickable buttons (Allow Once / Session / Always / Deny) for dangerous command approval. Falls back to appCard when the API does not support approveCard.
+- **Card status update on /approve**: Approval cards are automatically updated in-place when the user replies `/approve`, `/approve session`, `/approve always`, or `/deny`. Status bar changes to "Approved"/"Denied" and buttons are replaced with a single greyed-out choice label (e.g. "Allowed once").
+- **Built-in command registration**: Hermes's 53 built-in gateway commands (e.g. `/approve`, `/status`, `/help`) are now auto-registered alongside plugin commands. CLI-only commands are filtered out; gateway-only commands default to owner-scoped visibility.
+- **Multi-language descriptions**: 40+ command descriptions now include `description_i18n` with zhHans/zhHant/zhHantHK/en/fr translations, matching Lansenger's native i18n support.
+
+### Changed
+
+- `approveCard` is tried first in `send_exec_approval`; falls back to appCard on failure.
+- `update_approval_status` now supports both `approveCardUpdateMsg` and `appCardUpdateMsg` based on the card type.
+
 ## [2.8.0] - 2026-06-23
 
 ### New Features

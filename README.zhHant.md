@@ -18,7 +18,7 @@
 ### 平台轉接器
 - **即時訊息傳遞**——透過 WebSocket 長連線（內建 ping/pong）
 - **Markdown 支援**——使用 `formatText` msgType（可選 @提及，新版 API）
-- **審批卡片**——appCard 支援審批後原地更新卡片狀態
+- **審批卡片**——appCard / approveCard 支援審批後原地更新卡片狀態
 - **首頁通道自動偵測**——第一條私聊訊息自動設定為預設傳送目標
 - **聊天類型持久化**——入站 chat_id→群/私聊映射持久化，跨進程群路由
 - **定時傳送**——透過 `standalone_sender_fn` 傳送排程通知

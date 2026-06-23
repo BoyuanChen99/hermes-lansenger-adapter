@@ -18,7 +18,7 @@
 ### 平台适配器
 - **实时消息** — 通过 WebSocket 长连接实现（内置 ping/pong）
 - **Markdown 支持** — 使用 `formatText` 消息类型（可选 @提及，新版 API）
-- **审批卡片** — appCard 支持审批后原地更新卡片状态
+- **审批卡片** — appCard / approveCard 支持审批后原地更新卡片状态
 - **主通道自动检测** — 首条私聊消息设置默认发送目标
 - **聊天类型持久化** — 入站 chat_id→群/私聊映射持久化，跨进程群路由
 - **定时推送** — 通过 `standalone_sender_fn` 实现计划通知

@@ -18,7 +18,7 @@ Ce dépôt contient **deux plugins** :
 ### Adaptateur de plateforme
 - **Messagerie en temps réel** via connexion longue WebSocket (ping/pong intégré)
 - **Support Markdown** utilisant le msgType `formatText` (avec @mentions optionnelles, API plus récente)
-- **Cartes d’approbation** — appCard avec mises à jour de statut en place après approbation/rejet
+- **Cartes d'approbation** — appCard / approveCard avec mises à jour de statut en place après approbation/rejet
 - **Détection automatique du canal principal** — le premier message p2p définit la cible de livraison par défaut
 - **Persistance du type de chat** — map chat_id→groupe/dm entrante persistée pour le routage inter-processus
 - **Livraison planifiée** — notifications planifiées via `standalone_sender_fn`
