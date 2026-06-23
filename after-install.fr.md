@@ -112,6 +112,52 @@ Lorsqu'il est activé, les réponses de groupe mentionnent automatiquement l'exp
 
 Lorsqu'il est activé, les réponses incluent automatiquement `refMsgId` faisant référence au message entrant. Fonctionne dans les groupes et les discussions privées.
 
+## Commandes Slash
+
+Au démarrage, l'adaptateur enregistre automatiquement toutes les commandes slash intégrées et plugins d'Hermes (ex. `/help`, `/status`, `/approve`) dans l'API Bot Lansenger. Les commandes apparaissent dans la barre de saisie du chat Lansenger.
+
+### Désactiver l'enregistrement automatique
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      commands:
+        native: false   # désactiver par profile
+```
+
+Ou via variable d'env : `LANSENGER_SLASH_COMMANDS_NATIVE=0`
+
+### Permissions des commandes
+
+Contrôlez quels chats peuvent voir chaque commande :
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      command_permissions:
+        approve: owner       # propriétaire uniquement
+        status: everyone     # tous les chats (défaut)
+        restart: disabled    # exclure cette commande
+```
+
+| Permission | Portée |
+|-----------|--------|
+| `owner` | Chat privé du propriétaire |
+| `admin` | Propriétaire + admins de groupe |
+| `everyone` | Propriétaire + tous les groupes (défaut) |
+| `disabled` | Commande exclue |
+
+## Approbation des Commandes Dangereuses
+
+Quand Hermes détecte une commande dangereuse (ex. `rm -rf`, `curl | sh`, `chmod 777`), il suspend l'exécution et envoie une **approveCard** avec des boutons cliquables. Approuvez ou refusez directement :
+
+- En cliquant sur les boutons de la carte
+- En répondant `/approve`, `/approve session`, `/approve always`, ou `/deny`
+
+La carte se met à jour sur place pour afficher la décision (ex. « Allowed once »). Bascule automatiquement vers appCard si le serveur ne supporte pas approveCard.
+
 ## Multi-espace de travail (Profiles)
 
 Hermes prend en charge plusieurs espaces de travail isolés via les Profiles :

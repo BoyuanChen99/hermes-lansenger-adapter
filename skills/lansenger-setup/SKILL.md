@@ -1,9 +1,9 @@
 ---
 name: lansenger-setup
-description: Guide for first-time Lansenger (蓝信) bot credential binding, DM pairing, and Hermes plugin configuration — for scenarios where the user wants to set up or reconfigure Lansenger from scratch via conversation.
-version: 1.1.1
+description: Guide for first-time Lansenger (蓝信) bot credential binding, DM pairing, Hermes plugin configuration, slash command management, and dangerous command approval — for scenarios where the user wants to set up or reconfigure Lansenger from scratch via conversation.
+version: 1.2.0
 category: lansenger
-tags: [lansenger, setup, configuration]
+tags: [lansenger, setup, configuration, slash-commands, approval]
 ---
 
 # Lansenger (蓝信) Hermes 配置指南
@@ -300,6 +300,67 @@ hermes -p bot-test gateway start
 ```
 
 每个 profile 完全隔离：不同 config、session、memory、skills、日志。所有数据文件（token、chat_type、owner）都会写入对应 profile 的自有目录。
+
+---
+
+---
+
+## 斜杠命令自动注册
+
+适配器启动时会自动将所有 Hermes 内置命令和插件命令注册到蓝信 Bot API，用户可在聊天输入栏中看到并选择使用。
+
+### 开关控制
+
+如需关闭自动注册（如企业私有部署 API 不支持），可配置：
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      commands:
+        native: false   # 关闭斜杠命令自动注册
+```
+
+或环境变量：`LANSENGER_SLASH_COMMANDS_NATIVE=0`
+
+优先级：per-platform config > 环境变量 > 默认 true
+
+### 命令权限
+
+控制不同聊天中可见的命令：
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      command_permissions:
+        approve: owner       # 仅主人私聊可见
+        status: everyone     # 所有聊天可见（默认值）
+        restart: disabled    # 完全排除此命令
+```
+
+| 权限值 | 生效范围 |
+|--------|----------|
+| `owner` | 仅主人私聊（scopeType=1） |
+| `admin` | 主人私聊 + 所有群管理员（scopeType=1+6） |
+| `everyone` | 主人私聊 + 所有群（scopeType=1+5，默认值） |
+| `disabled` | 命令不注册 |
+
+---
+## 危险命令审批
+
+当 Hermes 检测到危险命令（如 `rm -rf`、`curl | sh`、`chmod 777`），会暂停执行并发送 **approveCard** 审批卡片，包含 4 个可点击按钮：
+
+- **批准一次** — 仅本次执行
+- **本会话有效** — 本次会话内自动批准
+- **永久允许** — 永久不再审批此模式
+- **拒绝** — 拒绝执行
+
+用户也可以直接回复文本命令完成审批：`/approve`、`/approve session`、`/approve always`、`/deny`。
+
+卡片会在审批完成后原地更新状态（如"已允许执行一次"）。如果蓝信服务端不支持 approveCard，会自动降级为 appCard。
+
+> **前提：** Hermes 的 `approvals.mode` 必须设为 `manual`（默认值），且被检测命令不在 `command_allowlist` 中。审批行为由 Hermes 核心控制，适配器仅负责卡片展示。
 
 ---
 

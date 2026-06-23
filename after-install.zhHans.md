@@ -105,6 +105,52 @@ platforms:
 
 启用后，回复自动携带 `refMsgId` 引用原消息。群聊和私聊都支持。
 
+## 斜杠命令
+
+启动时适配器自动将所有 Hermes 内置和插件的斜杠命令（如 `/help`、`/status`、`/approve`）注册到蓝信 Bot API。命令将出现在蓝信聊天输入栏中。
+
+### 关闭自动注册
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      commands:
+        native: false   # 按 profile 禁用斜杠命令注册
+```
+
+或通过环境变量全局关闭：`LANSENGER_SLASH_COMMANDS_NATIVE=0`
+
+### 命令权限
+
+控制哪些聊天可以看见每个命令：
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      command_permissions:
+        approve: owner       # 仅主人可看到
+        status: everyone     # 所有聊天可看到（默认）
+        restart: disabled    # 完全排除此命令
+```
+
+| 权限 | 生效范围 |
+|------|----------|
+| `owner` | 仅主人私聊 |
+| `admin` | 主人私聊 + 所有群管理员 |
+| `everyone` | 主人私聊 + 所有群（默认） |
+| `disabled` | 命令从注册中排除 |
+
+## 危险命令审批
+
+当 Hermes 检测到危险命令（如 `rm -rf`、`curl | sh`、`chmod 777`），会暂停执行并发送一个带有可点击按钮的 **approveCard**。直接通过以下方式批准或拒绝：
+
+- 点击卡片上的按钮
+- 回复 `/approve`、`/approve session`、`/approve always` 或 `/deny`
+
+卡片会原地更新显示决策结果（如"已允许执行一次"）。如果服务端不支持 approveCard 会自动降级为 appCard。
+
 ## 多 Workspace（Profiles）
 
 Hermes 通过 Profiles 支持多 workspace 隔离：

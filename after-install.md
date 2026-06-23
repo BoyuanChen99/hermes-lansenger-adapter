@@ -105,6 +105,52 @@ When enabled, group replies automatically @mention the sender. Uses `fromType` t
 
 When enabled, replies automatically include `refMsgId` referencing the inbound message. Works in both group and private chats.
 
+## Slash Commands
+
+On startup, the adapter automatically registers all Hermes built-in and plugin slash commands (e.g. `/help`, `/status`, `/approve`) to the Lansenger Bot API. Commands appear in the Lansenger chat input bar.
+
+### Disable auto-registration
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      commands:
+        native: false   # per-profile: disable slash command registration
+```
+
+Or globally via env var: `LANSENGER_SLASH_COMMANDS_NATIVE=0`
+
+### Command permissions
+
+Control which chats can see each command:
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      command_permissions:
+        approve: owner       # only bot owner can see
+        status: everyone     # all chats can see (default)
+        restart: disabled    # exclude this command entirely
+```
+
+| Permission | Scope |
+|-----------|-------|
+| `owner` | Owner's private chat only |
+| `admin` | Owner + all group admins |
+| `everyone` | Owner + all groups (default) |
+| `disabled` | Command excluded from registration |
+
+## Dangerous Command Approval
+
+When Hermes detects a dangerous command (e.g. `rm -rf`, `curl | sh`, `chmod 777`), it pauses execution and sends an **approveCard** with clickable buttons. Approve or deny directly by:
+
+- Clicking the buttons on the card
+- Replying `/approve`, `/approve session`, `/approve always`, or `/deny`
+
+The card updates in-place showing the decision (e.g. "Allowed once"). Falls back to appCard automatically if the server does not support approveCard.
+
 ## Multi-Workspace (Profiles)
 
 Hermes supports multiple isolated workspaces via Profiles:
