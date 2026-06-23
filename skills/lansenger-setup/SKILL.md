@@ -1,7 +1,7 @@
 ---
 name: lansenger-setup
 description: Guide for first-time Lansenger (蓝信) bot credential binding, DM pairing, and Hermes plugin configuration — for scenarios where the user wants to set up or reconfigure Lansenger from scratch via conversation.
-version: 1.1.0
+version: 1.1.1
 category: lansenger
 tags: [lansenger, setup, configuration]
 ---
@@ -22,6 +22,13 @@ tags: [lansenger, setup, configuration]
 - `hermes-lansenger-adapter` 插件已安装。
 - 用户必须有一个已创建好的蓝信**个人机器人**。
 - 用户必须能访问**蓝信桌面端**（移动端不支持查看机器人凭证）。
+
+> ⚠️ **私有部署说明**：私有部署的蓝信服务版本各不相同，以下配置项可能并非全部可用：
+> - `auto_mention_reply` / `auto_quote_reply` — 需要较新版本的蓝信服务端支持
+> - `reminder.botIds` — @提及机器人功能需要较新版本
+> - `refMsgId`（引用回复）— 需要服务端支持引用消息
+> - `formatText` 入站解析 — 依赖服务端 WebSocket 推送格式
+> - 如果某个配置项不生效，建议先确认蓝信服务端版本是否支持该功能
 
 ---
 
