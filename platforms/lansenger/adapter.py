@@ -64,6 +64,9 @@ from gateway.platforms.base import (
 
 logger = logging.getLogger(__name__)
 
+# ── Local module imports ───────────────────────────────────────────────────
+from . import commands as _commands
+
 # Constants
 MAX_MESSAGE_LENGTH = 4000
 RECONNECT_BACKOFF = [2, 5, 10, 30, 60]
@@ -110,6 +113,8 @@ class LansengerAdapter(BasePlatformAdapter):
         self._app_id: str = os.getenv("LANSENGER_APP_ID") or extra.get("app_id", "")
         self._app_secret: str = os.getenv("LANSENGER_APP_SECRET") or extra.get("app_secret", "")
         self._api_gateway_url: str = os.getenv("LANSENGER_API_GATEWAY_URL") or extra.get("api_gateway_url") or DEFAULT_API_GATEWAY_URL
+        # Store extra config for commands.py permission lookups
+        self._config_extra: dict = extra
 
         # Home channel from PlatformConfig.home_channel (standard Hermes structure)
         self._home_channel_id: Optional[str] = None
@@ -186,6 +191,9 @@ class LansengerAdapter(BasePlatformAdapter):
         self._chat_last_from_type: Dict[str, str] = {}
         self._chat_last_msg_id: Dict[str, str] = {}
 
+        # Slash command registration state
+        self._commands_registered: bool = False
+
     # -- Connection lifecycle -----------------------------------------------
 
     async def connect(self) -> bool:
@@ -207,6 +215,10 @@ class LansengerAdapter(BasePlatformAdapter):
             self._ws_task = asyncio.create_task(self._run_ws(ws_url))
             self._ws_task.add_done_callback(self._on_ws_task_done)
             logger.info("[Lansenger] WebSocket task created")
+
+            # Schedule command registration after token is available
+            asyncio.create_task(self._register_commands_after_connect())
+
             return True
         except Exception as e:
             logger.error("[Lansenger] Failed to connect: %s", e)
@@ -376,6 +388,14 @@ class LansengerAdapter(BasePlatformAdapter):
         self._running = False
         self._mark_disconnected()
 
+        # Clean up registered slash commands
+        if self._commands_registered:
+            try:
+                await _commands.delete_all_commands(self)
+            except Exception as exc:
+                logger.warning("[Lansenger] Failed to clean up commands: %s", exc)
+            self._commands_registered = False
+
         if self._ws_task:
             self._ws_task.cancel()
             try:
@@ -504,6 +524,35 @@ class LansengerAdapter(BasePlatformAdapter):
             )
         except Exception as e:
             logger.warning("[Lansenger] Auto-sethome failed (non-critical): %s", e)
+
+    async def _register_commands_after_connect(self) -> None:
+        """Register slash commands after connection is established.
+
+        Called as a background task from connect(). Retries once per
+        reconnection — the _commands_registered flag prevents duplicate
+        registrations across reconnect cycles.
+        """
+        if self._commands_registered:
+            return
+
+        if not _commands._native_commands_enabled(self._config_extra):
+            logger.info("[Lansenger] Native slash commands disabled, skipping")
+            self._commands_registered = True  # mark as done to skip retries
+            return
+
+        try:
+            # Wait briefly for owner_id to be loaded from disk
+            await asyncio.sleep(1.0)
+            success = await _commands.register_all_commands(self)
+            if success:
+                self._commands_registered = True
+            else:
+                logger.info(
+                    "[Lansenger] Command registration deferred — will retry "
+                    "when owner is detected"
+                )
+        except Exception as exc:
+            logger.warning("[Lansenger] Command registration failed: %s", exc)
 
     async def _on_message(self, raw_message: str) -> None:
         """Process an incoming Lansenger message."""
@@ -635,6 +684,13 @@ class LansengerAdapter(BasePlatformAdapter):
             self._save_owner_id()
             logger.info("[Lansenger] Recorded owner ID from first message: %s", sender_id)
 
+            # Retry command registration now that owner is known
+            if not self._commands_registered:
+                try:
+                    asyncio.create_task(self._register_commands_after_connect())
+                except Exception:
+                    pass
+
         # 11. Auto-sethome: designate the first DM as home channel.
         if not is_group:
             await self._auto_sethome(chat_id)
@@ -671,6 +727,16 @@ class LansengerAdapter(BasePlatformAdapter):
         logger.debug("[Lansenger] Message from %s in %s(%s): %s",
                      source.user_name, source.chat_type,
                      chat_id[:20] if chat_id else "?", text[:80])
+
+        # ── Slash command dispatch ──
+        if text.startswith("/"):
+            reply = await _commands.dispatch_slash_command(
+                self, text, chat_id, sender_id, is_group,
+            )
+            if reply is not None:
+                await self.send(chat_id, reply)
+                return
+
         await self.handle_message(event)
 
     async def _extract_text(self, msg_data: Dict[str, Any]) -> str:

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.8.0] - 2026-06-23
+
+### New Features
+
+- **Slash Command auto-registration**: Automatically registers all Hermes plugin slash commands with the Lansenger Bot API on startup. Commands are grouped by permission level (`owner`/`admin`/`everyone`) and registered with appropriate Lansenger `scopeType` values. Cleanup is performed on disconnect.
+- **Permission-based command visibility**: Three-tier permission model configurable via `config.yaml` `extra.command_permissions`. `owner` — only in bot owner's private chat; `admin` — owner + all group admins; `everyone` — owner + all groups. Default is `everyone`.
+- **Slash command dispatch**: Incoming messages starting with `/` are matched against registered plugin commands and dispatched directly to their handlers, bypassing the LLM. Permission checks are enforced at execution time.
+- **New module `platforms/lansenger/commands.py`**: Contains `register_all_commands()`, `delete_all_commands()`, `dispatch_slash_command()`, `resolve_command_permissions()`, and `build_command_payloads()`.
+
 ## [2.7.1] - 2026-06-22
 
 ### Fixed
