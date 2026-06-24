@@ -124,6 +124,7 @@ class LansengerAdapter(BasePlatformAdapter):
 
         self._ws_client: Optional[Any] = None
         self._ws_task: Optional[asyncio.Task] = None
+        self._watchdog_task: Optional[asyncio.Task] = None
         self._http_client: Optional["httpx.AsyncClient"] = None
         self._ws_url: Optional[str] = None
         self._ws_ping_interval: int = 50
@@ -230,6 +231,10 @@ class LansengerAdapter(BasePlatformAdapter):
             self._ws_task.add_done_callback(self._on_ws_task_done)
             logger.info("[Lansenger] WebSocket task created")
 
+            # Watchdog: periodically check WS task health and restart if dead
+            self._watchdog_task = asyncio.create_task(self._ws_watchdog())
+            logger.info("[Lansenger] Watchdog task created")
+
             # Schedule command registration after token is available
             asyncio.create_task(self._register_commands_after_connect())
 
@@ -313,8 +318,17 @@ class LansengerAdapter(BasePlatformAdapter):
                             logger.info("[Lansenger] WebSocket connected (ping_interval=%ds, ping_timeout=%ds)",
                                         ping_interval, ping_timeout)
 
-                            async for message in ws:
-                                await self._on_message(message)
+                            # Application-layer keepalive to detect CLOSE_WAIT zombies
+                            keepalive_task = asyncio.create_task(self._ws_keepalive(ws))
+                            try:
+                                async for message in ws:
+                                    await self._on_message(message)
+                            finally:
+                                keepalive_task.cancel()
+                                try:
+                                    await keepalive_task
+                                except asyncio.CancelledError:
+                                    pass
                     except websockets.exceptions.ConnectionClosedOK as e:
                         logger.info("[Lansenger] WebSocket closed normally by server (code=%d)", e.code)
                 except asyncio.CancelledError:
@@ -341,10 +355,11 @@ class LansengerAdapter(BasePlatformAdapter):
 
                 delay = RECONNECT_BACKOFF[min(backoff_idx, len(RECONNECT_BACKOFF) - 1)]
                 logger.info("[Lansenger] Reconnecting in %ds (attempt %d)...", delay, backoff_idx + 1)
-                await asyncio.sleep(delay)
-                backoff_idx += 1
 
                 try:
+                    await asyncio.sleep(delay)
+                    backoff_idx += 1
+
                     # Recreate httpx client to avoid stale connection pool zombies
                     await self._recreate_http_client()
                     new_url = await self._get_websocket_url()
@@ -354,6 +369,15 @@ class LansengerAdapter(BasePlatformAdapter):
                         logger.info("[Lansenger] Will reconnect with new WebSocket URL")
                     else:
                         logger.error("[Lansenger] Failed to get new ticket, cannot reconnect — retrying next cycle")
+                except RuntimeError as e:
+                    msg = str(e)
+                    if "Event loop" in msg or "no running event loop" in msg.lower():
+                        logger.critical("[Lansenger] Event loop closed — cannot reconnect, adapter is permanently dead (%s)", e)
+                        self._write_runtime_status_safe("fatal", platform_state="fatal",
+                                                         error_code="EVENT_LOOP_CLOSED",
+                                                         error_message=msg)
+                        return
+                    raise
                 except Exception as e:
                     logger.error("[Lansenger] Error getting new ticket: %s (type=%s) — retrying next cycle", e, type(e).__name__)
         except asyncio.CancelledError:
@@ -374,7 +398,13 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.critical("[Lansenger] WebSocket task died with unhandled exception: %s (type=%s)", exc, type(exc).__name__)
         if self._running:
             logger.warning("[Lansenger] WebSocket task ended while _running=True — scheduling restart in 30s")
-            asyncio.get_running_loop().call_later(30, self._restart_ws_task)
+            try:
+                asyncio.get_running_loop().call_later(30, self._restart_ws_task)
+            except RuntimeError as e:
+                logger.critical("[Lansenger] Cannot schedule WS restart — event loop not available: %s", e)
+                self._write_runtime_status_safe("fatal", platform_state="fatal",
+                                                 error_code="EVENT_LOOP_CLOSED",
+                                                 error_message=str(e))
 
     def _restart_ws_task(self) -> None:
         """Restart the WebSocket task after an unexpected death — fetches fresh ticket."""
@@ -397,6 +427,68 @@ class LansengerAdapter(BasePlatformAdapter):
 
         asyncio.create_task(_restart_with_fresh_ticket())
 
+    async def _ws_keepalive(self, ws, interval: int = 120) -> None:
+        """Application-layer heartbeat to detect CLOSE_WAIT zombie connections.
+
+        The websockets library's TCP-level ping/pong only checks TCP liveness.
+        If the remote server closes the connection but the OS socket lingers in
+        CLOSE_WAIT, ``async for message in ws`` blocks forever and the lib's
+        ping/pong won't fire.  This task periodically sends a lightweight custom
+        ping through the WS to detect true end-to-end reachability.
+
+        A send() timeout or exception means the socket is dead — we close the WS
+        so the outer reconnect loop in _run_ws can kick in.
+        """
+        try:
+            while self._running:
+                await asyncio.sleep(interval)
+                if not self._running or ws is None:
+                    return
+                try:
+                    await asyncio.wait_for(
+                        ws.send(json.dumps({"type": "ping"})),
+                        timeout=10,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("[Lansenger] Keepalive ping timed out — closing WS for reconnect")
+                    await ws.close()
+                    return
+                except Exception as e:
+                    logger.warning("[Lansenger] Keepalive send failed: %s — closing WS for reconnect", e)
+                    try:
+                        await ws.close()
+                    except Exception:
+                        pass
+                    return
+        except asyncio.CancelledError:
+            pass
+
+    async def _ws_watchdog(self, interval: int = 60) -> None:
+        """Periodically check WS task health and restart if dead.
+
+        This is a safety net for cases where _on_ws_task_done fails to
+        schedule a restart (e.g. event loop closed, callback exception).
+        """
+        try:
+            while self._running:
+                await asyncio.sleep(interval)
+                if not self._running:
+                    return
+                if self._ws_task is None or self._ws_task.done():
+                    logger.warning("[Lansenger] Watchdog: WS task dead while _running=True, restarting")
+                    try:
+                        self._restart_ws_task()
+                    except RuntimeError as e:
+                        logger.critical("[Lansenger] Watchdog: cannot restart WS — event loop not available: %s", e)
+                        self._write_runtime_status_safe("fatal", platform_state="fatal",
+                                                         error_code="EVENT_LOOP_CLOSED",
+                                                         error_message=str(e))
+                        return
+        except asyncio.CancelledError:
+            logger.info("[Lansenger] Watchdog cancelled")
+        except RuntimeError as e:
+            logger.critical("[Lansenger] Watchdog: event loop unavailable: %s", e)
+
     async def disconnect(self) -> None:
         """Disconnect from Lansenger."""
         self._running = False
@@ -417,6 +509,14 @@ class LansengerAdapter(BasePlatformAdapter):
             except asyncio.CancelledError:
                 pass
             self._ws_task = None
+
+        if self._watchdog_task:
+            self._watchdog_task.cancel()
+            try:
+                await self._watchdog_task
+            except asyncio.CancelledError:
+                pass
+            self._watchdog_task = None
 
         if self._http_client:
             await self._http_client.aclose()
@@ -953,6 +1053,13 @@ class LansengerAdapter(BasePlatformAdapter):
 
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(timeout=30.0)
+
+        # Check event loop is alive before making HTTP calls
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError as e:
+            logger.error("[Lansenger] Cannot refresh token — event loop not available: %s", e)
+            return None
 
         try:
             url = f"{self._api_gateway_url}/v1/apptoken/create"

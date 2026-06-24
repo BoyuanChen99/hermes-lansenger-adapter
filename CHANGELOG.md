@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.8.2] - 2026-06-24
+
+### Fixed
+
+- **CLOSE_WAIT zombie connection detection**: When the Lansenger server closes the WS connection but the OS socket lingers in CLOSE_WAIT, `async for message in ws` blocks forever and the adapter never triggers reconnect. Added application-layer keepalive (`_ws_keepalive`) that sends a custom ping every 120s via the WS; if `send()` hangs or throws (dead socket), the WS is forcibly closed to trigger the reconnect loop. Plus a watchdog task (`_ws_watchdog`, every 60s) that restarts the WS task if it dies unexpectedly. Both complement the websockets library's TCP-level ping/pong.
+- **Event loop closed crash protection**: Added RuntimeError guards in `_run_ws` (reconnect block), `_on_ws_task_done` (restart scheduling), and `_get_app_token` (HTTP pre-check) to prevent unhandled crashes when the asyncio event loop is closed — the adapter now logs a fatal status and exits cleanly instead of dying silently.
+
 ## [2.8.1] - 2026-06-23
 
 ### New Features
