@@ -167,7 +167,7 @@ class LansengerAdapter(BasePlatformAdapter):
         self._group_policy: str = _group_policy if _group_policy in ("open", "allowlist", "disabled") else "open"
 
         _group_allow_from = os.getenv("LANSENGER_GROUP_ALLOW_FROM") or extra.get("group_allow_from", "")
-        self._group_allow_from: List[str] = [g.strip() for g in _group_allow_from.split(",") if g.strip()] if _group_allow_from else []
+        self._group_allow_senders: List[str] = [g.strip() for g in _group_allow_from.split(",") if g.strip()] if _group_allow_from else []
 
         _require_mention = os.getenv("LANSENGER_REQUIRE_MENTION") or extra.get("require_mention", "true")
         self._require_mention: bool = str(_require_mention).lower() in ("true", "1", "yes")
@@ -756,18 +756,13 @@ class LansengerAdapter(BasePlatformAdapter):
                         [b.get("botName", "?") for b in mentioned_bots] if isinstance(mentioned_bots, list) else "?",
                         len(mentioned_staffs) if isinstance(mentioned_staffs, list) else "?")
 
-            # Strip trailing @botName so slash commands work correctly
-            # Lansenger appends "@botName" to the end of group messages.
+            # Remember our bot's @name for slash-command detection later
+            _our_bot_name: Optional[str] = None
             if is_at_me and self_bot_id:
-                our_bot_name: Optional[str] = None
                 for bot in mentioned_bots:
                     if isinstance(bot, dict) and bot.get("botId") == self_bot_id:
-                        our_bot_name = bot.get("botName")
+                        _our_bot_name = bot.get("botName")
                         break
-                if our_bot_name:
-                    at_name = f"@{our_bot_name}"
-                    if text.endswith(at_name):
-                        text = text[:-len(at_name)].strip()
         else:
             chat_id = sender_id
             chat_name = msg_data.get("conversationTitle", "")
@@ -779,9 +774,9 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # 6. Group chat entry policy check (per-group > global)
         if is_group:
-            if self._check_group_policy(chat_id, sender_id, is_at_me):
-                logger.info("[Lansenger] Group policy BLOCKED: chat=%s sender=%s is_at_me=%s group_policy=%s require_mention=%s",
-                            chat_id[:20], sender_id[:20], is_at_me, self._group_policy, self._require_mention)
+            if self._check_group_policy(chat_id, sender_id, is_at_me, is_at_all):
+                logger.info("[Lansenger] Group policy BLOCKED: chat=%s sender=%s is_at_me=%s is_at_all=%s group_policy=%s require_mention=%s",
+                            chat_id[:20], sender_id[:20], is_at_me, is_at_all, self._group_policy, self._require_mention)
                 return
 
         # 7. Parse quoted message (referenceMsg) if present
@@ -856,9 +851,17 @@ class LansengerAdapter(BasePlatformAdapter):
                      chat_id[:20] if chat_id else "?", text[:80])
 
         # ── Slash command dispatch ──
-        if text.startswith("/"):
+        # For slash commands, strip trailing @botName first (Lansenger appends
+        # "@botName" to group messages). The original text (with @botName) is
+        # preserved for non-command messages so the agent sees the full content.
+        _cmd_text = text
+        if is_group and _our_bot_name:
+            at_name = f"@{_our_bot_name}"
+            if _cmd_text.endswith(at_name):
+                _cmd_text = _cmd_text[:-len(at_name)].strip()
+        if _cmd_text.startswith("/"):
             reply = await _commands.dispatch_slash_command(
-                self, text, chat_id, sender_id, is_group,
+                self, _cmd_text, chat_id, sender_id, is_group,
             )
             if reply is not None:
                 await self.send(chat_id, reply)
@@ -869,8 +872,8 @@ class LansengerAdapter(BasePlatformAdapter):
         # ── Post-approval card update ──
         # If user sent an /approve or /deny command, update the
         # corresponding card to reflect the resolved status.
-        if text.startswith("/"):
-            await self._maybe_update_approval_card(chat_id, sender_id, text, is_group)
+        if _cmd_text.startswith("/"):
+            await self._maybe_update_approval_card(chat_id, sender_id, _cmd_text, is_group)
 
     async def _extract_text(self, msg_data: Dict[str, Any]) -> str:
         """Extract text from message, downloading media if needed.
@@ -985,52 +988,62 @@ class LansengerAdapter(BasePlatformAdapter):
 
         return f"[{msg_type}]"
 
-    def _check_group_policy(self, chat_id: str, sender_id: str, is_at_me: bool) -> bool:
+    def _check_group_policy(self, chat_id: str, sender_id: str, is_at_me: bool, is_at_all: bool = False) -> bool:
         """Check if a group message should be blocked by policy.
 
-        Order: per-group config takes precedence over global settings.
+        Decision order (per-group overrides take precedence over global):
 
-        Per-group fields (config.yaml extra.groups.<chat_id>):
-          - enabled: false → block this group entirely
-          - allow_from: [sender_id, ...] → only these senders can trigger
-          - require_mention: true/false → override global require_mention
+          1. per-group ``enabled: false``          → block
+          2. per-group ``allow_from``              → sender must be in list
+          3. global ``group_policy``               → disabled/allowlist/open
+             - ``disabled``:  block all (unless per-group enabled=true)
+             - ``allowlist``: only groups listed in the ``groups`` config map
+                              are allowed; if global ``group_allow_from``
+                              (sender-level) is non-empty, sender must be in it
+             - ``open``:      all groups pass (unless per-group enabled=false)
+          4. ``require_mention`` (per-group > global) → block if bot not
+             @mentioned and not @all
 
         Returns True if the message should be dropped (blocked).
         """
         per_group = self._groups_config.get(chat_id, {})
 
-        # Per-group enabled: false → explicitly disabled
+        # Gate 1: per-group enabled=false → explicitly disabled
         if per_group.get("enabled") is False:
             logger.debug("[Lansenger] Group %s disabled per-group, dropping", chat_id[:20])
             return True
 
-        # Per-group allow_from: restrict senders within this group
+        # Gate 2: per-group allow_from → restrict senders within this group
         per_allow = per_group.get("allow_from", [])
         if per_allow and isinstance(per_allow, list) and sender_id not in per_allow:
             logger.debug("[Lansenger] Group %s sender %s not in per-group allow_from, dropping",
                          chat_id[:20], sender_id[:20])
             return True
 
-        # If per-group has explicit enabled: true → bypass global policy for this group
+        # Gate 3: global policy (only when per-group does not explicitly enable)
         per_enabled = per_group.get("enabled")
-        if per_enabled is True:
-            pass  # explicitly allowed, skip global policy checks below
-        else:
-            # Global policy applies
+        if per_enabled is not True:
             if self._group_policy == "disabled":
                 logger.debug("[Lansenger] Group policy=disabled, dropping group message from %s", chat_id[:20])
                 return True
-            if self._group_policy == "allowlist" and chat_id not in self._group_allow_from:
-                logger.debug("[Lansenger] Group %s not in global allowlist, dropping", chat_id[:20])
-                return True
+            if self._group_policy == "allowlist":
+                # groups config map keys serve as the group allowlist
+                if chat_id not in self._groups_config:
+                    logger.debug("[Lansenger] Group %s not in groups config (allowlist mode), dropping", chat_id[:20])
+                    return True
+                # Global sender-level allowlist
+                if self._group_allow_senders and sender_id not in self._group_allow_senders:
+                    logger.debug("[Lansenger] Sender %s not in group_allow_from (sender-level), dropping", sender_id[:20])
+                    return True
 
-        # require_mention: per-group > global
+        # Gate 4: require_mention — per-group > global; is_at_all bypasses
         if "require_mention" in per_group:
             require_mention = bool(per_group["require_mention"])
         else:
             require_mention = self._require_mention
-        if require_mention and not is_at_me:
-            logger.debug("[Lansenger] requireMention and bot not @mentioned, dropping group message from %s", chat_id[:20])
+        if require_mention and not is_at_me and not is_at_all:
+            logger.debug("[Lansenger] requireMention and bot not @mentioned (@all=%s), dropping group message from %s",
+                         is_at_all, chat_id[:20])
             return True
 
         return False  # allowed

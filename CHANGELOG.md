@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.0] - 2026-06-24
+
+### Changed
+
+- **`group_allow_from` semantic change (BREAKING)**: Changed from group-ID-level whitelist to sender-level whitelist, aligning with OpenClaw's semantics. In `allowlist` mode, the `groups` config map keys now serve as the group allowlist (only listed groups are allowed). `group_allow_from` now controls which senders can trigger the bot within allowed groups. Per-group `allow_from` remains available for finer-grained sender control.
+
+### Added
+
+- **`is_at_all` bypass for mention gate**: Messages with `isAtAll=true` now pass the `require_mention` gate without requiring a direct @mention.
+- **`@botName` stripping only for slash command detection**: The trailing `@botName` that Lansenger appends to group messages is now only stripped for slash command (e.g. `/status`) detection. Non-command messages pass the full text (including `@botName`) to the agent.
+
+### Fixed
+
+- **Group policy documentation aligned across all languages**: Updated all 5 `after-install` translations, `SKILL.md`, and `plugin.yaml` to reflect the new policy model. zhHant after-install was still on the old `deny`/`allow` model — now fully migrated to `open`/`allowlist`/`disabled`.
+
 ## [2.8.2] - 2026-06-24
 
 ### Fixed

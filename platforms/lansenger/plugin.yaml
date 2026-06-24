@@ -43,14 +43,15 @@ optional_env:
     prompt: "Group policy (open/allowlist/disabled)"
     password: false
   - name: LANSENGER_GROUP_ALLOW_FROM
-    description: "Comma-separated group IDs allowed to trigger the bot (effective when groupPolicy=allowlist)"
-    prompt: "Allowed group IDs (comma-separated)"
+    description: "Comma-separated sender IDs allowed to trigger the bot in groups (sender-level whitelist, effective when groupPolicy=allowlist)"
+    prompt: "Allowed senders in groups, comma-separated (or empty for any sender)"
     password: false
   - name: LANSENGER_REQUIRE_MENTION
     description: "Require @mention to trigger in groups (true/false, default: true). Can be overridden per-group in config.yaml extra.groups.<chatId>.require_mention"
     prompt: "Require @mention in groups? (true/false)"
     password: false
 # Per-group config: set in config.yaml platforms.lansenger.extra.groups:
+# In allowlist mode, only groups listed in this map are allowed.
 #   groups:
 #     "group-chat-id-1":
 #       enabled: false             # disable this group

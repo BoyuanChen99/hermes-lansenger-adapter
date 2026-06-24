@@ -72,10 +72,10 @@ hermes gateway restart
 platforms:
   lansenger:
     extra:
-      group_policy: deny       # deny | allow — 是否允許群聊
-      require_mention: true     # 是否僅回應 @提及
-      auto_mention_reply: true  # 自動 @回覆傳送者
-      auto_quote_reply: true    # 自動引用原訊息
+      group_policy: open              # open | allowlist | disabled
+      require_mention: true           # 群組中需要 @bot
+      auto_mention_reply: false       # 群組回覆自動 @傳送者
+      auto_quote_reply: false         # 自動引用原訊息（群組+私聊）
 ```
 
 ### 按群覆寫
@@ -85,18 +85,23 @@ platforms:
   lansenger:
     extra:
       groups:
-        "chat_id_here":
-          group_policy: allow
+        "<群組 ID>":
+          enabled: true
           require_mention: false
+          auto_mention_reply: true
+          auto_quote_reply: true
+          allow_from:
+            - "<staff ID>"
 ```
 
 ### 決策優先級（從上到下，命中即停止）
 
-- 全域 `group_policy: deny` → 禁止所有群聊
-- 按群覆寫 `group_policy: allow` → 允許特定群聊
-- 按群覆寫 `group_policy: deny` → 禁止特定群聊（即使全域 allow）
-- 按群覆寫未設定 → 繼承全域設定
-- 私聊不受 `group_policy` 影響
+1. 單一群組 `enabled: false` → 封鎖
+2. 單一群組 `allow_from` 非空且發送者不在列表 → 封鎖
+3. 單一群組 `enabled: true` → 跳過全域策略
+4. 全域 `group_policy` → `disabled` 封鎖全部 / `allowlist` 檢查 `groups` 配置 map 的 key
+5. 全域 `group_allow_from`（發送者級別）非空且發送者不在列表 → 封鎖
+6. `require_mention`（單一群組 > 全域）為 true 且 `is_at_me=false` 且 `is_at_all=false` → 封鎖
 
 ## 自動回覆功能
 

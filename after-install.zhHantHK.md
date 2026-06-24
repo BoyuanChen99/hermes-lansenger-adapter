@@ -97,8 +97,9 @@ platforms:
 1. 單一群組 `enabled: false` → 已封鎖
 2. 單一群組 `allow_from` 非空且發送者不在列表中 → 已封鎖
 3. 單一群組 `enabled: true` → 跳過全域策略
-4. 全域 `group_policy` → `disabled` 封鎖全部 / `allowlist` 檢查全域列表
-5. `require_mention`（單一群組 > 全域）為 true 且 `is_at_me=false` → 已封鎖
+4. 全域 `group_policy` → `disabled` 封鎖全部 / `allowlist` 檢查 `groups` 配置 map 的 key
+5. 全域 `group_allow_from`（發送者級別）非空且發送者不在列表 → 已封鎖
+6. `require_mention`（單一群組 > 全域）為 true 且 `is_at_me=false` 且 `is_at_all=false` → 已封鎖
 
 ## 自動回覆功能
 

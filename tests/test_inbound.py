@@ -22,7 +22,7 @@ async def _ensure_token(adapter):
 
 INBOUND_MSG_DATA_PRIVATE = {
     "msgType": "text",
-    "messageId": "msg-p1",
+    "msgId": "msg-p1",
     "chatType": "p2p",
     "from": "user-1",
     "conversationId": "chat-dm-1",
@@ -33,7 +33,7 @@ INBOUND_MSG_DATA_PRIVATE = {
 
 INBOUND_MSG_DATA_GROUP = {
     "msgType": "text",
-    "messageId": "msg-g1",
+    "msgId": "msg-g1",
     "chatType": "group",
     "from": "user-2",
     "conversationId": "chat-group-1",
@@ -43,12 +43,25 @@ INBOUND_MSG_DATA_GROUP = {
 }
 
 
+def _mk_ws_msg(event_type, data):
+    """Wrap a message data dict as a valid WS event."""
+    return json.dumps({"events": [{"type": event_type, "data": data}]})
+
+
+def _mk_priv(data):
+    return _mk_ws_msg("bot_private_message", data)
+
+
+def _mk_group(data):
+    return _mk_ws_msg("bot_group_message", data)
+
+
 class TestInboundMessageParsing:
     async def test_private_message_parsed(self, make_adapter):
         adapter = make_adapter()
         adapter.handle_message = AsyncMock()
 
-        raw_msg = json.dumps({"events": [{"data": INBOUND_MSG_DATA_PRIVATE}]})
+        raw_msg = _mk_priv(INBOUND_MSG_DATA_PRIVATE)
         await adapter._on_message(raw_msg)
 
         adapter.handle_message.assert_called_once()
@@ -58,27 +71,31 @@ class TestInboundMessageParsing:
 
     async def test_group_message_sets_chat_type_group(self, make_adapter):
         adapter = make_adapter()
+        adapter._require_mention = False
         adapter.handle_message = AsyncMock()
 
-        await adapter._on_message(json.dumps({"events": [{"data": INBOUND_MSG_DATA_GROUP}]}))
+        data = dict(INBOUND_MSG_DATA_GROUP, groupId="chat-group-1")
+        await adapter._on_message(_mk_group(data))
 
         assert adapter._chat_type_map.get("chat-group-1") == "group"
 
     async def test_private_message_sets_chat_type_dm(self, make_adapter):
         adapter = make_adapter()
+        adapter._require_mention = False
         adapter.handle_message = AsyncMock()
 
-        await adapter._on_message(json.dumps({"events": [{"data": INBOUND_MSG_DATA_PRIVATE}]}))
+        await adapter._on_message(_mk_priv(INBOUND_MSG_DATA_PRIVATE))
 
-        assert adapter._chat_type_map.get("chat-dm-1") == "dm"
+        # chat_id = sender_id when conversationId is present but not groupId
+        assert adapter._chat_type_map.get("user-1") == "dm"
 
     async def test_duplicate_message_skipped(self, make_adapter):
         adapter = make_adapter()
         adapter._dedup.is_duplicate = lambda msg_id: msg_id == "msg-dup"
         adapter.handle_message = AsyncMock()
 
-        dup_data = dict(INBOUND_MSG_DATA_PRIVATE, messageId="msg-dup")
-        await adapter._on_message(json.dumps({"events": [{"data": dup_data}]}))
+        dup_data = dict(INBOUND_MSG_DATA_PRIVATE, msgId="msg-dup")
+        await adapter._on_message(_mk_priv(dup_data))
 
         adapter.handle_message.assert_not_called()
 
@@ -89,12 +106,14 @@ class TestInboundMessageParsing:
 
     async def test_multiple_events_in_one_message(self, make_adapter):
         adapter = make_adapter()
+        adapter._require_mention = False
         adapter.handle_message = AsyncMock()
 
+        group_data = dict(INBOUND_MSG_DATA_GROUP, groupId="chat-group-1")
         multi_msg = json.dumps({
             "events": [
-                {"data": INBOUND_MSG_DATA_PRIVATE},
-                {"data": INBOUND_MSG_DATA_GROUP},
+                {"type": "bot_private_message", "data": INBOUND_MSG_DATA_PRIVATE},
+                {"type": "bot_group_message", "data": group_data},
             ]
         })
 
@@ -117,13 +136,13 @@ class TestInboundMessageParsing:
 
         empty_data = {
             "msgType": "text",
-            "messageId": "msg-empty",
+            "msgId": "msg-empty",
             "chatType": "p2p",
             "from": "user-1",
             "conversationId": "chat-1",
             "msgData": {"text": {"content": ""}},
         }
-        await adapter._on_message(json.dumps({"events": [{"data": empty_data}]}))
+        await adapter._on_message(_mk_priv(empty_data))
 
         adapter.handle_message.assert_not_called()
 
@@ -172,9 +191,11 @@ class TestChatTypeMapPersistence:
 
     async def test_inbound_updates_map_and_persists(self, make_adapter):
         adapter = make_adapter()
+        adapter._require_mention = False
         adapter.handle_message = AsyncMock()
 
-        await adapter._on_message(json.dumps({"events": [{"data": INBOUND_MSG_DATA_GROUP}]}))
+        data = dict(INBOUND_MSG_DATA_GROUP, groupId="chat-group-1")
+        await adapter._on_message(_mk_group(data))
 
         assert adapter._chat_type_map.get("chat-group-1") == "group"
 

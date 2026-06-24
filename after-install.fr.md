@@ -97,8 +97,9 @@ platforms:
 1. `enabled: false` par groupe → bloqué
 2. `allow_from` par groupe non vide et expéditeur absent de la liste → bloqué
 3. `enabled: true` par groupe → ignore la politique globale
-4. `group_policy` global → `disabled` bloque tout / `allowlist` vérifie la liste globale
-5. `require_mention` (par groupe > global) est true et `is_at_me=false` → bloqué
+4. `group_policy` global → `disabled` bloque tout / `allowlist` vérifie les clés de la map `groups`
+5. `group_allow_from` global (niveau expéditeur) non vide et expéditeur absent de la liste → bloqué
+6. `require_mention` (par groupe > global) est true et `is_at_me=false` et `is_at_all=false` → bloqué
 
 ## Fonctionnalités de réponse automatique
 

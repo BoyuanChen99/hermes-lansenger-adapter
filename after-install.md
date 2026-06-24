@@ -90,8 +90,9 @@ platforms:
 1. per-group `enabled: false` → blocked
 2. per-group `allow_from` non-empty and sender not in list → blocked
 3. per-group `enabled: true` → skip global policy
-4. global `group_policy` → `disabled` blocks all / `allowlist` checks global list
-5. `require_mention` (per-group > global) is true and `is_at_me=false` → blocked
+4. global `group_policy` → `disabled` blocks all / `allowlist` checks groups config map keys
+5. global `group_allow_from` (sender-level) non-empty and sender not in list → blocked
+6. `require_mention` (per-group > global) is true and `is_at_me=false` and `is_at_all=false` → blocked
 
 ## Auto-Reply Features
 

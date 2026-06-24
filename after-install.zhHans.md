@@ -90,8 +90,9 @@ platforms:
 1. per-group `enabled: false` → 拒绝
 2. per-group `allow_from` 非空且 sender 不在列表 → 拒绝
 3. per-group `enabled: true` → 跳过全局策略
-4. 全局 `group_policy` → `disabled` 全部拒绝 / `allowlist` 检查全局列表
-5. `require_mention`（per-group > 全局）为 true 且 `is_at_me=false` → 拒绝
+4. 全局 `group_policy` → `disabled` 全部拒绝 / `allowlist` 检查 `groups` 配置 map 的 key
+5. 全局 `group_allow_from`（发送者级）非空且 sender 不在列表 → 拒绝
+6. `require_mention`（per-group > 全局）为 true 且 `is_at_me=false` 且 `is_at_all=false` → 拒绝
 
 ## 自动回复功能
 

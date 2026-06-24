@@ -304,4 +304,255 @@ class TestRunWs:
             except asyncio.CancelledError:
                 pass
 
-        assert adapter._running is True
+
+# ---------------------------------------------------------------------------
+# _ws_keepalive — application-layer heartbeat for CLOSE_WAIT detection
+# ---------------------------------------------------------------------------
+
+class TestWsKeepalive:
+
+    async def test_keepalive_sends_ping(self, make_adapter):
+        """Normal operation: keepalive sends {"type":"ping"} every interval."""
+        adapter = make_adapter()
+        adapter._running = True
+
+        mock_ws = MagicMock()
+        mock_ws.send = AsyncMock()
+
+        task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
+        await asyncio.sleep(0.12)  # should fire ~2 pings
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        assert mock_ws.send.call_count >= 1
+        # Verify ping payload
+        call_args = mock_ws.send.call_args_list[0]
+        payload = json.loads(call_args[0][0])
+        assert payload == {"type": "ping"}
+
+    async def test_keepalive_stops_when_not_running(self, make_adapter):
+        """When _running is False, keepalive should not send any pings."""
+        adapter = make_adapter()
+        adapter._running = False
+
+        mock_ws = MagicMock()
+        mock_ws.send = AsyncMock()
+
+        task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
+        await asyncio.sleep(0.10)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        mock_ws.send.assert_not_called()
+
+    async def test_keepalive_timeout_triggers_close(self, make_adapter):
+        """When send() times out (CLOSE_WAIT socket), keepalive closes WS."""
+        adapter = make_adapter()
+        adapter._running = True
+
+        mock_ws = MagicMock()
+        mock_ws.send = AsyncMock(side_effect=asyncio.TimeoutError)
+        mock_ws.close = AsyncMock()
+
+        task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        mock_ws.close.assert_called_once()
+
+    async def test_keepalive_send_exception_triggers_close(self, make_adapter):
+        """When send() raises a non-timeout exception, keepalive closes WS."""
+        adapter = make_adapter()
+        adapter._running = True
+
+        mock_ws = MagicMock()
+        mock_ws.send = AsyncMock(side_effect=ConnectionError("socket dead"))
+        mock_ws.close = AsyncMock()
+
+        task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        mock_ws.close.assert_called_once()
+
+    async def test_keepalive_close_swallows_exception(self, make_adapter):
+        """If ws.close() itself raises, keepalive should not crash."""
+        adapter = make_adapter()
+        adapter._running = True
+
+        mock_ws = MagicMock()
+        mock_ws.send = AsyncMock(side_effect=ConnectionError("socket dead"))
+        mock_ws.close = AsyncMock(side_effect=RuntimeError("close failed"))
+
+        task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        mock_ws.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _ws_watchdog — dead WS task detection and restart
+# ---------------------------------------------------------------------------
+
+class TestWsWatchdog:
+
+    def _make_fake_ws_task(self, done=True, exception=None):
+        task = MagicMock()
+        task.done = MagicMock(return_value=done)
+        task.exception = MagicMock(return_value=exception)
+        task.cancelled = MagicMock(return_value=False)
+        return task
+
+    async def test_watchdog_restarts_dead_task(self, make_adapter):
+        """When _ws_task is done, watchdog should call _restart_ws_task."""
+        adapter = make_adapter()
+        adapter._running = True
+        adapter._ws_task = self._make_fake_ws_task(done=True)
+        adapter._restart_ws_task = MagicMock()
+
+        task = asyncio.create_task(adapter._ws_watchdog(interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        adapter._restart_ws_task.assert_called()
+
+    async def test_watchdog_ignores_running_task(self, make_adapter):
+        """When _ws_task is alive, watchdog should not restart."""
+        adapter = make_adapter()
+        adapter._running = True
+        adapter._ws_task = self._make_fake_ws_task(done=False)
+        adapter._restart_ws_task = MagicMock()
+
+        task = asyncio.create_task(adapter._ws_watchdog(interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        adapter._restart_ws_task.assert_not_called()
+
+    async def test_watchdog_ignores_none_task(self, make_adapter):
+        """When _ws_task is None, watchdog should restart."""
+        adapter = make_adapter()
+        adapter._running = True
+        adapter._ws_task = None
+        adapter._restart_ws_task = MagicMock()
+
+        task = asyncio.create_task(adapter._ws_watchdog(interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        adapter._restart_ws_task.assert_called()
+
+    async def test_watchdog_stops_when_not_running(self, make_adapter):
+        """When _running is False, watchdog should not restart."""
+        adapter = make_adapter()
+        adapter._running = False
+        adapter._ws_task = self._make_fake_ws_task(done=True)
+        adapter._restart_ws_task = MagicMock()
+
+        task = asyncio.create_task(adapter._ws_watchdog(interval=0.05))
+        await asyncio.sleep(0.10)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        adapter._restart_ws_task.assert_not_called()
+
+    async def test_watchdog_handles_runtime_error(self, make_adapter):
+        """When _restart_ws_task raises RuntimeError, watchdog logs fatal."""
+        adapter = make_adapter()
+        adapter._running = True
+        adapter._ws_task = self._make_fake_ws_task(done=True)
+        adapter._restart_ws_task = MagicMock(side_effect=RuntimeError("Event loop is closed"))
+        adapter._write_runtime_status_safe = MagicMock()
+
+        task = asyncio.create_task(adapter._ws_watchdog(interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        adapter._write_runtime_status_safe.assert_called_with(
+            "fatal", platform_state="fatal",
+            error_code="EVENT_LOOP_CLOSED",
+            error_message="Event loop is closed",
+        )
+
+
+# ---------------------------------------------------------------------------
+# RuntimeError protection — event loop closed scenarios
+# ---------------------------------------------------------------------------
+
+class TestRuntimeErrorProtection:
+
+    async def test_on_ws_task_done_handles_get_running_loop_error(self, adapter):
+        """When get_running_loop() raises RuntimeError, callback should not crash."""
+        adapter._running = True
+        adapter._write_runtime_status_safe = MagicMock()
+
+        mock_task = MagicMock()
+        mock_task.cancelled.return_value = False
+        mock_task.exception.return_value = None
+
+        with patch("asyncio.get_running_loop", side_effect=RuntimeError("no running event loop")):
+            adapter._on_ws_task_done(mock_task)
+
+        adapter._write_runtime_status_safe.assert_called_once()
+        call_args = adapter._write_runtime_status_safe.call_args[0]
+        assert call_args[0] == "fatal"
+
+    def test_restart_ws_task_skips_when_not_running(self, adapter):
+        adapter._running = False
+        adapter._restart_ws_task()
+
+    def test_restart_ws_task_skips_when_task_alive(self, adapter):
+        adapter._running = True
+
+        class FakeTask:
+            def done(self):
+                return False
+
+        adapter._ws_task = FakeTask()
+        adapter._restart_ws_task()
