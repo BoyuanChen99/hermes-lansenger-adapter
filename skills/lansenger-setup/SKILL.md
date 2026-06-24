@@ -1,7 +1,7 @@
 ---
 name: lansenger-setup
 description: Guide for first-time Lansenger (蓝信) bot credential binding, DM pairing, Hermes plugin configuration, slash command management, and dangerous command approval — for scenarios where the user wants to set up or reconfigure Lansenger from scratch via conversation.
-version: 1.2.0
+version: 1.3.0
 category: lansenger
 tags: [lansenger, setup, configuration, slash-commands, approval]
 ---
