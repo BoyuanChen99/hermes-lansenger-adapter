@@ -695,7 +695,7 @@ def build_command_payloads(
         description = cmd_meta.get("description", f"Run /{cmd_name}")
 
         entry: Dict[str, Any] = {
-            "command": f"/{cmd_name}",
+            "command": cmd_name,
             "description": description[:100],
         }
         i18n = _build_description_i18n(cmd_name)
