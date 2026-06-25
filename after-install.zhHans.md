@@ -65,6 +65,7 @@ platforms:
     extra:
       group_policy: open              # open | allowlist | disabled
       require_mention: true           # 群聊中需要 @机器人才触发
+      respond_to_at_all: false       # require_mention=true 时不响应 @all
       auto_mention_reply: false       # 群聊回复自动 @发送者
       auto_quote_reply: false         # 自动引用原消息（群聊+私聊）
 ```
@@ -79,6 +80,7 @@ platforms:
         "<群ID>":
           enabled: true
           require_mention: false
+          respond_to_at_all: false
           auto_mention_reply: true
           auto_quote_reply: true
           allow_from:
@@ -92,7 +94,7 @@ platforms:
 3. per-group `enabled: true` → 跳过全局策略
 4. 全局 `group_policy` → `disabled` 全部拒绝 / `allowlist` 检查 `groups` 配置 map 的 key
 5. 全局 `group_allow_from`（发送者级）非空且 sender 不在列表 → 拒绝
-6. `require_mention`（per-group > 全局）为 true 且 `is_at_me=false` 且 `is_at_all=false` → 拒绝
+6. `require_mention`（per-group > 全局）为 true 且 `is_at_me=false` → 拒绝（`respond_to_at_all` 默认 false，@all 不响应）
 
 ## 自动回复功能
 

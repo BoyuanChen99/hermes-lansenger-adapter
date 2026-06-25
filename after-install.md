@@ -65,6 +65,7 @@ platforms:
     extra:
       group_policy: open              # open | allowlist | disabled
       require_mention: true           # @bot required in groups
+      respond_to_at_all: false       # do not respond to @all when require_mention=true
       auto_mention_reply: false       # auto @sender in group replies
       auto_quote_reply: false         # auto refMsgId in replies (groups + DMs)
 ```
@@ -79,6 +80,7 @@ platforms:
         "<group_id>":
           enabled: true
           require_mention: false
+          respond_to_at_all: false
           auto_mention_reply: true
           auto_quote_reply: true
           allow_from:
@@ -92,7 +94,7 @@ platforms:
 3. per-group `enabled: true` → skip global policy
 4. global `group_policy` → `disabled` blocks all / `allowlist` checks groups config map keys
 5. global `group_allow_from` (sender-level) non-empty and sender not in list → blocked
-6. `require_mention` (per-group > global) is true and `is_at_me=false` and `is_at_all=false` → blocked
+6. `require_mention` (per-group > global) is true and `is_at_me=false` → dropped (`respond_to_at_all` defaults to false, @all is blocked)
 
 ## Auto-Reply Features
 

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.2] - 2026-06-25
+
+### Added
+
+- **`respond_to_at_all`** config option: Controls whether `@all` messages bypass `require_mention`. Default `false` (backward incompatible — @all is now blocked by default; set to `true` to restore old behavior). Supports per-group override via `groups.<chatId>.respond_to_at_all`.
+
+### Fixed
+
+- **Slash command registration**: Filter out commands with special characters (hyphens, dots, etc.) that the API rejects. 4 commands with hyphens (`set-home`, `codex-runtime`, `reload-mcp`, `reload-skills`) are now excluded from registration.
+- **scopeType mapping**: Fixed `SCOPE_SINGLE_CHAT` from value `1` (which maps to "single group member" requiring `staffId`) to value `3` ("single chat" requiring only `chatId`+`chatType`), fixing `ChatId invalid` errors on command registration.
+
 ## [2.9.1] - 2026-06-25
 
 ### Added

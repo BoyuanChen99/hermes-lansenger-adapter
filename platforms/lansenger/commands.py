@@ -19,18 +19,19 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # ── Lansenger API scope types ──────────────────────────────────────────────
-SCOPE_SINGLE_CHAT = 1        # 单个指定聊天
-SCOPE_GROUP_ADMINS = 2       # 指定单个群的管理员
-SCOPE_GROUP_MEMBER = 3       # 单个指定群的单个成员
-SCOPE_ALL_DM = 4             # 所有私聊
-SCOPE_ALL_GROUPS = 5         # 所有群
-SCOPE_ALL_GROUP_ADMINS = 6   # 所有群管理员
-SCOPE_GLOBAL = 7             # 默认全局
+SCOPE_SINGLE_GROUP_MEMBER = 1  # 单个指定群的单个成员 (needs chatId+chatType+staffId)
+SCOPE_SINGLE_GROUP_ADMIN = 2   # 指定单个群的管理员
+SCOPE_SINGLE_CHAT = 3          # 单个指定聊天 (needs chatId+chatType only)
+SCOPE_ALL_DM = 4               # 所有私聊
+SCOPE_ALL_GROUPS = 5           # 所有群
+SCOPE_ALL_GROUP_ADMINS = 6     # 所有群管理员
+SCOPE_GLOBAL = 7               # 默认全局
 
 # ── Permission → scope mappings ────────────────────────────────────────────
 _PERMISSION_SCOPES: Dict[str, List[tuple]] = {
@@ -622,11 +623,18 @@ def _resolve_default_permissions(commands: Dict[str, dict]) -> Dict[str, str]:
     """Derive default permission levels from command metadata.
 
     - ``gateway_only`` → ``"owner"`` (only the bot owner can use these)
+    - ``/approve`` and ``/deny`` → ``"everyone"`` even though they are
+      gateway_only — these are frequently used in group approval workflows
     - Everything else → ``"everyone"``
     """
+    # gateway_only commands that should still be visible to everyone
+    EVERYONE_OVERRIDES = frozenset({"approve", "deny"})
+
     perms: Dict[str, str] = {}
     for name, meta in commands.items():
-        if meta.get("gateway_only"):
+        if name in EVERYONE_OVERRIDES:
+            perms[name] = "everyone"
+        elif meta.get("gateway_only"):
             perms[name] = "owner"
         else:
             perms[name] = "everyone"
@@ -738,6 +746,22 @@ async def register_all_commands(adapter: Any) -> bool:
     commands = _get_all_commands()
     if not commands:
         logger.info("[Lansenger] No commands to register (built-in + plugin)")
+        return True
+
+    # Filter out commands with special characters (sandbox API only allows [a-zA-Z0-9_])
+    valid: Dict[str, dict] = {}
+    invalid_count = 0
+    for name, meta in commands.items():
+        if re.fullmatch(r'[a-zA-Z0-9_]+', name):
+            valid[name] = meta
+        else:
+            logger.info("[Lansenger] Skipping command '/%s' (contains special characters — not supported by API)", name)
+            invalid_count += 1
+    if invalid_count:
+        logger.info("[Lansenger] Filtered out %d command(s) with special characters", invalid_count)
+    commands = valid
+    if not commands:
+        logger.info("[Lansenger] No valid commands after filtering")
         return True
 
     owner_id = getattr(adapter, "_owner_id", None)

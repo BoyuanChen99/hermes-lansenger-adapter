@@ -1,7 +1,7 @@
 name: lansenger-platform
 label: Lansenger (蓝信)
 kind: platform
-version: 2.9.1
+version: 2.9.2
 description: >
   Lansenger (蓝信) gateway adapter for Hermes Agent.
   Connects to Lansenger Bot API via WebSocket long-connection for
@@ -50,6 +50,10 @@ optional_env:
     description: "Require @mention to trigger in groups (true/false, default: true). Can be overridden per-group in config.yaml extra.groups.<chatId>.require_mention"
     prompt: "Require @mention in groups? (true/false)"
     password: false
+  - name: LANSENGER_RESPOND_TO_AT_ALL
+    description: "Whether @all messages bypass require_mention (true/false, default: false). Can be overridden per-group in config.yaml extra.groups.<chatId>.respond_to_at_all"
+    prompt: "Respond to @all in groups? (true/false)"
+    password: false
   - name: LANSENGER_APPROVAL_ALLOW_FROM
     description: "Comma-separated sender IDs allowed to approve dangerous commands (besides the bot owner). Default: only owner can approve."
     prompt: "Additional approvers (comma-separated, or empty for owner-only)"
@@ -58,6 +62,7 @@ optional_env:
 # In allowlist mode, only groups listed in this map are allowed.
 #   groups:
 #     "group-chat-id-1":
-#       enabled: false             # disable this group
-#       require_mention: false     # override global require_mention
-#       allow_from: ["user-id-1"]  # restrict senders in this group
+#       enabled: false                # disable this group
+#       require_mention: false        # override global require_mention
+#       respond_to_at_all: false      # do not respond to @all when require_mention=true
+#       allow_from: ["user-id-1"]     # restrict senders in this group

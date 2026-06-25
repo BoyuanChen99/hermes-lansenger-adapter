@@ -83,6 +83,7 @@ tags: [lansenger, setup, configuration, slash-commands, approval]
 | groupPolicy | `LANSENGER_GROUP_POLICY` | `platforms.lansenger.extra.group_policy` | `open` | 群聊策略：`open`（所有群）、`allowlist`（仅列表群）、`disabled`（禁止群消息） |
 | groupAllowFrom | `LANSENGER_GROUP_ALLOW_FROM` | `platforms.lansenger.extra.group_allow_from` | — | 允许在群聊中触发机器人的发送者 ID 列表（发送者级白名单，groupPolicy=allowlist 时生效）。留空则允许所有发送者 |
 | requireMention | `LANSENGER_REQUIRE_MENTION` | `platforms.lansenger.extra.require_mention` | `true` | 群聊中是否需要 @机器人才触发 |
+| respondToAtAll | `LANSENGER_RESPOND_TO_AT_ALL` | `platforms.lansenger.extra.respond_to_at_all` | `false` | `require_mention=true` 时，@all 是否绕过 @提及检查。默认不响应 @all
 
 ### 自动回复增强
 
@@ -104,6 +105,7 @@ platforms:
         "<群ID>":
           enabled: true              # 显式开启/关闭此群
           require_mention: false     # 此群无需 @提及
+          respond_to_at_all: false   # require_mention=true 时不响应 @all
           auto_mention_reply: true   # 此群自动 @发送者
           auto_quote_reply: true     # 此群自动引用原消息
           allow_from:                # 此群仅允许特定发送者
@@ -117,7 +119,7 @@ platforms:
 3. per-group `enabled: true` → 跳过全局 policy，进入第5步
 4. 全局 `group_policy` → `disabled` 全部拒绝 / `allowlist` 检查 groups 配置 map 的 key（只有列出的群才允许）
 5. 全局 `group_allow_from`（发送者级）非空且 sender 不在列表 → 拒绝
-6. `require_mention`（per-group > 全局）为 true 且 `is_at_me=false` 且 `is_at_all=false` → 拒绝
+6. `require_mention`（per-group > 全局）为 true 且 `is_at_me=false` → 拒绝（`respond_to_at_all` 默认 false，@all 不响应）
 
 ---
 
@@ -229,6 +231,7 @@ platforms:
       group_policy: allowlist        # open | allowlist | disabled
       group_allow_from: "<发送者ID1>,<发送者ID2>"   # 逗号分隔的发送者白名单（groupPolicy=allowlist 时生效；留空则所有发送者可通过）
       require_mention: false         # 关闭 @提及要求
+      respond_to_at_all: false       # require_mention=true 时不响应 @all
 ```
 
 或环境变量：
@@ -236,6 +239,7 @@ platforms:
 export LANSENGER_GROUP_POLICY=allowlist
 export LANSENGER_GROUP_ALLOW_FROM="<发送者ID1>,<发送者ID2>"
 export LANSENGER_REQUIRE_MENTION=false
+export LANSENGER_RESPOND_TO_AT_ALL=false
 ```
 
 #### 批次 B：自动回复增强
@@ -269,6 +273,7 @@ platforms:
         "<群ID>":
           enabled: true
           require_mention: false
+          respond_to_at_all: false
           auto_mention_reply: true
           auto_quote_reply: true
           allow_from:
@@ -414,7 +419,7 @@ platforms:
 1. 检查 `group_policy` 不是 `disabled`
 2. 如果 `group_policy` 是 `allowlist`，确认群 ID 已被添加到 `groups` 配置 map 中
 3. 如果 `group_allow_from`（发送者级）非空，确认发送者在列表中
-4. 检查 `require_mention` — 如果为 `true`，用户必须 @机器人名称（@all 消息除外）
+4. 检查 `require_mention` — 如果为 `true`，用户必须 @机器人名称（`@all` 默认不响应，如需响应设置 `respond_to_at_all: true`）
 5. 检查 `groups.<chatId>` 下的按群覆盖设置 — 它们优先于全局设置
 6. 查看日志确认消息是否被 BLOCKED：
    ```bash

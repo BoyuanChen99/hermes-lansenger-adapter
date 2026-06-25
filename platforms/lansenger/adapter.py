@@ -188,6 +188,10 @@ class LansengerAdapter(BasePlatformAdapter):
         _auto_quote = os.getenv("LANSENGER_AUTO_QUOTE_REPLY") or extra.get("auto_quote_reply", "false")
         self._auto_quote_reply: bool = str(_auto_quote).lower() in ("true", "1", "yes")
 
+        # Respond to @all — whether @all messages bypass require_mention (default: false)
+        _respond_at_all = os.getenv("LANSENGER_RESPOND_TO_AT_ALL") or extra.get("respond_to_at_all", "false")
+        self._respond_to_at_all: bool = str(_respond_at_all).lower() in ("true", "1", "yes")
+
         # Approval allow list — who can approve dangerous commands
         # Default: owner_id only. Config can add additional approvers.
         _approval_allow = os.getenv("LANSENGER_APPROVAL_ALLOW_FROM") or extra.get("approval_allow_from", "")
@@ -1157,15 +1161,26 @@ class LansengerAdapter(BasePlatformAdapter):
                     logger.debug("[Lansenger] Sender %s not in group_allow_from (sender-level), dropping", sender_id[:20])
                     return True
 
-        # Gate 4: require_mention — per-group > global; is_at_all bypasses
+        # Gate 4: require_mention — per-group > global
         if "require_mention" in per_group:
             require_mention = bool(per_group["require_mention"])
         else:
             require_mention = self._require_mention
-        if require_mention and not is_at_me and not is_at_all:
-            logger.debug("[Lansenger] requireMention and bot not @mentioned (@all=%s), dropping group message from %s",
-                         is_at_all, chat_id[:20])
-            return True
+        if require_mention and not is_at_me:
+            # @all bypass: per-group > global (default: true)
+            if is_at_all:
+                respond_at_all = per_group.get("respond_to_at_all")
+                if respond_at_all is None:
+                    respond_at_all = self._respond_to_at_all
+                if isinstance(respond_at_all, str):
+                    respond_at_all = str(respond_at_all).lower() not in ("false", "0", "no")
+                if not respond_at_all:
+                    logger.debug("[Lansenger] @all message dropped: respond_to_at_all=false, chat=%s", chat_id[:20])
+                    return True
+            else:
+                logger.debug("[Lansenger] requireMention and bot not @mentioned (@all=%s), dropping group message from %s",
+                             is_at_all, chat_id[:20])
+                return True
 
         return False  # allowed
 

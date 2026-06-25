@@ -23,6 +23,7 @@ class TestCheckGroupPolicy:
         adapter._group_allow_senders = kw.pop("group_allow_senders", [])
         adapter._groups_config = kw.pop("groups_config", {})
         adapter._require_mention = kw.pop("require_mention", True)
+        adapter._respond_to_at_all = kw.pop("respond_to_at_all", False)
         return adapter
 
     # -- open mode --------------------------------------------------------
@@ -32,9 +33,10 @@ class TestCheckGroupPolicy:
         assert adapter._check_group_policy("chat-unknown", "user-1", is_at_me=True) is False
 
     def test_open_allows_with_is_at_all(self, make_adapter):
-        """is_at_all should bypass require_mention even in open mode."""
+        """is_at_all should bypass require_mention when respond_to_at_all=true."""
         adapter = self._make_adapter(make_adapter, group_policy="open",
-                                     require_mention=True)
+                                     require_mention=True,
+                                     respond_to_at_all=True)
         assert adapter._check_group_policy("chat-1", "user-1", is_at_me=False, is_at_all=True) is False
 
     # -- disabled mode ----------------------------------------------------
@@ -120,7 +122,8 @@ class TestCheckGroupPolicy:
 
     def test_require_mention_allows_when_at_all(self, make_adapter):
         adapter = self._make_adapter(make_adapter, group_policy="open",
-                                     require_mention=True)
+                                     require_mention=True,
+                                     respond_to_at_all=True)
         assert adapter._check_group_policy("chat-1", "user-1", is_at_me=False, is_at_all=True) is False
 
     def test_require_mention_disabled_by_global(self, make_adapter):
@@ -141,6 +144,36 @@ class TestCheckGroupPolicy:
                                      require_mention=False,
             groups_config={"chat-1": {"require_mention": True}})
         assert adapter._check_group_policy("chat-1", "user-1", is_at_me=False) is True
+
+    # -- respond_to_at_all ------------------------------------------------
+
+    def test_at_all_blocked_by_default(self, make_adapter):
+        """Default respond_to_at_all=false: @all does not bypass require_mention."""
+        adapter = self._make_adapter(make_adapter, group_policy="open",
+                                     require_mention=True)
+        assert adapter._check_group_policy("chat-1", "user-1", is_at_me=False, is_at_all=True) is True
+
+    def test_at_all_allowed_when_enabled(self, make_adapter):
+        """respond_to_at_all=true: @all bypasses require_mention."""
+        adapter = self._make_adapter(make_adapter, group_policy="open",
+                                     require_mention=True,
+                                     respond_to_at_all=True)
+        assert adapter._check_group_policy("chat-1", "user-1", is_at_me=False, is_at_all=True) is False
+
+    def test_at_all_passes_when_mention_not_required(self, make_adapter):
+        """respond_to_at_all=false but require_mention=false: @all passes."""
+        adapter = self._make_adapter(make_adapter, group_policy="open",
+                                     require_mention=False,
+                                     respond_to_at_all=False)
+        assert adapter._check_group_policy("chat-1", "user-1", is_at_me=False, is_at_all=True) is False
+
+    def test_at_all_per_group_override(self, make_adapter):
+        """Per-group respond_to_at_all=true overrides global false."""
+        adapter = self._make_adapter(make_adapter, group_policy="open",
+                                     require_mention=True,
+                                     respond_to_at_all=False,
+            groups_config={"chat-1": {"respond_to_at_all": True}})
+        assert adapter._check_group_policy("chat-1", "user-1", is_at_me=False, is_at_all=True) is False
 
 
 # ---------------------------------------------------------------------------
@@ -294,11 +327,12 @@ INBOUND_GROUP_AT_ALL_DATA = {
 
 
 class TestAtAllBypass:
-    """@all messages should pass mention gate even when require_mention=true."""
+    """@all messages should pass mention gate with respond_to_at_all=true."""
 
     async def test_at_all_passes_mention_gate(self, make_adapter):
         adapter = make_adapter()
         adapter._require_mention = True
+        adapter._respond_to_at_all = True
         adapter.handle_message = AsyncMock()
 
         with patch("lansenger.adapter._commands") as mock_cmds:

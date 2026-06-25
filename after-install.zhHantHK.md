@@ -72,7 +72,8 @@ platforms:
     extra:
       group_policy: open              # open | allowlist | disabled
       require_mention: true           # 群組中需要 @bot
-      auto_mention_reply: false       # 群組回覆自動 @發送者
+      respond_to_at_all: false       # require_mention=true 時不回應 @all
+      auto_mention_reply: false       # 群組回覆自動 @傳送者
       auto_quote_reply: false         # 回覆自動引用 refMsgId（群組 + 私聊）
 ```
 
@@ -86,6 +87,7 @@ platforms:
         "<group_id>":
           enabled: true
           require_mention: false
+          respond_to_at_all: false
           auto_mention_reply: true
           auto_quote_reply: true
           allow_from:
@@ -99,7 +101,7 @@ platforms:
 3. 單一群組 `enabled: true` → 跳過全域策略
 4. 全域 `group_policy` → `disabled` 封鎖全部 / `allowlist` 檢查 `groups` 配置 map 的 key
 5. 全域 `group_allow_from`（發送者級別）非空且發送者不在列表 → 已封鎖
-6. `require_mention`（單一群組 > 全域）為 true 且 `is_at_me=false` 且 `is_at_all=false` → 已封鎖
+6. `require_mention`（per-group > 全域）為 true 且 `is_at_me=false` → 拒絕（`respond_to_at_all` 預設 false，@all 不回應）
 
 ## 自動回覆功能
 
