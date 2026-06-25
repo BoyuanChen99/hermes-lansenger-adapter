@@ -188,6 +188,11 @@ class LansengerAdapter(BasePlatformAdapter):
         _auto_quote = os.getenv("LANSENGER_AUTO_QUOTE_REPLY") or extra.get("auto_quote_reply", "false")
         self._auto_quote_reply: bool = str(_auto_quote).lower() in ("true", "1", "yes")
 
+        # Approval allow list — who can approve dangerous commands
+        # Default: owner_id only. Config can add additional approvers.
+        _approval_allow = os.getenv("LANSENGER_APPROVAL_ALLOW_FROM") or extra.get("approval_allow_from", "")
+        self._approval_allow_from: List[str] = [a.strip() for a in _approval_allow.split(",") if a.strip()] if _approval_allow else []
+
         # Last sender per chat (for autoMentionReply)
         self._chat_last_sender: Dict[str, str] = {}
         self._chat_last_from_type: Dict[str, str] = {}
@@ -205,9 +210,18 @@ class LansengerAdapter(BasePlatformAdapter):
         # msg_id → "approveCard" | "appCard"
         self._card_type_map: Dict[str, str] = {}
 
-        # Pending approval card tracking: session_key → msg_id
+        # Pending approval card tracking: session_key → (msg_id, trigger_sender_id)
         # Used to update the card when the user replies /approve or /deny
-        self._pending_approval_msgs: Dict[str, str] = {}
+        # trigger_sender_id is extracted from session_key for permission check
+        self._pending_approval_msgs: Dict[str, tuple] = {}
+        # approval_id → (msg_id, chat_id) — button callback uses approval_id for precise match
+        self._approval_card_msgs: Dict[str, tuple] = {}
+        # Persistent approval state (survives gateway restarts)
+        self._approvals_file = _hermes_home / "lansenger_approvals.json"
+        self._load_approvals()
+
+        # Hermes core gateway approval timeout (seconds, default 300)
+        self._gateway_approval_timeout = self._read_gateway_approval_timeout()
 
     # -- Connection lifecycle -----------------------------------------------
 
@@ -561,6 +575,90 @@ class LansengerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error("[Lansenger] Failed to save owner ID: %s", e)
 
+    def _load_approvals(self) -> None:
+        """Load persisted approval state from disk.  Cleans expired entries."""
+        try:
+            if not self._approvals_file.exists():
+                return
+            data = json.loads(self._approvals_file.read_text(encoding="utf-8"))
+            cards = data.get("cards", {})
+            now = time.time()
+            loaded = 0
+            max_counter = 0
+            for approval_id_str, info in cards.items():
+                expires_at = info.get("expires_at", 0)
+                if expires_at > 0 and expires_at < now:
+                    logger.debug("[Lansenger] Purging expired approval card: id=%s", approval_id_str)
+                    continue
+                msg_id = info.get("msg_id", "")
+                chat_id = info.get("chat_id", "")
+                session_key = info.get("session_key", "")
+                trigger_sender_id = info.get("trigger_sender_id")
+                card_type = info.get("card_type", "approveCard")
+
+                if not msg_id or not chat_id:
+                    continue
+
+                self._approval_state[approval_id_str] = session_key
+                self._card_type_map[msg_id] = card_type
+                self._approval_card_msgs[approval_id_str] = (msg_id, chat_id)
+                if trigger_sender_id and session_key:
+                    self._pending_approval_msgs[session_key] = (msg_id, trigger_sender_id)
+
+                # Track max approval_id for counter recovery
+                try:
+                    aid = int(approval_id_str)
+                    if aid > max_counter:
+                        max_counter = aid
+                except ValueError:
+                    pass
+                loaded += 1
+
+            # Restore counter so next approval_id continues from max+1
+            self._approval_counter = itertools.count(max_counter + 1)
+
+            logger.info("[Lansenger] Loaded %d pending approvals from %s (counter=%d)",
+                        loaded, self._approvals_file, max_counter + 1)
+        except Exception as e:
+            logger.warning("[Lansenger] Failed to load approvals: %s", e)
+
+    def _save_approvals(self) -> None:
+        """Persist approval state to disk."""
+        try:
+            cards: Dict[str, dict] = {}
+            for approval_id, (msg_id, chat_id) in self._approval_card_msgs.items():
+                session_key = self._approval_state.get(approval_id, "")
+                trigger_sender_id = None
+                if session_key and session_key in self._pending_approval_msgs:
+                    trigger_sender_id = self._pending_approval_msgs[session_key][1]
+
+                cards[approval_id] = {
+                    "msg_id": msg_id,
+                    "chat_id": chat_id,
+                    "session_key": session_key,
+                    "trigger_sender_id": trigger_sender_id,
+                    "card_type": self._card_type_map.get(msg_id, "approveCard"),
+                    "expires_at": time.time() + self._gateway_approval_timeout + 60,
+                }
+
+            data = {"version": 1, "cards": cards}
+            self._approvals_file.parent.mkdir(parents=True, exist_ok=True)
+            self._approvals_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+            logger.debug("[Lansenger] Persisted %d approvals to %s", len(cards), self._approvals_file)
+        except Exception as e:
+            logger.debug("[Lansenger] Failed to persist approvals: %s", e)
+
+    @staticmethod
+    def _read_gateway_approval_timeout() -> int:
+        """Read Hermes core's approval gateway_timeout from config.  Default 300s."""
+        try:
+            from hermes_cli.config import load_config
+            config = load_config()
+            timeout = config.get("approvals", {}).get("gateway_timeout", 300)
+            return int(timeout)
+        except Exception:
+            return 300
+
     def _load_chat_type_map(self) -> None:
         try:
             if self._chat_type_file.exists():
@@ -692,8 +790,13 @@ class LansengerAdapter(BasePlatformAdapter):
         Handles bot_private_message (DM) and bot_group_message (group chat)
         events per the official Lansenger OpenAPI callback event spec.
         """
-        # 1. Filter by event type — only handle bot message events
+        # 1. Handle approveCard button callbacks BEFORE the bot_message filter
         event_type = event_data.get("type", "")
+        if event_type == "approve_card_callback":
+            await self._handle_approve_card_callback(event_data)
+            return
+
+        # 2. Filter by event type — only handle bot message events
         if event_type not in ("bot_private_message", "bot_group_message"):
             # Log FULL raw event for unknown types (e.g. approveCard button callbacks)
             logger.info(
@@ -858,7 +961,7 @@ class LansengerAdapter(BasePlatformAdapter):
         if is_group and _our_bot_name:
             at_name = f"@{_our_bot_name}"
             if _cmd_text.endswith(at_name):
-                _cmd_text = _cmd_text[:-len(at_name)].strip()
+                _cmd_text = _cmd_text[: -len(at_name)].strip()
         if _cmd_text.startswith("/"):
             reply = await _commands.dispatch_slash_command(
                 self, _cmd_text, chat_id, sender_id, is_group,
@@ -866,6 +969,24 @@ class LansengerAdapter(BasePlatformAdapter):
             if reply is not None:
                 await self.send(chat_id, reply)
                 return
+
+        # ── Approval permission gate (before gateway) ──
+        # Intercept /approve and /deny in groups before they reach Hermes core.
+        # Hermes core has NO permission check on approval — any sender can
+        # resolve approvals. We enforce it here at the adapter level.
+        if is_group and _cmd_text.startswith("/"):
+            cmd = _cmd_text.split()[0].lower() if _cmd_text.split() else ""
+            if cmd in ("/approve", "/deny"):
+                if not self._check_approval_permission(sender_id):
+                    logger.info(
+                        "[Lansenger] Approval DENIED: sender=%s not in owner/approval_allow_from",
+                        sender_id[:20],
+                    )
+                    await self.send(
+                        chat_id,
+                        "您没有审批权限，仅机器人的主人或配置的审批者可以审批危险命令。",
+                    )
+                    return
 
         await self.handle_message(event)
 
@@ -2278,6 +2399,17 @@ class LansengerAdapter(BasePlatformAdapter):
             btn_always = "Always"
             btn_deny = "Deny"
 
+        # Compute allowed approvers for group chats
+        is_group = self._is_group_chat(chat_id)
+        allowed_approvers: Optional[list] = None
+        if is_group:
+            allowed_approvers = []
+            if self._owner_id:
+                allowed_approvers.append(self._owner_id)
+            for uid in self._approval_allow_from:
+                if uid not in allowed_approvers:
+                    allowed_approvers.append(uid)
+
         approve_card_data = {
             "head": {
                 "title": head_title,
@@ -2301,30 +2433,33 @@ class LansengerAdapter(BasePlatformAdapter):
                     "buttonTheme": 1,  # 主按钮 (蓝底白字)
                     "state": 0,
                     "callbackInfo": f"ea:once:{approval_id}",
+                    **({"permissionScope": {"permittedStaffs": allowed_approvers}, "prohibitedState": 1} if allowed_approvers else {}),
                 },
                 {
                     "text": btn_session,
                     "buttonTheme": 2,  # 次按钮 (白底蓝字)
                     "state": 0,
                     "callbackInfo": f"ea:session:{approval_id}:{session_key}",
+                    **({"permissionScope": {"permittedStaffs": allowed_approvers}, "prohibitedState": 1} if allowed_approvers else {}),
                 },
                 {
                     "text": btn_always,
-                    "buttonTheme": 2,  # 次按钮 (白底蓝字)
+                    "buttonTheme": 3,  # 次按钮 (白底黑字)
                     "state": 0,
                     "callbackInfo": f"ea:always:{approval_id}:{session_key}",
+                    **({"permissionScope": {"permittedStaffs": allowed_approvers}, "prohibitedState": 1} if allowed_approvers else {}),
                 },
                 {
                     "text": btn_deny,
                     "buttonTheme": 4,  # 警告按钮 (红色)
                     "state": 0,
                     "callbackInfo": f"ea:deny:{approval_id}",
+                    **({"permissionScope": {"permittedStaffs": allowed_approvers}, "prohibitedState": 1} if allowed_approvers else {}),
                 },
             ],
-            "expireTime": 604800,  # 7 days in seconds (max: 30 days = 2592000)
+            "expireTime": self._gateway_approval_timeout + 60,  # align with Hermes core gateway_timeout + 60s buffer
         }
 
-        is_group = self._is_group_chat(chat_id)
         if is_group:
             payload = {
                 "groupId": chat_id,
@@ -2367,11 +2502,18 @@ class LansengerAdapter(BasePlatformAdapter):
                 # Store for Phase 2 callback handling
                 self._approval_state[approval_id] = session_key
                 self._card_type_map[msg_id] = "approveCard"  # track for dynamic update
-                self._pending_approval_msgs[session_key] = msg_id
+                # Extract trigger_sender_id from session_key for permission check
+                # session_key format: agent:main:lansenger:group:{chat_id}:{sender_id} or
+                #                      agent:main:lansenger:dm:{chat_id}
+                trigger_sender_id = self._extract_trigger_sender_from_session(session_key)
+                self._pending_approval_msgs[session_key] = (msg_id, trigger_sender_id)
+                # Store by approval_id for precise button-callback matching
+                self._approval_card_msgs[approval_id] = (msg_id, chat_id)
+                self._save_approvals()
                 logger.info(
-                    "[Lansenger] ✅ approveCard sent — approval_id=%s, msg_id=%s. "
+                    "[Lansenger] ✅ approveCard sent — approval_id=%s, msg_id=%s, trigger_sender=%s. "
                     "Buttons: once/session/deny. Waiting for callback via WebSocket...",
-                    approval_id, msg_id,
+                    approval_id, msg_id, trigger_sender_id[:16] if trigger_sender_id else "N/A",
                 )
                 return SendResult(success=True, message_id=msg_id, raw_response=data)
             else:
@@ -2386,6 +2528,119 @@ class LansengerAdapter(BasePlatformAdapter):
             logger.warning("[Lansenger] approveCard send error: %s", exc)
             return SendResult(success=False, error=str(exc))
 
+    # ── approveCard button callback handler ────────────────────────────
+
+    async def _handle_approve_card_callback(self, event_data: Dict[str, Any]) -> None:
+        """Process ``approve_card_callback`` events from approveCard button clicks.
+
+        Event format::
+
+            {
+              "type": "approve_card_callback",
+              "data": {
+                "eventData": "ea:once:2",
+                "staffId": "13107200-K2uBlTReymO6C27owEgC7kJkdIngvlk",
+              }
+            }
+
+        ``eventData`` is the ``callbackInfo`` from the clicked button:
+        ``ea:{choice}:{approval_id}`` or ``ea:{choice}:{approval_id}:{session_key}``.
+        """
+        callback_data = event_data.get("data", {})
+        if not isinstance(callback_data, dict):
+            return
+
+        raw_event_data = callback_data.get("eventData", "")
+        if not raw_event_data or not raw_event_data.startswith("ea:"):
+            logger.warning("[Lansenger] approve_card_callback with unexpected eventData: %s", raw_event_data)
+            return
+
+        staff_id = callback_data.get("staffId", "")
+        if not staff_id:
+            logger.warning("[Lansenger] approve_card_callback missing staffId")
+            return
+
+        # Parse ea:{choice}:{approval_id}[:{session_key}]
+        parts = raw_event_data.split(":", 1)  # ["ea", "choice:id[:session_key]"]
+        if len(parts) < 2:
+            return
+        suffix = parts[1]  # e.g. "once:2" or "session:2:agent:main:lansenger:dm:..."
+
+        # Split into choice, approval_id, and optional session_key
+        colon_idx1 = suffix.find(":")
+        if colon_idx1 == -1:
+            return
+        choice = suffix[:colon_idx1]
+        remainder = suffix[colon_idx1 + 1:]
+
+        colon_idx2 = remainder.find(":")
+        if colon_idx2 == -1:
+            # No session_key in callbackInfo (once/deny): remainder is just approval_id
+            approval_id = remainder
+            session_key: Optional[str] = None
+        else:
+            # session_key present (session/always): remainder = "approval_id:session_key"
+            approval_id = remainder[:colon_idx2]
+            session_key = remainder[colon_idx2 + 1:]
+
+        logger.info(
+            "[Lansenger] 🎯 approve_card_callback: choice=%s approval_id=%s staff=%s session=%s",
+            choice, approval_id, staff_id[:16], (session_key or "N/A")[:60],
+        )
+
+        # Permission check
+        if not self._check_approval_permission(staff_id):
+            logger.warning(
+                "[Lansenger] approve_card_callback permission DENIED: staff=%s",
+                staff_id[:16],
+            )
+            return
+
+        # Look up session_key if not embedded in callbackInfo
+        if not session_key:
+            session_key = self._approval_state.get(approval_id)
+            if not session_key:
+                logger.warning(
+                    "[Lansenger] approve_card_callback: unknown approval_id=%s (no session_key in _approval_state)",
+                    approval_id,
+                )
+                return
+
+        # ── Resolve approval via Hermes core ──
+        try:
+            from tools.approval import resolve_gateway_approval
+            resolve_gateway_approval(session_key, choice)
+        except Exception:
+            logger.exception(
+                "[Lansenger] Failed to resolve gateway approval for session=%s choice=%s",
+                session_key[:60], choice,
+            )
+            return
+
+        # ── Update the approval card UI (using approval_id for precise match) ──
+        card_info = self._approval_card_msgs.get(approval_id)
+        if card_info:
+            msg_id, chat_id = card_info
+            self._approval_card_msgs.pop(approval_id, None)
+            # Also clean up the session_key mapping
+            self._pending_approval_msgs.pop(session_key, None)
+            status = "denied" if choice == "deny" else "approved"
+            logger.info(
+                "[Lansenger] Updating approval card after button click: msg_id=%s chat=%s choice=%s status=%s",
+                msg_id, chat_id[:20], choice, status,
+            )
+            result = await self.update_approval_status(chat_id, msg_id, status, choice)
+            if result.success:
+                self._save_approvals()
+                logger.info("[Lansenger] Approval card updated: msg_id=%s", msg_id)
+            else:
+                logger.warning("[Lansenger] Failed to update approval card after button click: %s", result.error)
+
+        logger.info(
+            "[Lansenger] ✅ approve_card_callback resolved: choice=%s session=%s",
+            choice, session_key[:60],
+        )
+
     # ── Post-approval card updater ──────────────────────────────────────
 
     async def _maybe_update_approval_card(
@@ -2396,6 +2651,8 @@ class LansengerAdapter(BasePlatformAdapter):
         Hermes resolves the approval internally in its slash command handler,
         but never notifies the adapter to update the card.  This hook fills
         that gap by checking if a pending approval card exists for this chat.
+
+        Permission check: only owner_id or users in approval_allow_from can approve.
         """
         if not text.startswith("/"):
             return
@@ -2426,21 +2683,44 @@ class LansengerAdapter(BasePlatformAdapter):
         else:
             session_key = f"agent:main:lansenger:{chat_type}:{chat_id}"
 
-        msg_id = self._pending_approval_msgs.get(session_key)
-        if not msg_id:
+        pending = self._pending_approval_msgs.get(session_key)
+        if not pending:
             logger.debug(
                 "[Lansenger] No pending approval msg for session=%s (cmd=%s) — skipping card update",
                 session_key[:60], cmd,
             )
             return
 
+        msg_id, trigger_sender_id = pending
+
+        # ── Permission check ──
+        # Only owner_id or users in approval_allow_from can approve
+        if not self._check_approval_permission(sender_id):
+            logger.warning(
+                "[Lansenger] Approval permission denied: sender=%s is not owner (%s) or in allowlist",
+                sender_id[:16], self._owner_id[:16] if self._owner_id else "N/A",
+            )
+            # Send a brief rejection message
+            lang = self._get_lang(chat_id)
+            if lang == "zh":
+                reject_msg = "⚠️ 您没有审批权限，只有机器人主人或配置的审批者可以审批命令。"
+            else:
+                reject_msg = "⚠️ You don't have approval permission. Only the bot owner or configured approvers can approve commands."
+            await self.send_text(chat_id, reject_msg)
+            return
+
         logger.info(
-            "[Lansenger] Updating approval card after /%s (choice=%s): msg_id=%s, session=%s",
-            cmd, choice, msg_id, session_key[:60],
+            "[Lansenger] Updating approval card after /%s (choice=%s): msg_id=%s, session=%s, approver=%s",
+            cmd, choice, msg_id, session_key[:60], sender_id[:16],
         )
         result = await self.update_approval_status(chat_id, msg_id, "approved" if cmd == "approve" else "denied", choice)
         if result.success:
             self._pending_approval_msgs.pop(session_key, None)
+            # Also clean up approval_card_msgs (find by msg_id)
+            for aid, (cid_msg_id, _) in list(self._approval_card_msgs.items()):
+                if cid_msg_id == msg_id:
+                    self._approval_card_msgs.pop(aid, None)
+            self._save_approvals()
         else:
             logger.warning(
                 "[Lansenger] Failed to update approval card: %s", result.error,
@@ -2539,8 +2819,10 @@ class LansengerAdapter(BasePlatformAdapter):
 
             msg_id = data.get("data", {}).get("msgId")
             self._card_type_map[msg_id] = "appCard"
-            self._pending_approval_msgs[session_key] = msg_id
-            logger.info("[Lansenger] appCard approval sent to %s, msgId=%s, lang=%s", chat_id, msg_id, lang)
+            # Extract trigger_sender_id from session_key for permission check
+            trigger_sender_id = self._extract_trigger_sender_from_session(session_key)
+            self._pending_approval_msgs[session_key] = (msg_id, trigger_sender_id)
+            logger.info("[Lansenger] appCard approval sent to %s, msgId=%s, trigger_sender=%s, lang=%s", chat_id, msg_id, trigger_sender_id[:16] if trigger_sender_id else "N/A", lang)
             return SendResult(success=True, message_id=msg_id, raw_response=data)
 
         except Exception as e:
@@ -3026,6 +3308,39 @@ class LansengerAdapter(BasePlatformAdapter):
                (0xF900 <= cp <= 0xFAFF) or (0x3000 <= cp <= 0x303F):
                 return "zh"
         return "en"
+
+    def _extract_trigger_sender_from_session(self, session_key: str) -> Optional[str]:
+        """Extract trigger_sender_id from session_key.
+
+        session_key format:
+        - Group: agent:main:lansenger:group:{chat_id}:{sender_id}
+        - DM:    agent:main:lansenger:dm:{chat_id}
+
+        Returns sender_id for group sessions, None for DM sessions.
+        """
+        parts = session_key.split(":")
+        # Format: agent:main:lansenger:{chat_type}:{chat_id}:{sender_id?}
+        if len(parts) >= 6 and parts[3] == "group":
+            return parts[5]  # sender_id
+        return None  # DM session has no sender_id in key
+
+    def _check_approval_permission(self, sender_id: str) -> bool:
+        """Check if sender_id has permission to approve commands.
+
+        Permission rules:
+        1. owner_id always has permission
+        2. users in approval_allow_from list have permission
+        3. others are denied
+
+        Returns True if sender has permission, False otherwise.
+        """
+        # Owner always has permission
+        if self._owner_id and sender_id == self._owner_id:
+            return True
+        # Check allowlist
+        if sender_id in self._approval_allow_from:
+            return True
+        return False
 
     def _get_lang(self, chat_id: str) -> str:
         """Get cached user language for chat_id, defaulting to 'zh'."""

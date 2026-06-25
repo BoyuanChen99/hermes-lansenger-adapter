@@ -1,7 +1,7 @@
 ---
 name: lansenger-setup
 description: Guide for first-time Lansenger (蓝信) bot credential binding, DM pairing, Hermes plugin configuration, slash command management, and dangerous command approval — for scenarios where the user wants to set up or reconfigure Lansenger from scratch via conversation.
-version: 1.3.0
+version: 1.4.0
 category: lansenger
 tags: [lansenger, setup, configuration, slash-commands, approval]
 ---
@@ -362,6 +362,30 @@ platforms:
 卡片会在审批完成后原地更新状态（如"已允许执行一次"）。如果蓝信服务端不支持 approveCard，会自动降级为 appCard。
 
 > **前提：** Hermes 的 `approvals.mode` 必须设为 `manual`（默认值），且被检测命令不在 `command_allowlist` 中。审批行为由 Hermes 核心控制，适配器仅负责卡片展示。
+
+### 审批权限控制
+
+**默认规则：** 只有机器人主人（owner_id）可以审批危险命令。
+
+**配置额外审批者：**
+
+```yaml
+platforms:
+  lansenger:
+    extra:
+      approval_allow_from:
+        - "<staffId1>"   # 额外审批者
+        - "<staffId2>"
+```
+
+或环境变量：`LANSENGER_APPROVAL_ALLOW_FROM=<staffId1>,<staffId2>`
+
+**权限检查逻辑：**
+1. `sender_id == owner_id` → 允许审批
+2. `sender_id in approval_allow_from` → 允许审批
+3. 其他 → 拒绝，提示"您没有审批权限"
+
+> **安全说明：** 蓝信个人机器人只有主人可以邀请进群，主人退群机器人也自动退群，因此 owner_id 是最安全的默认审批者。
 
 ---
 

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.1] - 2026-06-25
+
+### Added
+
+- **Approval permission control**: Only the bot owner and users in `approval_allow_from` can approve dangerous commands. Three-layer defense:
+  - `permissionScope.permittedStaffs` on approveCard buttons (Lansenger server-side enforcement, buttons disabled for unauthorized users)
+  - Intercept `/approve`/`/deny` text commands in adapter before reaching Hermes core (which has no built-in permission check)
+  - `_check_approval_permission()` in card update flow as secondary defense
+- **`LANSENGER_APPROVAL_ALLOW_FROM`** config option (env and `config.yaml`) for listing additional approvers beyond the bot owner
+- **approveCard button callback handling (Phase 2)**: Parse `approve_card_callback` WebSocket events, resolve approvals via `resolve_gateway_approval()`, and update cards in-place. Button click now fully works end-to-end.
+- **Approval card persistence**: Pending approval cards are saved to `lansenger_approvals.json` and restored on restart. Expired entries are cleaned automatically.
+- **`_approval_card_msgs`** dict keyed by `approval_id` for precise button-to-card matching (no conflict when multiple approvals are pending in the same session)
+
+### Changed
+
+- `_pending_approval_msgs` now stores `(msg_id, trigger_sender_id)` tuples for tracking who triggered an approval
+
 ## [2.9.0] - 2026-06-24
 
 ### Changed

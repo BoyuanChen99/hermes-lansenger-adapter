@@ -307,3 +307,69 @@ class TestAtAllBypass:
 
         # should not be blocked by require_mention
         adapter.handle_message.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Approval permission tests
+# ---------------------------------------------------------------------------
+
+class TestApprovalPermission:
+    """Tests for _check_approval_permission and approval permission logic."""
+
+    def test_owner_has_permission(self, make_adapter):
+        """Owner ID should always have approval permission."""
+        adapter = make_adapter()
+        adapter._owner_id = "user-owner"
+        adapter._approval_allow_from = []
+        assert adapter._check_approval_permission("user-owner") is True
+
+    def test_non_owner_without_allowlist_denied(self, make_adapter):
+        """Non-owner should be denied if not in allowlist."""
+        adapter = make_adapter()
+        adapter._owner_id = "user-owner"
+        adapter._approval_allow_from = []
+        assert adapter._check_approval_permission("user-other") is False
+
+    def test_user_in_allowlist_has_permission(self, make_adapter):
+        """User in approval_allow_from should have permission."""
+        adapter = make_adapter()
+        adapter._owner_id = "user-owner"
+        adapter._approval_allow_from = ["user-admin", "user-operator"]
+        assert adapter._check_approval_permission("user-admin") is True
+        assert adapter._check_approval_permission("user-operator") is True
+
+    def test_user_not_in_allowlist_denied(self, make_adapter):
+        """User not in allowlist should be denied."""
+        adapter = make_adapter()
+        adapter._owner_id = "user-owner"
+        adapter._approval_allow_from = ["user-admin"]
+        assert adapter._check_approval_permission("user-random") is False
+
+    def test_no_owner_id_denies_all(self, make_adapter):
+        """If owner_id is not set, only allowlist users can approve."""
+        adapter = make_adapter()
+        adapter._owner_id = None
+        adapter._approval_allow_from = ["user-admin"]
+        assert adapter._check_approval_permission("user-admin") is True
+        assert adapter._check_approval_permission("user-random") is False
+
+    def test_extract_trigger_sender_from_group_session(self, make_adapter):
+        """Group session_key should extract sender_id."""
+        adapter = make_adapter()
+        session_key = "agent:main:lansenger:group:chat-123:user-trigger"
+        result = adapter._extract_trigger_sender_from_session(session_key)
+        assert result == "user-trigger"
+
+    def test_extract_trigger_sender_from_dm_session(self, make_adapter):
+        """DM session_key should return None (no sender_id in key)."""
+        adapter = make_adapter()
+        session_key = "agent:main:lansenger:dm:chat-456"
+        result = adapter._extract_trigger_sender_from_session(session_key)
+        assert result is None
+
+    def test_approval_allow_from_config_loading(self, make_adapter):
+        """approval_allow_from should be loaded from config."""
+        adapter = make_adapter()
+        # Check that the attribute exists and is a list
+        assert hasattr(adapter, "_approval_allow_from")
+        assert isinstance(adapter._approval_allow_from, list)
