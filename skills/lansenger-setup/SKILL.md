@@ -46,15 +46,17 @@ tags: [lansenger, setup, configuration, slash-commands, approval]
 ### 如何告知用户获取群 ID
 
 如果用户需要获取某个群的 ID 用于配置：
-1. 告诉用户当前所在群的 ID 就是 `source.chat_id`（群聊中）
+1. 告诉用户当前所在群的 ID 就是 `source.chat_id`（群聊中，bot 上下文中可见）
 2. 让用户在蓝信客户端打开目标群 → 群设置/群信息中即可看到群 ID
-3. 如果以上方式都不行，让用户在目标群里发一条 @机器人的消息，群 ID 会出现在系统消息中
+3. 让用户在该群中发一条消息，bot 收到的 `source.chat_id` 即为该群 ID
+
+> 注意：`source.chat_id` 和 `source.user_id` 是 Hermes 注入到 Agent 上下文中的系统字段，用户自己在蓝信客户端里看不到。告诉用户群 ID 时，直接从当前对话的 `source.chat_id` 读出来告诉用户即可。
 
 ### 如何告知用户获取 staff ID（用户 ID）
 
-- 当前对话的 `source.user_id` 就是发送者的 staff ID
+- 当前对话的 `source.user_id` 就是发送者的 staff ID（bot 上下文中可见）
 - 每个人在蓝信客户端中只能查看**自己**的 staff ID（通讯录不暴露他人 ID）
-- 如需获取其他人的 staff ID：让对方在群里 @机器人发一条消息，其 `source.user_id` 就会出现
+- **无法直接获取他人的 staff ID**：蓝信不提供此功能。唯一方式是对方主动与 bot 交互（发消息、@bot），此时其 `source.user_id` 会出现在 bot 上下文中
 
 ---
 
