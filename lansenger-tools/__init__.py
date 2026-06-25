@@ -33,6 +33,7 @@ Lansenger has multiple message/card types with different capabilities:
 - lansenger_send_link_card:    msgType=linkCard → rich link preview card (6 required fields)
 - lansenger_send_app_articles: msgType=appArticles → multi-article card (图文卡片)
 - lansenger_send_app_card:     msgType=appCard → rich card with dynamic update support
+- lansenger_send_approve_card: msgType=approveCard → card with clickable buttons for interactive workflows
 - lansenger_update_dynamic_card: POST → update appCard status in-place
 - lansenger_query_groups:      GET → list bot's group IDs
 
@@ -144,6 +145,16 @@ def register(ctx):
         check_fn=check_available,
     )
 
+    # ─── approveCard (审批卡片) ──────────────────────────────────
+    ctx.register_tool(
+        name="lansenger_send_approve_card",
+        toolset="lansenger-tools",
+        schema=schemas.LANSENGER_SEND_APPROVE_CARD,
+        handler=tools.lansenger_send_approve_card,
+        description="Send an approveCard (审批卡片) with clickable buttons for interactive workflows. Body supports Markdown.",
+        check_fn=check_available,
+    )
+
     # ─── Group query ─────────────────────────────────────────────
     ctx.register_tool(
         name="lansenger_query_groups",
@@ -154,8 +165,36 @@ def register(ctx):
         check_fn=check_available,
     )
 
+    # ─── Group info ───────────────────────────────────────────────
+    ctx.register_tool(
+        name="lansenger_get_group_info",
+        toolset="lansenger-tools",
+        schema=schemas.LANSENGER_GET_GROUP_INFO,
+        handler=tools.lansenger_get_group_info,
+        description="Get detailed group information (name, members, state) on Lansenger (蓝信)",
+        check_fn=check_available,
+    )
+
+    ctx.register_tool(
+        name="lansenger_get_group_members",
+        toolset="lansenger-tools",
+        schema=schemas.LANSENGER_GET_GROUP_MEMBERS,
+        handler=tools.lansenger_get_group_members,
+        description="Get the member list of a Lansenger (蓝信) group with pagination support",
+        check_fn=check_available,
+    )
+
+    ctx.register_tool(
+        name="lansenger_check_in_group",
+        toolset="lansenger-tools",
+        schema=schemas.LANSENGER_CHECK_IN_GROUP,
+        handler=tools.lansenger_check_in_group,
+        description="Check whether a staff or bot is in a Lansenger (蓝信) group",
+        check_fn=check_available,
+    )
+
     logger.info(
-        "lansenger-tools: registered 10 tools "
+        "lansenger-tools: registered 13 tools "
         "(credentials: %s)",
         "available" if check_available() else "not configured — tools hidden",
     )

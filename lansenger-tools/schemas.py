@@ -556,11 +556,92 @@ LANSENGER_SEND_APP_CARD = {
     },
 }
 
+LANSENGER_SEND_APPROVE_CARD = {
+    "name": "lansenger_send_approve_card",
+    "description": (
+        "Send an approveCard (审批卡片) native Lansenger card with clickable buttons. "
+        "approveCard uses markdown-formatted body content and supports button callbacks "
+        "via WebSocket events. Suitable for interactive workflows (approvals, confirmations, choices). "
+        "Body content supports Markdown syntax."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "chat_id": {
+                "type": "string",
+                "description": "Recipient user ID or group chat ID on Lansenger",
+            },
+            "head_title": {
+                "type": "string",
+                "description": "Card header title (max 96 bytes)",
+            },
+            "body_title": {
+                "type": "string",
+                "description": "Card body title",
+            },
+            "body_content": {
+                "type": "string",
+                "description": "Markdown body text (supports full Markdown syntax)",
+            },
+            "fields": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {"type": "string"},
+                        "value": {"type": "string"},
+                    },
+                },
+                "description": "Key-value pairs displayed in the card body (max 10 pairs)",
+            },
+            "buttons": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "string",
+                            "description": "Button display text",
+                        },
+                        "button_theme": {
+                            "type": "integer",
+                            "description": "Button style: 1=primary(blue), 2=secondary(white/blue), 3=secondary(white/black), 4=danger(red)",
+                            "default": 1,
+                        },
+                        "callback_info": {
+                            "type": "string",
+                            "description": "Callback string passed back via WebSocket when button is clicked. Use a unique identifier to distinguish which button was pressed.",
+                        },
+                    },
+                    "required": ["text"],
+                },
+                "description": "Action buttons (max 4, displayed in order)",
+            },
+            "expire_time": {
+                "type": "integer",
+                "description": "Card expiry in seconds (default: 3600 = 1 hour)",
+                "default": 3600,
+            },
+            "head_status": {
+                "type": "string",
+                "description": "Status description shown in card header badge (max 30 bytes)",
+            },
+            "head_status_color": {
+                "type": "string",
+                "description": "Hex color for status badge (default: #FFB116 amber). Common: #198754 green, #dc3545 red, #0d6efd blue",
+                "default": "#FFB116",
+            },
+        },
+        "required": ["chat_id", "head_title", "body_title"],
+    },
+}
+
 LANSENGER_UPDATE_DYNAMIC_CARD = {
     "name": "lansenger_update_dynamic_card",
     "description": (
-        "Update a dynamic appCard's status in-place (e.g. approval: pending → approved/rejected). "
-        "The card must have been sent with is_dynamic=true via lansenger_send_app_card. "
+        "Update a dynamic card's status in-place (appCard or approveCard). "
+        "For appCard: the card must have been sent with is_dynamic=true via lansenger_send_app_card. "
+        "For approveCard: pass card_type='approveCard'. "
         "Uses the Lansenger dynamic update API to change headStatusInfo and optionally links."
     ),
     "parameters": {
@@ -614,6 +695,12 @@ LANSENGER_UPDATE_DYNAMIC_CARD = {
                 ),
                 "default": False,
             },
+            "card_type": {
+                "type": "string",
+                "description": "Card type to update: 'appCard' (default) or 'approveCard'. Required when updating an approveCard sent via lansenger_send_approve_card.",
+                "enum": ["appCard", "approveCard"],
+                "default": "appCard",
+            },
         },
         "required": ["msg_id"],
     },
@@ -640,5 +727,83 @@ LANSENGER_QUERY_GROUPS = {
                 "default": 100,
             },
         },
+    },
+}
+
+# ─── Group info tools ─────────────────────────────────────────────────────
+
+LANSENGER_GET_GROUP_INFO = {
+    "name": "lansenger_get_group_info",
+    "description": (
+        "Get detailed information about a Lansenger (蓝信) group. "
+        "Returns group name, description, owner, total members, max members, "
+        "group state (normal/disbanded), and other settings. "
+        "Use this to look up group details when you know the group_id."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "group_id": {
+                "type": "string",
+                "description": "The group ID to query",
+            },
+        },
+        "required": ["group_id"],
+    },
+}
+
+LANSENGER_GET_GROUP_MEMBERS = {
+    "name": "lansenger_get_group_members",
+    "description": (
+        "Get the member list of a Lansenger (蓝信) group. "
+        "Returns total member count and a list of members with their staffId, "
+        "name, orgName, avatarUrl, and role (0=member, 1=assistant admin, 2=owner). "
+        "Supports pagination via page_offset and page_size."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "group_id": {
+                "type": "string",
+                "description": "The group ID to query",
+            },
+            "page_offset": {
+                "type": "integer",
+                "description": "Page number starting from 0 (default: 0)",
+                "default": 0,
+            },
+            "page_size": {
+                "type": "integer",
+                "description": "Number of members per page (max 100, default: 100)",
+                "default": 100,
+            },
+        },
+        "required": ["group_id"],
+    },
+}
+
+LANSENGER_CHECK_IN_GROUP = {
+    "name": "lansenger_check_in_group",
+    "description": (
+        "Check whether a specific staff (user) or bot is in a Lansenger (蓝信) group. "
+        "If staff_id is not provided, checks whether the current bot is in the group. "
+        "Returns true/false. Useful for membership verification before sending messages."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "group_id": {
+                "type": "string",
+                "description": "The group ID to check",
+            },
+            "staff_id": {
+                "type": "string",
+                "description": (
+                    "Optional staff ID to check. If omitted, checks the bot itself. "
+                    "Priority: staff_id > user_token > app_token (bot)."
+                ),
+            },
+        },
+        "required": ["group_id"],
     },
 }

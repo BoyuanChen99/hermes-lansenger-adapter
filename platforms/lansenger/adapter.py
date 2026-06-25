@@ -94,6 +94,9 @@ API_ENDPOINTS = {
     },
     "groups": {
         "fetch": "/v2/groups/fetch",
+        "info": "/v2/groups/{group_id}/info/fetch",
+        "members": "/v2/groups/{group_id}/members/fetch",
+        "is_in_group": "/v2/groups/{group_id}/members/is_in_group",
     },
 }
 
@@ -226,6 +229,13 @@ class LansengerAdapter(BasePlatformAdapter):
 
         # Hermes core gateway approval timeout (seconds, default 300)
         self._gateway_approval_timeout = self._read_gateway_approval_timeout()
+
+        # Group info cache: group_id → {"info": dict, "members": list, "fetched_at": float}
+        # Cache TTL: 300s (5 min). Members only prefetched if total <= 100.
+        self._group_cache: Dict[str, Dict[str, Any]] = {}
+        self._group_cache_ttl: float = 300.0
+        # Track in-flight group fetches to avoid concurrent duplicate API calls
+        self._group_fetch_locks: Dict[str, asyncio.Lock] = {}
 
     # -- Connection lifecycle -----------------------------------------------
 
@@ -925,12 +935,31 @@ class LansengerAdapter(BasePlatformAdapter):
             await self._auto_sethome(chat_id)
 
         # 12. Build source & event
+        # For group chats, inject group info into chat_topic for system prompt
+        chat_topic: Optional[str] = None
+        if is_group:
+            cached = self._group_cache.get(chat_id)
+            if cached and (time.time() - cached.get("fetched_at", 0)) < self._group_cache_ttl:
+                chat_topic = self._build_group_chat_topic(cached)
+            else:
+                # First message: await group info synchronously for immediate injection
+                try:
+                    info = await self.get_group_info(chat_id)
+                    if "error" not in info:
+                        temp_entry = {"info": info, "members": [], "fetched_at": time.time()}
+                        chat_topic = self._build_group_chat_topic(temp_entry)
+                except Exception as e:
+                    logger.debug("[Lansenger] Failed to fetch group info for chat_topic: %s", e)
+                # Background: full cache (info + members if ≤100) for future messages
+                asyncio.create_task(self._ensure_group_cache(chat_id))
+
         source = self.build_source(
             chat_id=chat_id,
             chat_name=chat_name or None,
             chat_type="group" if is_group else "dm",
             user_id=sender_id,
             user_name=msg_data.get("senderName", sender_id),
+            chat_topic=chat_topic,
         )
 
         # Attach group context in raw_message for downstream consumers
@@ -1635,6 +1664,185 @@ class LansengerAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error("[Lansenger] Query groups error: %s", e)
             return {"totalGroupIds": 0, "groupIds": []}
+
+    async def get_group_info(self, group_id: str) -> Dict[str, Any]:
+        """Get group basic info via GET /v2/groups/{group_id}/info/fetch.
+
+        Returns group name, description, owner, total members, max members, etc.
+        """
+        token = await self._get_app_token()
+        if not token:
+            return {"error": "Failed to get app token"}
+
+        try:
+            url = (
+                f"{self._api_gateway_url}"
+                f"{API_ENDPOINTS['groups']['info'].format(group_id=group_id)}"
+                f"?app_token={token}"
+            )
+            response = await self._http_client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                logger.error("[Lansenger] Get group info error: errCode=%s errMsg=%s",
+                             data.get("errCode"), data.get("errMsg"))
+                return {"error": data.get("errMsg", "Unknown error")}
+
+            result = data.get("data", {})
+            logger.info("[Lansenger] Got group info: name=%s totalMembers=%d",
+                        result.get("name", "?"), result.get("totalMembers", 0))
+            return result
+
+        except Exception as e:
+            logger.error("[Lansenger] Get group info error: %s", e)
+            return {"error": str(e)}
+
+    async def get_group_members(self, group_id: str, page_offset: int = 0,
+                                page_size: int = 100) -> Dict[str, Any]:
+        """Get group member list via GET /v2/groups/{group_id}/members/fetch.
+
+        Returns totalMembers count and members list with staffId, name, orgName, role.
+        """
+        token = await self._get_app_token()
+        if not token:
+            return {"error": "Failed to get app token"}
+
+        try:
+            url = (
+                f"{self._api_gateway_url}"
+                f"{API_ENDPOINTS['groups']['members'].format(group_id=group_id)}"
+                f"?app_token={token}&page_offset={page_offset}&page_size={page_size}"
+            )
+            response = await self._http_client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                logger.error("[Lansenger] Get group members error: errCode=%s errMsg=%s",
+                             data.get("errCode"), data.get("errMsg"))
+                return {"error": data.get("errMsg", "Unknown error")}
+
+            result = data.get("data", {})
+            logger.info("[Lansenger] Got group members: total=%d returned=%d",
+                        result.get("totalMembers", 0), len(result.get("members", [])))
+            return result
+
+        except Exception as e:
+            logger.error("[Lansenger] Get group members error: %s", e)
+            return {"error": str(e)}
+
+    async def check_in_group(self, group_id: str, staff_id: str = "") -> Dict[str, Any]:
+        """Check if a staff or bot is in a group via GET /v2/groups/{group_id}/members/is_in_group.
+
+        Priority: staff_id > user_token > app_token.
+        """
+        token = await self._get_app_token()
+        if not token:
+            return {"error": "Failed to get app token"}
+
+        try:
+            params = f"app_token={token}"
+            if staff_id:
+                params += f"&staff_id={staff_id}"
+            url = (
+                f"{self._api_gateway_url}"
+                f"{API_ENDPOINTS['groups']['is_in_group'].format(group_id=group_id)}"
+                f"?{params}"
+            )
+            response = await self._http_client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("errCode") != 0:
+                logger.error("[Lansenger] Check in group error: errCode=%s errMsg=%s",
+                             data.get("errCode"), data.get("errMsg"))
+                return {"error": data.get("errMsg", "Unknown error")}
+
+            return data.get("data", {"isInGroup": False})
+
+        except Exception as e:
+            logger.error("[Lansenger] Check in group error: %s", e)
+            return {"error": str(e)}
+
+    async def _ensure_group_cache(self, group_id: str) -> Optional[Dict[str, Any]]:
+        """Ensure group info and members are cached. Returns cache entry or None.
+
+        Fetches group info + members (if total <= 100) on cache miss or expiry.
+        Uses per-group-id asyncio.Lock to avoid concurrent duplicate fetches.
+        """
+        now = time.time()
+        cached = self._group_cache.get(group_id)
+        if cached and (now - cached.get("fetched_at", 0)) < self._group_cache_ttl:
+            return cached
+
+        # Use per-group lock to avoid concurrent fetches for the same group
+        if group_id not in self._group_fetch_locks:
+            self._group_fetch_locks[group_id] = asyncio.Lock()
+
+        async with self._group_fetch_locks[group_id]:
+            # Double-check after acquiring lock
+            cached = self._group_cache.get(group_id)
+            if cached and (now - cached.get("fetched_at", 0)) < self._group_cache_ttl:
+                return cached
+
+            # Fetch group info
+            info = await self.get_group_info(group_id)
+            if "error" in info:
+                logger.warning("[Lansenger] Failed to fetch group info for %s: %s",
+                               group_id[:20], info.get("error"))
+                return None
+
+            members = []
+            total_members = info.get("totalMembers", 0)
+
+            # Only prefetch members if total <= 100
+            if 0 < total_members <= 100:
+                member_result = await self.get_group_members(group_id)
+                if "error" not in member_result:
+                    members = member_result.get("members", [])
+
+            entry = {
+                "info": info,
+                "members": members,
+                "fetched_at": time.time(),
+            }
+            self._group_cache[group_id] = entry
+            logger.info("[Lansenger] Group cache updated for %s: name=%s members=%d/%d",
+                        group_id[:20], info.get("name", "?"), len(members), total_members)
+            return entry
+
+    def _build_group_chat_topic(self, cache_entry: Dict[str, Any]) -> str:
+        """Build chat_topic string from cached group info for system prompt injection."""
+        info = cache_entry.get("info", {})
+        members = cache_entry.get("members", [])
+
+        lines = []
+        lines.append(f"群名称: {info.get('name', '未知')}")
+        desc = info.get("description", "").strip()
+        if desc:
+            lines.append(f"群描述: {desc}")
+        lines.append(f"群人数: {info.get('totalMembers', 0)} 人 (上限 {info.get('maxMembers', '?')})")
+        state = "正常" if info.get("state") == 0 else "已解散"
+        lines.append(f"群状态: {state}")
+
+        if members:
+            lines.append("群成员:")
+            role_labels = {0: "成员", 1: "助理群主", 2: "群主"}
+            for m in members:
+                name = m.get("name", m.get("staffId", "?"))
+                role = role_labels.get(m.get("role", 0), "成员")
+                org = m.get("orgName", "")
+                if org:
+                    lines.append(f"  - {name} ({role}) — {org}")
+                else:
+                    lines.append(f"  - {name} ({role})")
+        else:
+            total = info.get("totalMembers", 0)
+            if total > 100:
+                lines.append(f"群成员过多({total}人)，如需查询具体成员请使用 lansenger_get_group_members 工具。")
+
+        return "\n".join(lines)
 
     async def send_app_articles(
         self,
@@ -2354,6 +2562,114 @@ class LansengerAdapter(BasePlatformAdapter):
         # ── Step 2: Fall back to dynamic appCard ──
         return await self._send_appcard_approval(chat_id, command, session_key, description)
 
+    async def send_approve_card(
+        self, chat_id: str, head_title: str, body_title: str,
+        body_content: str = "", fields: Optional[List[dict]] = None,
+        buttons: Optional[List[dict]] = None, expire_time: int = 3600,
+        head_status: str = "", head_status_color: str = "#FFB116",
+    ) -> SendResult:
+        """Send a generic approveCard with buttons.
+
+        approveCard is a native Lansenger card type with clickable buttons.
+        Unlike appCard, it uses markdown-formatted body content and supports
+        button callbacks via WebSocket events.
+
+        Args:
+            chat_id: Recipient user ID or group chat ID.
+            head_title: Card header title (max 96 bytes).
+            body_title: Card body title.
+            body_content: Markdown body text.
+            fields: [{key, value}] pairs displayed in the card body.
+            buttons: [{text, button_theme, callback_info}] button array.
+                     button_theme: 1=primary(blue), 2=secondary(white/blue),
+                     3=secondary(white/black), 4=danger(red).
+                     callback_info: arbitrary string passed back via WebSocket.
+            expire_time: Card expiry in seconds (default 3600).
+            head_status: Status description shown in card header (max 30 bytes).
+            head_status_color: Hex color for status badge (default #FFB116).
+        """
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="No access token")
+
+        is_group = self._is_group_chat(chat_id)
+
+        approve_card_data: Dict[str, Any] = {
+            "head": {
+                "title": head_title[:96],
+            },
+            "body": {
+                "title": body_title,
+                "content": {
+                    "formatType": 1,  # MARK_DOWN
+                    "text": body_content,
+                },
+            },
+            "buttons": buttons or [],
+            "expireTime": expire_time,
+        }
+
+        if head_status:
+            approve_card_data["head"]["headStatus"] = {
+                "describe": head_status[:30],
+                "statusIcon": 1,
+                "colour": head_status_color,
+            }
+
+        if fields:
+            approve_card_data["body"]["fields"] = fields[:10]
+
+        if is_group:
+            payload = {
+                "groupId": chat_id,
+                "msgType": "approveCard",
+                "msgData": {"approveCard": approve_card_data},
+            }
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['group_message']}?app_token={token}"
+        else:
+            payload = {
+                "userIdList": [chat_id],
+                "msgType": "approveCard",
+                "msgData": {"approveCard": approve_card_data},
+            }
+            url = f"{self._api_gateway_url}{API_ENDPOINTS['smart_bot']['private_message']}?app_token={token}"
+
+        logger.info(
+            "[Lansenger] Sending generic approveCard (group=%s): %s",
+            is_group, json.dumps(payload, ensure_ascii=False)[:500],
+        )
+
+        try:
+            response = await self._http_client.post(url, json=payload)
+            response.raise_for_status()
+
+            if not response.text or len(response.text.strip()) == 0:
+                return SendResult(success=False, error="Empty API response")
+
+            data = response.json()
+            err_code = data.get("errCode", -1)
+            if err_code != 0:
+                logger.warning(
+                    "[Lansenger] approveCard API error: errCode=%s, errMsg=%s",
+                    err_code, data.get("errMsg", ""),
+                )
+                return SendResult(success=False, error=data.get("errMsg", f"errCode={err_code}"))
+
+            msg_id = data.get("data", {}).get("msgId")
+            if msg_id:
+                self._card_type_map[msg_id] = "approveCard"
+                logger.info("[Lansenger] ✅ approveCard sent — msg_id=%s", msg_id)
+                return SendResult(success=True, message_id=msg_id, raw_response=data)
+            else:
+                return SendResult(success=False, error="No msgId in response")
+
+        except httpx.HTTPStatusError as exc:
+            logger.warning("[Lansenger] approveCard HTTP %s: %s", exc.response.status_code, exc)
+            return SendResult(success=False, error=f"HTTP {exc.response.status_code}")
+        except Exception as exc:
+            logger.warning("[Lansenger] approveCard send error: %s", exc)
+            return SendResult(success=False, error=str(exc))
+
     # ── approveCard (Phase 1 — button-observation) ────────────────────────
 
     async def _send_approve_card(
@@ -2968,13 +3284,15 @@ class LansengerAdapter(BasePlatformAdapter):
     async def update_approval_status(
         self, chat_id: str, message_id: str,
         status: str, choice: str = "",
+        card_type: str = "",
     ) -> SendResult:
         """Update a dynamic approval card status in-place.
 
         Supports both approveCard (via ``approveCardUpdateMsg``) and
         appCard (via ``appCardUpdateMsg``).  Card type is auto-detected
         from the internal ``_card_type_map``; defaults to appCard mode
-        for backwards compatibility.
+        for backwards compatibility.  Pass ``card_type`` explicitly
+        to override auto-detection (e.g. ``"approveCard"``).
 
         When *choice* is provided (``once``/``session``/``always``/``deny``),
         the card's buttons are replaced with a single greyed-out button
@@ -2990,7 +3308,7 @@ class LansengerAdapter(BasePlatformAdapter):
         if not token:
             return SendResult(success=False, error="No access token")
 
-        card_type = self._card_type_map.get(message_id, "appCard")
+        card_type = card_type or self._card_type_map.get(message_id, "appCard")
         lang = self._get_lang(chat_id)
 
         try:

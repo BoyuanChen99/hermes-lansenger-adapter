@@ -1,9 +1,9 @@
 ---
 name: lansenger-messaging
 description: "Lansenger message type selection and card design guidelines."
-version: 2.0.0
+version: 2.1.0
 category: lansenger
-tags: [lansenger, messaging, appcard]
+tags: [lansenger, messaging, appcard, group]
 ---
 
 # Lansenger Messaging Strategy
@@ -18,6 +18,7 @@ Lansenger has multiple message types with different capabilities. Picking the wr
 | formatText | ✓ | ✓ (newer) | ✗ | ✓ |
 | appArticles | ✗ | ✗ | ✗ | ✓ |
 | appCard | ✗ (div-style) | ✗ | ✗ | ✓ |
+| approveCard | ✓ (markdown) | ✗ | ✗ | ✓ |
 | linkCard | ✗ | ✗ | ✗ | ✓ |
 
 - **formatText @mention**: newer Lansenger triggers client notification; older versions silently accept without triggering. The API automatically prepends `@displayName` to the message based on `reminder.userIds` / `reminder.botIds` — do NOT manually write `@name` in the text content.
@@ -26,14 +27,27 @@ Lansenger has multiple message types with different capabilities. Picking the wr
 
 Auto-routing: private → `/v1/bot/messages/create` (userIdList), group → `/v1/messages/group/create` (groupId).
 
+## Group Context Injection
+
+In group chats, the adapter automatically fetches and injects group information into your system prompt:
+
+- **Group name, description, member count** — always injected
+- **Member list** (name, role, org) — injected when group has ≤ 100 members
+- **Groups > 100 members** — only member count is injected; use `lansenger_get_group_members` to query specific members
+- Group info is cached for 5 minutes
+
+You **do not need to call** `lansenger_get_group_info` or `lansenger_get_group_members` just to know basic group context — it's already in your system prompt. Use these tools only when you need info beyond what's injected (e.g., groups > 100 members, refreshing stale info, or querying groups you're not currently in).
+
 ## Card Type Matrix
 
 | Card Type | Multi-lang | Dynamic Update | headStatusInfo |
 |-----------|------------|----------------|----------------|
 | appCard | ✗ | ✓ | ✓ |
 | i18nAppCard | ✓ (5 langs) | ✗ | ✗ (reserved) |
+| approveCard | ✗ | ✓ (via dynamic update) | ✓ (head_status) |
 
 **appCard** — single language, supports `isDynamic` + `headStatusInfo` for in-place status updates.
+**approveCard** — Markdown body, clickable buttons, supports in-place status updates via `lansenger_update_dynamic_card`.
 **i18nAppCard** — 5 languages in one message, no dynamic updates. Reserved for future use.
 
 ## Decision Tree
@@ -55,9 +69,13 @@ Auto-routing: private → `/v1/bot/messages/create` (userIdList), group → `/v1
      - `colour` = status dot color (e.g. "#FFB116" amber, "#198754" green, "red")
    - Example: `description='<div style="color:#FFB116">Pending</div>', colour="#FFB116"` (Chinese: `待审批`)
    - After approval: `lansenger_update_dynamic_card` to update status in-place
-10. **Update dynamic card** → `lansenger_update_dynamic_card` (msg_id required, is_last_update=True for final)
-11. **Revoke message** → `lansenger_revoke_message` (chat_type="bot"/"group"; Lansenger shows fixed system text, not customizable)
-12. **Query groups** → `lansenger_query_groups` (may require admin permission; returns groupIds)
+10. **Interactive approve card** → `lansenger_send_approve_card` (clickable buttons, Markdown body)
+11. **Update dynamic card** → `lansenger_update_dynamic_card` (msg_id required, is_last_update=True for final)
+12. **Revoke message** → `lansenger_revoke_message` (chat_type="bot"/"group"; Lansenger shows fixed system text, not customizable)
+13. **List bot's groups** → `lansenger_query_groups` (returns group IDs the bot belongs to)
+14. **Get group details** → `lansenger_get_group_info` (name, members count, state — but note: basic info is auto-injected for current group)
+15. **Get group members** → `lansenger_get_group_members` (member list with roles; only needed when members not auto-injected, i.e. groups > 100 people)
+16. **Check membership** → `lansenger_check_in_group` (verify if a staff/bot is in a specific group)
 
 ## Critical Pitfalls
 

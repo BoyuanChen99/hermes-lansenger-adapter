@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.3] - 2026-06-25
+
+### Added
+
+- **Group info tools**: Three new tools for Lansenger group management:
+  - `lansenger_get_group_info` — Get detailed group information (name, description, member count, state, avatar)
+  - `lansenger_get_group_members` — Get group member list with pagination (name, org, role: member/assistant-admin/owner)
+  - `lansenger_check_in_group` — Check whether a staff or bot is in a specific group
+- **Group context injection**: Group info and member list (≤100 members) are automatically injected into the Hermes system prompt via `chat_topic` on `SessionSource`. Cached for 5 minutes per group.
+- **`lansenger_send_approve_card`** added to all READMEs (was missing from documentation)
+
+### Fixed
+
+- **Tool adapter loading**: Fixed `_get_adapter_class()` in `lansenger-tools` to try `hermes_plugins.lansenger_platform.adapter` as the first import path, fixing "Cannot load LansengerAdapter" errors during tool execution
+- **First-message group context**: Changed from fire-and-forget to synchronous await for group info on first message, so `chat_topic` is available from the very first turn in a new session
+
+### Changed
+
+- **Skills updated**: `lansenger-messaging` v2.0.0 → v2.1.0 (group context injection docs, new tools in decision tree); `lansenger-setup` v1.4.0 → v1.5.0 (group tools reference, auto-injection notes)
+
 ## [2.9.2] - 2026-06-25
 
 ### Added

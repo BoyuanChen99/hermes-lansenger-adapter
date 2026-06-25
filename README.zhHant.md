@@ -39,8 +39,12 @@
 - **lansenger_send_link_card** — 傳送 linkCard 卡片訊息（spec 規定 6 個必填欄位）
 - **lansenger_send_app_articles** — 傳送 appArticles 多文章卡片
 - **lansenger_send_app_card** — 傳送 appCard 富卡片，可選動態更新
+- **lansenger_send_approve_card** — 發送帶可點擊按鈕的 approveCard 審批卡片
 - **lansenger_update_dynamic_card** — 原地更新動態 appCard 狀態
 - **lansenger_query_groups** — 查詢機器人的群 ID 列表
+- **lansenger_get_group_info** — 獲取群詳細資訊（名稱、人數、狀態）
+- **lansenger_get_group_members** — 獲取群成員列表（支援分頁）
+- **lansenger_check_in_group** — 檢查某人/機器人是否在指定群中
 - **自動媒體類型偵測** — 依副檔名自動分類圖片/影片/文件
 - **憑證管控** — 未設定 LANSENGER_APP_ID/SECRET 時工具隱藏
 
@@ -129,8 +133,12 @@ platforms:
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | 傳送 linkCard 卡片（spec 規定 6 個必填欄位，pc_link 可選） |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | 傳送 appArticles 多文章卡片 |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | 傳送 appCard 富卡片，可選動態更新 |
-| `lansenger_update_dynamic_card` | `msg_id`, `head_status_info`?, `is_last_update`? | 原地更新動態 appCard 瀏覽狀態 |
+| `lansenger_send_approve_card` | `chat_id`, `head_title`, `body_title`, `body_content`?, `buttons`, `fields`?, `head_status`?, `head_status_color`? | 發送帶可點擊按鈕的 approveCard 審批卡片 |
+| `lansenger_update_dynamic_card` | `msg_id`, `head_status_info`?, `is_last_update`? | 原地更新動態 appCard 狀態 |
 | `lansenger_query_groups` | `page_offset`?, `page_size`? | 查詢機器人的群 ID 列表 |
+| `lansenger_get_group_info` | `group_id` | 獲取群詳細資訊（名稱、人數、狀態） |
+| `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | 獲取群成員列表（支援分頁） |
+| `lansenger_check_in_group` | `group_id`, `staff_id`? | 檢查某人/機器人是否在指定群中 |
 
 **使用範例（Agent 提示）：**
 

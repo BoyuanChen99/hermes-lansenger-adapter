@@ -39,8 +39,12 @@ Ce dépôt contient **deux plugins** :
 - **lansenger_send_link_card** — Envoyer une carte linkCard (6 champs requis par la spec)
 - **lansenger_send_app_articles** — Envoyer une carte multi-article appArticles
 - **lansenger_send_app_card** — Envoyer une carte riche appCard avec mises à jour dynamiques optionnelles
+- **lansenger_send_approve_card** — Envoyer une carte approveCard avec des boutons cliquables pour les workflows interactifs
 - **lansenger_update_dynamic_card** — Mettre à jour le statut d’une appCard dynamique en place
 - **lansenger_query_groups** — Requête la liste des ID de groupes du robot
+- **lansenger_get_group_info** — Obtenir les informations détaillées d'un groupe (nom, membres, état)
+- **lansenger_get_group_members** — Obtenir la liste des membres d'un groupe avec pagination
+- **lansenger_check_in_group** — Vérifier si un utilisateur ou un robot est dans un groupe
 - **Détection automatique du type de média** — images/vidéos/documents classifiés par extension
 - **Contrôle des identifiants** — outils masqués lorsque LANSENGER_APP_ID/SECRET ne sont pas configurés
 
@@ -129,8 +133,12 @@ Ces outils permettent à l’Agent d’envoyer des messages, fichiers, images, c
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | Envoyer une carte linkCard (6 champs requis par la spec, pc_link optionnel) |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | Envoyer une carte multi-article appArticles |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | Envoyer une carte riche appCard avec mises à jour dynamiques optionnelles |
+| `lansenger_send_approve_card` | `chat_id`, `head_title`, `body_title`, `body_content`?, `buttons`, `fields`?, `head_status`?, `head_status_color`? | Envoyer une carte approveCard avec des boutons cliquables pour les workflows interactifs |
 | `lansenger_update_dynamic_card` | `msg_id`, `head_status_info`?, `is_last_update`? | Mettre à jour le statut d’une appCard dynamique en place |
 | `lansenger_query_groups` | `page_offset`?, `page_size`? | Requête la liste des ID de groupes du robot |
+| `lansenger_get_group_info` | `group_id` | Obtenir les informations détaillées d'un groupe (nom, membres, état) |
+| `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | Obtenir la liste des membres d'un groupe avec pagination |
+| `lansenger_check_in_group` | `group_id`, `staff_id`? | Vérifier si un utilisateur ou un robot est dans un groupe |
 
 **Exemples d’utilisation (prompts de l’Agent) :**
 

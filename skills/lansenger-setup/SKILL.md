@@ -1,7 +1,7 @@
 ---
 name: lansenger-setup
 description: Guide for Lansenger (蓝信) bot credential binding, DM pairing, Hermes plugin configuration, slash command management, and dangerous command approval — covers both first-time setup and ongoing configuration changes (e.g. adjusting group policies, @mention rules, auto-reply features).
-version: 1.4.0
+version: 1.5.0
 category: lansenger
 tags: [lansenger, setup, configuration, slash-commands, approval]
 ---
@@ -35,13 +35,27 @@ tags: [lansenger, setup, configuration, slash-commands, approval]
 
 ## 核心信息：如何获取当前会话的 chat_id 和 user_id
 
-**重要：** 当前会话的 `chat_id` 和 `user_id` 已由系统注入到你的上下文中，**不需要调用 `lansenger_query_groups` 来获取**。
+**重要：** 当前会话的 `chat_id` 和 `user_id` 已由系统注入到你的上下文中。群聊场景下，群名称、人数、以及成员列表（≤100 人时）也会自动注入。
 
 - **当前群聊 ID**：查看系统消息中的 `source.chat_id`。私聊会话的 `chat_id` 就是对方的 user_id，群聊会话的 `chat_id` 就是群的 groupId。
+- **当前群信息**：群名称、人数、成员列表会通过 `Channel Topic` 自动注入到系统提示中。≤100 人的群会包含完整成员名单（含角色），超过 100 人的群仅含人数统计。
 - **当前用户 ID**：查看系统消息中的 `source.user_id`。
 - **会话类型**：查看 `source.chat_type` — `group` 表示群聊，`dm` 表示私聊。
 
-**`lansenger_query_groups` 是查询机器人加入的全部群列表的**，不是查询当前 session 的群 ID。该 API 在企业私有部署中可能返回错误，不要依赖它来获取当前群 ID。
+**可用的群相关工具：**
+
+| 工具 | 用途 |
+|------|------|
+| `lansenger_query_groups` | 列出机器人所在的所有群 ID |
+| `lansenger_get_group_info` | 查询任意群的基本信息（名称、人数、状态） |
+| `lansenger_get_group_members` | 查询任意群的成员列表（支持分页） |
+| `lansenger_check_in_group` | 判断某人/某机器人是否在指定群中 |
+
+> **注意：** 当前群的信息已自动注入到你的上下文中，**不需要调用工具来获取当前群的基本信息**。仅在以下场景使用群工具：
+> - 查询机器人所在的其他群（当前群以外的群）
+> - 群人数超过 100 人时需要分页获取成员
+> - 刷新可能过期的群信息（缓存 5 分钟）
+> - 判断某人是否在特定群中
 
 ### 如何告知用户获取群 ID
 

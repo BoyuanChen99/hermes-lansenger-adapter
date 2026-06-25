@@ -39,8 +39,12 @@ This repo contains **two plugins**:
 - **lansenger_send_link_card** — Send a linkCard card message (6 required fields per spec)
 - **lansenger_send_app_articles** — Send an appArticles multi-article card
 - **lansenger_send_app_card** — Send an appCard rich card with optional dynamic updates
+- **lansenger_send_approve_card** — Send an approveCard with clickable buttons for interactive workflows
 - **lansenger_update_dynamic_card** — Update a dynamic appCard's status in-place
 - **lansenger_query_groups** — Query the bot's group ID list
+- **lansenger_get_group_info** — Get detailed group information (name, members, state)
+- **lansenger_get_group_members** — Get the member list of a group with pagination
+- **lansenger_check_in_group** — Check whether a staff or bot is in a group
 - **Auto media type detection** — images/videos/documents classified by extension
 - **Credential gating** — tools hidden when LANSENGER_APP_ID/SECRET not set
 
@@ -129,8 +133,12 @@ These tools let the Agent send messages, files, images, cards, revoke messages, 
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | Send a linkCard (6 fields required per spec, pc_link optional) |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | Send an appArticles multi-article card |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | Send an appCard rich card with optional dynamic updates |
+| `lansenger_send_approve_card` | `chat_id`, `head_title`, `body_title`, `body_content`?, `buttons`, `fields`?, `head_status`?, `head_status_color`? | Send an approveCard with clickable buttons |
 | `lansenger_update_dynamic_card` | `msg_id`, `head_status_info`?, `is_last_update`? | Update a dynamic appCard's status in-place |
 | `lansenger_query_groups` | `page_offset`?, `page_size`? | Query the bot's group ID list |
+| `lansenger_get_group_info` | `group_id` | Get detailed group information (name, members, state) |
+| `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | Get a group's member list with pagination |
+| `lansenger_check_in_group` | `group_id`, `staff_id`? | Check whether a staff/bot is in a group |
 
 **Usage examples (Agent prompts):**
 

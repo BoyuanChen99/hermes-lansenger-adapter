@@ -39,8 +39,12 @@
 - **lansenger_send_link_card** — 发送 linkCard 卡片消息（spec 规定 6 个必填字段）
 - **lansenger_send_app_articles** — 发送 appArticles 多文章卡片
 - **lansenger_send_app_card** — 发送 appCard 富卡片，可选动态更新
+- **lansenger_send_approve_card** — 发送带可点击按钮的 approveCard 审批卡片
 - **lansenger_update_dynamic_card** — 原地更新动态 appCard 状态
 - **lansenger_query_groups** — 查询机器人的群 ID 列表
+- **lansenger_get_group_info** — 获取群详细信息（名称、人数、状态）
+- **lansenger_get_group_members** — 获取群成员列表（支持分页）
+- **lansenger_check_in_group** — 检查某人/机器人是否在指定群中
 - **自动媒体类型检测** — 根据文件扩展名自动分类图片/视频/文档
 - **凭据控制** — 未设置 LANSENGER_APP_ID/SECRET 时工具自动隐藏
 
@@ -129,8 +133,12 @@ platforms:
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | 发送 linkCard 卡片（spec 规定 6 个必填字段，pc_link 可选） |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | 发送 appArticles 多文章卡片 |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | 发送 appCard 富卡片，可选动态更新 |
+| `lansenger_send_approve_card` | `chat_id`, `head_title`, `body_title`, `body_content`?, `buttons`, `fields`?, `head_status`?, `head_status_color`? | 发送带可点击按钮的 approveCard 审批卡片 |
 | `lansenger_update_dynamic_card` | `msg_id`, `head_status_info`?, `is_last_update`? | 原地更新动态 appCard 状态 |
 | `lansenger_query_groups` | `page_offset`?, `page_size`? | 查询机器人的群 ID 列表 |
+| `lansenger_get_group_info` | `group_id` | 获取群详细信息（名称、人数、状态） |
+| `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | 获取群成员列表（支持分页） |
+| `lansenger_check_in_group` | `group_id`, `staff_id`? | 检查某人/机器人是否在指定群中 |
 
 **使用示例（Agent 提示）：**
 

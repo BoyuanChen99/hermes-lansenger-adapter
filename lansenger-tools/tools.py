@@ -75,6 +75,7 @@ def _get_adapter_class():
     """Lazily import LansengerAdapter from the platform plugin.
 
     Tries multiple import paths for robustness:
+    0. hermes_plugins namespace — the actual plugin registration path
     1. Hermes runtime — gateway module registered in sys.modules
     2. Direct import from ~/.hermes/plugins/lansenger-platform/ (expanded by bundle)
     3. Fallback: ~/.hermes/plugins/platforms/lansenger/ (legacy layout)
@@ -82,6 +83,15 @@ def _get_adapter_class():
     global _ADAPTER_CLASS
     if _ADAPTER_CLASS is not None:
         return _ADAPTER_CLASS
+
+    # Path 0: hermes_plugins namespace — the actual plugin registration path
+    try:
+        from hermes_plugins.lansenger_platform.adapter import LansengerAdapter
+        _ADAPTER_CLASS = LansengerAdapter
+        logger.debug("Loaded LansengerAdapter from hermes_plugins.lansenger_platform")
+        return _ADAPTER_CLASS
+    except ImportError:
+        pass
 
     # Path 1: Hermes runtime — gateway module is loaded
     try:
@@ -553,16 +563,40 @@ async def _send_app_card_async(
         return {"success": False, "error": str(e)}
 
 
+async def _send_approve_card_async(
+    chat_id: str, head_title: str, body_title: str,
+    body_content: str, fields: list, buttons: list,
+    expire_time: int, head_status: str, head_status_color: str) -> dict:
+    """Async: create ephemeral adapter, send approveCard, teardown."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.send_approve_card(
+            chat_id=chat_id, head_title=head_title, body_title=body_title,
+            body_content=body_content, fields=fields, buttons=buttons,
+            expire_time=expire_time, head_status=head_status,
+            head_status_color=head_status_color,
+        )
+        return {
+            "success": result.success,
+            "message_id": result.message_id,
+            "error": result.error,
+            "platform": "lansenger",
+            "operation": "approveCard",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 async def _update_dynamic_card_async(
     msg_id: str, head_status_info: dict, links: list,
-    is_last_update: bool, chat_id: str = None) -> dict:
+    is_last_update: bool, chat_id: str = None, card_type: str = "") -> dict:
     """Async: create ephemeral adapter, update dynamic card status, teardown."""
     adapter = await _create_ephemeral_adapter()
     try:
         result = await adapter.update_dynamic_card_status(
             msg_id=msg_id, head_status_info=head_status_info,
             links=links, is_last_update=is_last_update,
-            chat_id=chat_id,
+            chat_id=chat_id, card_type=card_type,
         )
         
         return {
@@ -896,19 +930,59 @@ def lansenger_send_app_card(args: dict, **kwargs) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
-def lansenger_update_dynamic_card(args: dict, **kwargs) -> str:
-    """Update a dynamic appCard's status (e.g. approval: pending -> approved/rejected).
+def lansenger_send_approve_card(args: dict, **kwargs) -> str:
+    """Send an approveCard (审批卡片) with clickable buttons.
 
-    The card must have been sent with is_dynamic=True. Uses /v1/messages/dynamic/update.
+    approveCard uses markdown-formatted body content and supports WebSocket button callbacks.
+    Suitable for interactive workflows (approvals, confirmations, choices).
+    """
+    chat_id = args.get("chat_id", "").strip()
+    head_title = args.get("head_title", "").strip()
+    body_title = args.get("body_title", "").strip()
+    body_content = args.get("body_content", "").strip()
+    fields = args.get("fields") or []
+    buttons = args.get("buttons") or []
+    expire_time = args.get("expire_time", 3600)
+    head_status = args.get("head_status", "").strip()
+    head_status_color = args.get("head_status_color", "#FFB116").strip()
+
+    if not chat_id:
+        return json.dumps({"error": "chat_id is required"})
+    if not head_title:
+        return json.dumps({"error": "head_title is required"})
+    if not body_title:
+        return json.dumps({"error": "body_title is required"})
+    if not buttons:
+        return json.dumps({"error": "at least one button is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_send_approve_card_async(
+            chat_id, head_title, body_title, body_content,
+            fields, buttons, expire_time, head_status, head_status_color))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_update_dynamic_card(args: dict, **kwargs) -> str:
+    """Update a dynamic card's status in-place (appCard or approveCard).
+
+    The card must have been sent with is_dynamic=true (appCard) or via
+    lansenger_send_approve_card. Uses /v1/messages/dynamic/update.
     """
     msg_id = args.get("msg_id", "").strip()
     chat_id = args.get("chat_id") or None
     head_status_info = args.get("head_status_info") or None
     links = args.get("links") or None
     is_last_update = args.get("is_last_update", False)
+    card_type = args.get("card_type", "").strip()
 
     if not msg_id:
-        return json.dumps({"error": "msg_id is required (the message ID from send_app_card)"})
+        return json.dumps({"error": "msg_id is required"})
 
     env_result = _check_env()
     if "error" in env_result:
@@ -916,7 +990,7 @@ def lansenger_update_dynamic_card(args: dict, **kwargs) -> str:
 
     try:
         result = _run_async(_update_dynamic_card_async(msg_id, head_status_info, links,
-                                                        is_last_update, chat_id))
+                                                        is_last_update, chat_id, card_type))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
@@ -936,6 +1010,130 @@ def lansenger_query_groups(args: dict, **kwargs) -> str:
 
     try:
         result = _run_async(_query_groups_async(page_offset, page_size))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+# --- Group info async implementations ---
+
+
+async def _get_group_info_async(group_id: str) -> dict:
+    """Async: get group basic info via GET /v2/groups/{group_id}/info/fetch."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.get_group_info(group_id)
+        if "error" in result:
+            return {"success": False, "error": result["error"], "platform": "lansenger"}
+        return {
+            "success": True,
+            "name": result.get("name"),
+            "description": result.get("description"),
+            "total_members": result.get("totalMembers"),
+            "max_members": result.get("maxMembers"),
+            "state": "正常" if result.get("state") == 0 else "已解散",
+            "avatar_url": result.get("avatarUrl"),
+            "platform": "lansenger",
+            "operation": "get_group_info",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+async def _get_group_members_async(group_id: str, page_offset: int = 0,
+                                    page_size: int = 100) -> dict:
+    """Async: get group member list via GET /v2/groups/{group_id}/members/fetch."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.get_group_members(group_id, page_offset, page_size)
+        if "error" in result:
+            return {"success": False, "error": result["error"], "platform": "lansenger"}
+        members = result.get("members", [])
+        return {
+            "success": True,
+            "total_members": result.get("totalMembers", 0),
+            "members": members,
+            "member_count": len(members),
+            "platform": "lansenger",
+            "operation": "get_group_members",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+async def _check_in_group_async(group_id: str, staff_id: str = "") -> dict:
+    """Async: check if staff/bot is in a group via GET /v2/groups/{group_id}/members/is_in_group."""
+    adapter = await _create_ephemeral_adapter()
+    try:
+        result = await adapter.check_in_group(group_id, staff_id)
+        if "error" in result:
+            return {"success": False, "error": result["error"], "platform": "lansenger"}
+        return {
+            "success": True,
+            "is_in_group": result.get("isInGroup", False),
+            "group_id": group_id,
+            "platform": "lansenger",
+            "operation": "check_in_group",
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# --- Synchronous handlers ---
+
+
+def lansenger_get_group_info(args: dict, **kwargs) -> str:
+    """Get detailed information about a Lansenger (蓝信) group."""
+    group_id = args.get("group_id", "").strip()
+
+    if not group_id:
+        return json.dumps({"error": "group_id is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_get_group_info_async(group_id))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_get_group_members(args: dict, **kwargs) -> str:
+    """Get the member list of a Lansenger (蓝信) group."""
+    group_id = args.get("group_id", "").strip()
+    page_offset = args.get("page_offset", 0)
+    page_size = args.get("page_size", 100)
+
+    if not group_id:
+        return json.dumps({"error": "group_id is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_get_group_members_async(group_id, page_offset, page_size))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
+def lansenger_check_in_group(args: dict, **kwargs) -> str:
+    """Check whether a staff/bot is in a Lansenger (蓝信) group."""
+    group_id = args.get("group_id", "").strip()
+    staff_id = args.get("staff_id", "").strip()
+
+    if not group_id:
+        return json.dumps({"error": "group_id is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_check_in_group_async(group_id, staff_id))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})
