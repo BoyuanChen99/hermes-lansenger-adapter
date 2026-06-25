@@ -1,6 +1,6 @@
 ---
 name: lansenger-setup
-description: Guide for first-time Lansenger (蓝信) bot credential binding, DM pairing, Hermes plugin configuration, slash command management, and dangerous command approval — for scenarios where the user wants to set up or reconfigure Lansenger from scratch via conversation.
+description: Guide for Lansenger (蓝信) bot credential binding, DM pairing, Hermes plugin configuration, slash command management, and dangerous command approval — covers both first-time setup and ongoing configuration changes (e.g. adjusting group policies, @mention rules, auto-reply features).
 version: 1.4.0
 category: lansenger
 tags: [lansenger, setup, configuration, slash-commands, approval]
@@ -8,13 +8,14 @@ tags: [lansenger, setup, configuration, slash-commands, approval]
 
 # Lansenger (蓝信) Hermes 配置指南
 
-本技能覆盖蓝信机器人接入 Hermes Agent 的完整流程。Agent 充当配置向导，引导用户获取凭证并通过修改配置文件完成接入。
+本技能覆盖蓝信机器人接入 Hermes Agent 的完整流程，以及日常的配置修改。Agent 充当配置向导，引导用户获取凭证并通过修改配置文件完成接入或调整现有设置。
 
 ## 何时使用此技能
 
 - 用户说"配置蓝信"、"绑定蓝信机器人"、"连接蓝信"等。
 - 蓝信插件已安装但未配置凭证（`LANSENGER_APP_ID` / `LANSENGER_APP_SECRET` 缺失或错误）。
-- 用户想要调整群聊策略、@提及要求、自动 @回复、自动引用回复等设置。
+- 用户想要调整群聊策略、@提及要求、自动 @回复、自动引用回复、审批权限等设置。
+- 用户说"把这个群设为必须@才能触发"、"关闭某群的@要求"、"添加审批人"等修改现有配置的需求。
 - 用户遇到连接失败、群聊无响应等需要诊断的问题。
 
 ## 前提条件
