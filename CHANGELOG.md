@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.5] - 2026-06-26
+
+### Fixed
+
+- **Slash command i18n**: Changed field name from `description_i18n` to `i18nDescription` to match the Lansenger API spec. Multi-language command descriptions now display correctly in the native client.
+- **Command registration refresh**: Gateway now deletes old commands before re-registering, ensuring field name changes (like `i18nDescription`) take effect. Added retry loop (3 attempts, 30s intervals) for transient failures.
+
+### Changed
+
+- **Language detection**: Simplified `_detect_lang()` — removed CJK punctuation range (`0x3000-0x303F`) to avoid false positives from Japanese text. Only actual Chinese characters (CJK Unified Ideographs) trigger `zh`.
+
 ## [2.9.4] - 2026-06-25
 
 ### Changed

@@ -674,7 +674,7 @@ def resolve_command_permissions(commands: Dict[str, dict], config_extra: dict) -
 
 
 def _build_description_i18n(cmd_name: str) -> Dict[str, str]:
-    """Build the ``description_i18n`` dict for a command name.
+    """Build the ``i18nDescription`` dict for a command name.
 
     Pulls from :data:`COMMAND_I18N` if the command has a translation entry;
     otherwise returns an empty dict (Lansenger will fall back to ``description``).
@@ -692,7 +692,7 @@ def build_command_payloads(
 ) -> List[Dict[str, Any]]:
     """Build a list of Lansenger API request payloads grouped by (scopeType, needs_owner).
 
-    Each command entry includes ``description`` and ``description_i18n``
+    Each command entry includes ``description`` and ``i18nDescription``
     (zhHans/zhHant/zhHantHK/en/fr) for Lansenger's native UI.
     """
     # Group commands by (scopeType, needs_owner_id)
@@ -708,7 +708,7 @@ def build_command_payloads(
         }
         i18n = _build_description_i18n(cmd_name)
         if i18n:
-            entry["description_i18n"] = i18n
+            entry["i18nDescription"] = i18n
 
         for scope_type, needs_owner in scope_list:
             key = (scope_type, needs_owner)
@@ -794,7 +794,7 @@ async def register_all_commands(adapter: Any) -> bool:
     for i, payload in enumerate(payloads):
         scope_type = payload.get("scopeType")
         cmd_names = [c["command"] for c in payload.get("commands", [])]
-        i18n_count = sum(1 for c in payload.get("commands", []) if c.get("description_i18n"))
+        i18n_count = sum(1 for c in payload.get("commands", []) if c.get("i18nDescription"))
         logger.info(
             "[Lansenger] Registering %d commands with scopeType=%d (%d with i18n): %s",
             len(cmd_names), scope_type, i18n_count,

@@ -121,8 +121,15 @@ class TestDetectLangSingleLoop:
     def test_english_detected(self, adapter):
         assert adapter._detect_lang("hello world") == "en"
 
-    def test_punctuation_cjk(self, adapter):
-        assert adapter._detect_lang("、") == "zh"
+    def test_chinese_char_triggers_zh(self, adapter):
+        """Any Chinese character → zh"""
+        assert adapter._detect_lang("你好") == "zh"
+        assert adapter._detect_lang("Hello 世界") == "zh"
+
+    def test_pure_english_returns_en(self, adapter):
+        """No Chinese characters → en"""
+        assert adapter._detect_lang("Hello world") == "en"
+        assert adapter._detect_lang("123") == "en"
 
 
 class TestProbeDuration:

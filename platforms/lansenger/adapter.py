@@ -754,29 +754,47 @@ class LansengerAdapter(BasePlatformAdapter):
     async def _register_commands_after_connect(self) -> None:
         """Register slash commands after connection is established.
 
-        Called as a background task from connect(). Retries once per
-        reconnection — the _commands_registered flag prevents duplicate
-        registrations across reconnect cycles.
+        Deletes any previously registered commands first, then registers
+        fresh copies. Retries up to 3 times with 30s delay on failure
+        (handles transient issues like bot temporarily disabled).
         """
         if self._commands_registered:
             return
 
         if not _commands._native_commands_enabled(self._config_extra):
             logger.info("[Lansenger] Native slash commands disabled, skipping")
-            self._commands_registered = True  # mark as done to skip retries
+            self._commands_registered = True
             return
 
         try:
             # Wait briefly for owner_id to be loaded from disk
             await asyncio.sleep(1.0)
-            success = await _commands.register_all_commands(self)
-            if success:
-                self._commands_registered = True
-            else:
-                logger.info(
-                    "[Lansenger] Command registration deferred — will retry "
-                    "when owner is detected"
-                )
+
+            # Delete old commands before re-registering
+            try:
+                await _commands.delete_all_commands(self)
+            except Exception:
+                pass
+
+            # Retry loop: up to 3 attempts with 30s delay
+            for attempt in range(3):
+                if self._commands_registered:
+                    return
+                success = await _commands.register_all_commands(self)
+                if success:
+                    self._commands_registered = True
+                    return
+                if attempt < 2:
+                    logger.info(
+                        "[Lansenger] Command registration attempt %d failed, retrying in 30s...",
+                        attempt + 1,
+                    )
+                    await asyncio.sleep(30)
+
+            logger.info(
+                "[Lansenger] Command registration deferred — will retry "
+                "when owner is detected"
+            )
         except Exception as exc:
             logger.warning("[Lansenger] Command registration failed: %s", exc)
 
@@ -3610,13 +3628,12 @@ class LansengerAdapter(BasePlatformAdapter):
     def _detect_lang(self, text: str) -> str:
         """Detect language from user message text. Returns 'zh' or 'en'.
 
-        Simple heuristic: if text contains any CJK Unicode range characters,
-        treat as Chinese. Otherwise, English.
+        Any Chinese character → 'zh'. Only pure non-Chinese text → 'en'.
         """
         for ch in text:
             cp = ord(ch)
-            if (0x4E00 <= cp <= 0x9FFF) or (0x3400 <= cp <= 0x4DBF) or \
-               (0xF900 <= cp <= 0xFAFF) or (0x3000 <= cp <= 0x303F):
+            # CJK Unified Ideographs + Extension A + Compatibility Ideographs
+            if 0x4E00 <= cp <= 0x9FFF or 0x3400 <= cp <= 0x4DBF or 0xF900 <= cp <= 0xFAFF:
                 return "zh"
         return "en"
 
