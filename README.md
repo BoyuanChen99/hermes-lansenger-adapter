@@ -35,7 +35,7 @@ This repo contains **two plugins**:
 - **lansenger_send_markdown** — Send Markdown-formatted text with optional @mentions (newer API, no attachments)
 - **lansenger_send_file** — Send any local file/image/video to a specific user or group
 - **lansenger_send_image_url** — Send an image from a URL to a specific user or group
-- **lansenger_revoke_message** — Revoke a sent Lansenger message (bot/group only)
+- **lansenger_revoke_message** — Revoke a sent Lansenger message (auto-detects group/DM from chat_id)
 - **lansenger_send_link_card** — Send a linkCard card message (6 required fields per spec)
 - **lansenger_send_app_articles** — Send an appArticles multi-article card
 - **lansenger_send_app_card** — Send an appCard rich card with optional dynamic updates
@@ -129,7 +129,7 @@ These tools let the Agent send messages, files, images, cards, revoke messages, 
 | `lansenger_send_markdown` | `chat_id`, `content`, `reminder_all`?, `reminder_user_ids`? | Send Markdown-formatted text with optional @mentions (newer API, no attachments) |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Send a local file/image/video to a user or group |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Download image from URL and send as native image |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Revoke a sent message (bot/group only; group requires sender_id) |
+| `lansenger_revoke_message` | `message_ids`, `chat_id`? | Revoke a sent message (pass chat_id; auto-detects group/DM) |
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | Send a linkCard (6 fields required per spec, pc_link optional) |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | Send an appArticles multi-article card |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | Send an appCard rich card with optional dynamic updates |
@@ -156,7 +156,7 @@ These tools let the Agent send messages, files, images, cards, revoke messages, 
 - File size limits are determined by the organization's Lansenger configuration (no fixed cap)
 - Media captions use plain text (no Markdown) — for Markdown text, send separately
 - `lansenger_send_file` auto-detects media_type from extension if not specified
-- `lansenger_revoke_message`: only bot/group chat types; group requires sender_id; system message is fixed (not customizable)
+- `lansenger_revoke_message`: system message is fixed (not customizable)
 - `lansenger_send_link_card`: 6 fields required per API spec (title, description, iconLink, link, fromName, fromIconLink); pc_link optional
 - `lansenger_send_markdown` @mentions: newer API capability; older versions silently accept without triggering notification
 - Video (mediaType=1) requires 2 mediaIds: [videoId, coverImageId] (upload video and cover image separately, then combine)

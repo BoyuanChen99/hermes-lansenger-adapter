@@ -309,8 +309,8 @@ LANSENGER_REVOKE_MESSAGE = {
     "description": (
         "Revoke a previously sent Lansenger (蓝信) message. "
         "Shows a fixed system message to the receiver indicating the message was revoked. "
-        "Only 'bot' (private chat) and 'group' chat types are supported. "
-        "For group chat, sender_id is required. "
+        "Supports both private and group chat. "
+        "If chat_id is provided, the adapter auto-detects whether it's a group or private chat. "
         "Note: Custom sysMsg text/icon is NOT supported — the system message is fixed."
     ),
     "parameters": {
@@ -321,15 +321,13 @@ LANSENGER_REVOKE_MESSAGE = {
                 "items": {"type": "string"},
                 "description": "List of message IDs to revoke",
             },
-            "chat_type": {
+            "chat_id": {
                 "type": "string",
-                "description": "'bot' (private bot chat) or 'group' (group chat). Default: bot.",
-                "enum": ["bot", "group"],
-                "default": "bot",
-            },
-            "sender_id": {
-                "type": "string",
-                "description": "Required for group chat (staffId of the sender). Not required for bot type.",
+                "description": (
+                    "The chat ID where the messages were sent. "
+                    "If provided, the adapter auto-detects whether it's a group or private chat. "
+                    "In group chats, pass the current group's chat_id from context."
+                ),
             },
         },
         "required": ["message_ids"],

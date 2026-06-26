@@ -29,7 +29,7 @@ Lansenger has multiple message/card types with different capabilities:
 - lansenger_send_markdown:     msgType=formatText → Markdown text, NO attachments
 - lansenger_send_file:         msgType=text → file/image/video only, optional caption
 - lansenger_send_image_url:    msgType=text → image from URL, optional caption
-- lansenger_revoke_message:    retract messages (fixed system message, bot/group only)
+- lansenger_revoke_message:    retract messages (auto-detects group/DM from chat_id)
 - lansenger_send_link_card:    msgType=linkCard → rich link preview card (6 required fields)
 - lansenger_send_app_articles: msgType=appArticles → multi-article card (图文卡片)
 - lansenger_send_app_card:     msgType=appCard → rich card with dynamic update support
@@ -104,7 +104,7 @@ def register(ctx):
         toolset="lansenger-tools",
         schema=schemas.LANSENGER_REVOKE_MESSAGE,
         handler=tools.lansenger_revoke_message,
-        description="Revoke a message (fixed system message shown). Only bot/group chat types.",
+        description="Revoke a message (pass chat_id; auto-detects group/DM)",
         check_fn=check_available,
     )
 

@@ -35,7 +35,7 @@
 - **lansenger_send_markdown** — 发送 Markdown 文本，可选 @提及（新版 API，不支持附件）
 - **lansenger_send_file** — 向指定用户或群组发送任意本地文件/图片/视频
 - **lansenger_send_image_url** — 从 URL 下载图片并发送给指定用户或群组
-- **lansenger_revoke_message** — 撤回已发送的消息（仅 bot/group）
+- **lansenger_revoke_message** — 撤回已发送的消息（传 chat_id 自动判断群聊/私聊）
 - **lansenger_send_link_card** — 发送 linkCard 卡片消息（spec 规定 6 个必填字段）
 - **lansenger_send_app_articles** — 发送 appArticles 多文章卡片
 - **lansenger_send_app_card** — 发送 appCard 富卡片，可选动态更新
@@ -129,7 +129,7 @@ platforms:
 | `lansenger_send_markdown` | `chat_id`, `content`, `reminder_all`?, `reminder_user_ids`? | 发送 Markdown 文本，可选 @提及（新版 API，不支持附件） |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | 向用户或群组发送本地文件/图片/视频 |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | 从 URL 下载图片并以原生图片形式发送 |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | 撤回已发送消息（仅 bot/group；group 需要 sender_id） |
+| `lansenger_revoke_message` | `message_ids`, `chat_id`? | 撤回已发送消息（传 chat_id 自动判断群聊/私聊） |
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | 发送 linkCard 卡片（spec 规定 6 个必填字段，pc_link 可选） |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | 发送 appArticles 多文章卡片 |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | 发送 appCard 富卡片，可选动态更新 |
@@ -156,7 +156,7 @@ platforms:
 - 文件大小限制由组织的 蓝信 配置决定（无固定上限）
 - 媒体说明使用纯文本（不支持 Markdown）——如需 Markdown 格式文本，请单独发送
 - `lansenger_send_file` 在未指定 media_type 时会根据扩展名自动检测
-- `lansenger_revoke_message`：仅支持 bot/group 类型；group 需要 sender_id；系统提示固定不可自定义
+- `lansenger_revoke_message`：系统提示固定不可自定义
 - `lansenger_send_link_card`：spec 规定 6 个必填字段（title, description, iconLink, link, fromName, fromIconLink）；pc_link 可选
 - `lansenger_send_markdown` @提及：新版 API 能力；旧版静默接受但不触发通知
 - 视频（mediaType=1）需要 2 个 mediaIds：[videoId, coverImageId]（视频和封面图分别上传后组合）

@@ -35,7 +35,7 @@ Ce dépôt contient **deux plugins** :
 - **lansenger_send_markdown** — Envoyer du texte Markdown avec @mentions optionnelles (API plus récente, pas de pièces jointes)
 - **lansenger_send_file** — Envoyer tout fichier/image/vidéo local à un utilisateur ou groupe spécifique
 - **lansenger_send_image_url** — Envoyer une image depuis une URL à un utilisateur ou groupe spécifique
-- **lansenger_revoke_message** — Révoquer un message Lansenger envoyé (robot/groupe uniquement)
+- **lansenger_revoke_message** — Révoquer un message envoyé (détection automatique groupe/DM via chat_id)
 - **lansenger_send_link_card** — Envoyer une carte linkCard (6 champs requis par la spec)
 - **lansenger_send_app_articles** — Envoyer une carte multi-article appArticles
 - **lansenger_send_app_card** — Envoyer une carte riche appCard avec mises à jour dynamiques optionnelles
@@ -129,7 +129,7 @@ Ces outils permettent à l’Agent d’envoyer des messages, fichiers, images, c
 | `lansenger_send_markdown` | `chat_id`, `content`, `reminder_all`?, `reminder_user_ids`? | Envoyer du texte Markdown avec @mentions optionnelles (API plus récente, pas de pièces jointes) |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | Envoyer un fichier/image/vidéo local à un utilisateur ou groupe |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | Télécharger une image depuis une URL et l’envoyer comme image native |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | Révoquer un message envoyé (robot/groupe uniquement; groupe nécessite sender_id) |
+| `lansenger_revoke_message` | `message_ids`, `chat_id`? | Révoquer un message (détection auto groupe/DM via chat_id) |
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | Envoyer une carte linkCard (6 champs requis par la spec, pc_link optionnel) |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | Envoyer une carte multi-article appArticles |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | Envoyer une carte riche appCard avec mises à jour dynamiques optionnelles |
@@ -156,7 +156,7 @@ Ces outils permettent à l’Agent d’envoyer des messages, fichiers, images, c
 - Les limites de taille de fichier sont déterminées par la configuration Lansenger de l’organisation (aucun plafond fixe)
 - Les légendes de média utilisent du texte brut (pas de Markdown) — pour du texte Markdown, envoyer séparément
 - `lansenger_send_file` détecte automatiquement le media_type depuis l’extension si non spécifié
-- `lansenger_revoke_message` : uniquement robot/groupe; groupe nécessite sender_id; le message système est fixe (non personnalisable)
+- `lansenger_revoke_message` : le message système est fixe (non personnalisable)
 - `lansenger_send_link_card` : 6 champs requis par la spec API (title, description, iconLink, link, fromName, fromIconLink); pc_link optionnel
 - `lansenger_send_markdown` @mentions : capacité API plus récente; les anciennes versions acceptent sans notification
 - Vidéo (mediaType=1) nécessite 2 mediaIds: [videoId, coverImageId] (upload vidéo et couverture séparément, puis combiner)

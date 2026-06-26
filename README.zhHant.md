@@ -35,7 +35,7 @@
 - **lansenger_send_markdown** — 傳送 Markdown 文字，可選 @提及（新版 API，不支援附件）
 - **lansenger_send_file** — 向指定使用者或群組傳送任何本地檔案/圖片/影片
 - **lansenger_send_image_url** — 從 URL 下載圖片並傳送至指定使用者或群組
-- **lansenger_revoke_message** — 撤回已傳送的訊息（僅 bot/group）
+- **lansenger_revoke_message** — 撤回已傳送的訊息（傳 chat_id 自動判斷群聊/私聊）
 - **lansenger_send_link_card** — 傳送 linkCard 卡片訊息（spec 規定 6 個必填欄位）
 - **lansenger_send_app_articles** — 傳送 appArticles 多文章卡片
 - **lansenger_send_app_card** — 傳送 appCard 富卡片，可選動態更新
@@ -129,7 +129,7 @@ platforms:
 | `lansenger_send_markdown` | `chat_id`, `content`, `reminder_all`?, `reminder_user_ids`? | 傳送 Markdown 文字，可選 @提及（新版 API，不支援附件） |
 | `lansenger_send_file` | `chat_id`, `file_path`, `caption`?, `media_type`? | 傳送本地檔案/圖片/影片至使用者或群組 |
 | `lansenger_send_image_url` | `chat_id`, `image_url`, `caption`? | 從 URL 下載圖片並以原生圖片傳送 |
-| `lansenger_revoke_message` | `message_ids`, `chat_type`?, `sender_id`? | 撤回已傳送訊息（僅 bot/group；group 需要 sender_id） |
+| `lansenger_revoke_message` | `message_ids`, `chat_id`? | 撤回已傳送訊息（傳 chat_id 自動判斷群聊/私聊） |
 | `lansenger_send_link_card` | `chat_id`, `title`, `link`, `description`, `icon_link`, `from_name`, `from_icon_link`, `pc_link`? | 傳送 linkCard 卡片（spec 規定 6 個必填欄位，pc_link 可選） |
 | `lansenger_send_app_articles` | `chat_id`, `articles` | 傳送 appArticles 多文章卡片 |
 | `lansenger_send_app_card` | `chat_id`, `body_title`, `head_title`?, `is_dynamic`?, `head_status_info`?, ... | 傳送 appCard 富卡片，可選動態更新 |
@@ -156,7 +156,7 @@ platforms:
 - 檔案大小上限由組織的藍信設定決定（無固定上限）
 - 媒體說明文字使用純文字（不支援 Markdown）——若需 Markdown 格式文字，請另外傳送
 - `lansenger_send_file` 若未指定 media_type，會依副檔名自動偵測
-- `lansenger_revoke_message`：僅支援 bot/group 類型；group 需要 sender_id；系統提示固定不可自訂
+- `lansenger_revoke_message`：系統提示固定不可自訂
 - `lansenger_send_link_card`：spec 規定 6 個必填欄位（title, description, iconLink, link, fromName, fromIconLink）；pc_link 可選
 - `lansenger_send_markdown` @提及：新版 API 能力；舊版靜默接受但不觸發通知
 - 影片（mediaType=1）需要 2 個 mediaIds：[videoId, coverImageId]（影片和封面圖分別上傳後組合）

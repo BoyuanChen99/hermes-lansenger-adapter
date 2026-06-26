@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.4] - 2026-06-25
+
+### Changed
+
+- **Simplified group/DM routing**: `_is_group_chat()` now uses `owner_id` exclusively: `chat_id == owner_id` → DM, everything else → group. Removes dependency on `_chat_type_map` cache and `group:` prefix heuristic. Correctly handles new groups with no prior inbound history.
+- **Simplified revoke_message**: Replaced `chat_type` + `sender_id` parameters with `chat_id`. Adapter auto-detects group vs DM using the new routing logic. `sender_id` is no longer required (API revokes bot's own messages). Removed dead `_resolve_chat_type()` method.
+
+### Fixed
+
+- **Revoke message routing**: Previously hardcoded to `bot` type by default, causing group message revoke to fail unless LLM explicitly passed `chat_type="group"`. Now auto-detected from `chat_id`.
+
+### Documentation
+
+- Updated all 5 READMEs, `lansenger-tools/__init__.py`, schemas, and `lansenger-messaging` skill to reflect the simplified revoke API.
+
 ## [2.9.3] - 2026-06-25
 
 ### Added

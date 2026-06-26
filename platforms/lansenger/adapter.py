@@ -1376,33 +1376,16 @@ class LansengerAdapter(BasePlatformAdapter):
             return f"{emoji} **{event.tool_name}**：{preview}"
         return f"{emoji} **{event.tool_name}** ..."
 
-    def _resolve_chat_type(self, chat_id: str) -> Optional[str]:
-        """Resolve chat type ('group' or 'dm') for outbound routing.
-
-        Returns the cached value if known, None if ambiguous.
-        Logs a warning on ambiguous routing so operators can diagnose.
-        """
-        known = self._chat_type_map.get(chat_id)
-        if known:
-            return known
-        logger.warning("[Lansenger] chat_id %s not in _chat_type_map — routing may be incorrect", chat_id)
-        return None
-
     def _is_group_chat(self, chat_id: str) -> bool:
-        """Check if chat_id is a group chat, with heuristic fallback.
+        """Check if chat_id is a group chat.
 
-        Primary: cached _chat_type_map (populated from inbound messages).
-        Fallback: chat_id starting with 'group:' is treated as group.
+        Personal bots can only DM with the owner. Therefore:
+        - chat_id == owner_id → DM (private chat)
+        - Everything else → group (either a real group or will fail gracefully)
         """
-        known = self._chat_type_map.get(chat_id)
-        if known:
-            return known == "group"
-        if chat_id.startswith("group:"):
-            self._chat_type_map[chat_id] = "group"
-            self._chat_type_map_dirty = True
-            return True
-        logger.warning("[Lansenger] chat_id %s not in _chat_type_map — assuming DM", chat_id)
-        return False
+        if self._owner_id and chat_id == self._owner_id:
+            return False
+        return True
 
     # -- Outbound message sending -------------------------------------------
 
@@ -2396,22 +2379,19 @@ class LansengerAdapter(BasePlatformAdapter):
     async def revoke_message(
         self, 
         message_ids: List[str], 
-        chat_type: str = "bot",
-        sender_id: Optional[str] = None,
+        chat_id: str = "",
     ) -> SendResult:
         """Revoke previously sent messages.
 
-        For a personal bot plugin, only 'bot' and 'group' chat types are relevant.
-        - bot: bot-to-user private chat messages. sender_id not required.
-        - group: group chat messages. sender_id is REQUIRED per API spec.
+        Auto-detects chat_type based on chat_id:
+        - chat_id == owner_id → "bot" (private chat)
+        - otherwise → "group"
 
         Note: Lansenger displays a fixed system message after revocation.
-              Custom sysMsg content/icon is NOT supported by the current API.
+              Custom sysMsg content/icon is NOT supported. sender_id is not
+              required — the API revokes the bot's own messages.
         """
-        if chat_type not in ("bot", "group"):
-            return SendResult(success=False, error=f"chat_type must be 'bot' or 'group', got '{chat_type}'")
-        if chat_type == "group" and not sender_id:
-            return SendResult(success=False, error="chat_type='group' requires sender_id")
+        chat_type = "group" if (chat_id and self._is_group_chat(chat_id)) else "bot"
 
         token = await self._get_app_token()
         if not token:
@@ -2420,8 +2400,6 @@ class LansengerAdapter(BasePlatformAdapter):
         try:
             url = f"{self._api_gateway_url}{API_ENDPOINTS['message']['revoke']}?app_token={token}"
             payload = {"chatType": chat_type, "messageIds": message_ids}
-            if sender_id:
-                payload["senderId"] = sender_id
             
             response = await self._http_client.post(url, json=payload)
             response.raise_for_status()

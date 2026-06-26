@@ -465,14 +465,13 @@ async def _send_image_url_async(chat_id: str, image_url: str, caption: str) -> d
         return {"success": False, "error": str(e)}
 
 
-async def _revoke_async(message_ids: list, chat_type: str, sender_id: str) -> dict:
+async def _revoke_async(message_ids: list, chat_id: str = "") -> dict:
     """Async: create ephemeral adapter, revoke messages, teardown."""
     adapter = await _create_ephemeral_adapter()
     try:
         result = await adapter.revoke_message(
             message_ids=message_ids,
-            chat_type=chat_type,
-            sender_id=sender_id,
+            chat_id=chat_id,
         )
         
         return {
@@ -764,28 +763,20 @@ def lansenger_send_image_url(args: dict, **kwargs) -> str:
 def lansenger_revoke_message(args: dict, **kwargs) -> str:
     """Revoke a previously sent Lansenger (蓝信) message.
 
-    Only 'bot' and 'group' chat types supported. For group, sender_id required.
-    Custom sysMsg not supported — system message is fixed.
+    Pass chat_id to let the adapter auto-detect group vs private chat.
     """
     message_ids = args.get("message_ids", [])
-    chat_type = args.get("chat_type", "bot")
-    sender_id = args.get("sender_id") or ""
+    chat_id = args.get("chat_id", "").strip()
 
     if not message_ids:
         return json.dumps({"error": "message_ids is required"})
-
-    if chat_type not in ("bot", "group"):
-        return json.dumps({"error": "chat_type must be 'bot' or 'group'"})
-
-    if chat_type == "group" and not sender_id:
-        return json.dumps({"error": "chat_type='group' requires sender_id"})
 
     env_result = _check_env()
     if "error" in env_result:
         return json.dumps(env_result)
 
     try:
-        result = _run_async(_revoke_async(message_ids, chat_type, sender_id))
+        result = _run_async(_revoke_async(message_ids, chat_id))
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": str(e)})

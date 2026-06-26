@@ -71,7 +71,7 @@ You **do not need to call** `lansenger_get_group_info` or `lansenger_get_group_m
    - After approval: `lansenger_update_dynamic_card` to update status in-place
 10. **Interactive approve card** → `lansenger_send_approve_card` (clickable buttons, Markdown body)
 11. **Update dynamic card** → `lansenger_update_dynamic_card` (msg_id required, is_last_update=True for final)
-12. **Revoke message** → `lansenger_revoke_message` (chat_type="bot"/"group"; Lansenger shows fixed system text, not customizable)
+12. **Revoke message** → `lansenger_revoke_message` (pass `chat_id` from context; adapter auto-detects group vs DM)
 13. **List bot's groups** → `lansenger_query_groups` (returns group IDs the bot belongs to)
 14. **Get group details** → `lansenger_get_group_info` (name, members count, state — but note: basic info is auto-injected for current group)
 15. **Get group members** → `lansenger_get_group_members` (member list with roles; only needed when members not auto-injected, i.e. groups > 100 people)

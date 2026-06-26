@@ -33,31 +33,23 @@ def adapter(make_adapter):
     return make_adapter()
 
 
-class TestIsGroupChatHeuristic:
+class TestIsGroupChat:
 
-    def test_known_group(self, adapter):
-        adapter._chat_type_map["chat1"] = "group"
-        assert adapter._is_group_chat("chat1") is True
+    def test_owner_is_dm(self, adapter):
+        """chat_id == owner_id → DM (personal bot can only DM owner)"""
+        adapter._owner_id = "staff-123"
+        assert adapter._is_group_chat("staff-123") is False
 
-    def test_known_dm(self, adapter):
-        adapter._chat_type_map["chat2"] = "dm"
-        assert adapter._is_group_chat("chat2") is False
+    def test_non_owner_is_group(self, adapter):
+        """Any other chat_id → group (only owner can be DM)"""
+        adapter._owner_id = "staff-123"
+        assert adapter._is_group_chat("group-abc") is True
+        assert adapter._is_group_chat("some-random-id") is True
 
-    def test_unknown_defaults_to_dm_with_warning(self, adapter):
-        result = adapter._is_group_chat("unknown_chat")
-        assert result is False
-
-    def test_group_prefix_heuristic(self, adapter):
+    def test_no_owner_defaults_to_group(self, adapter):
+        """Without owner_id, everything goes to group endpoint"""
+        assert adapter._is_group_chat("any_chat_id") is True
         assert adapter._is_group_chat("group:some_id") is True
-        assert adapter._chat_type_map["group:some_id"] == "group"
-        assert adapter._chat_type_map_dirty is True
-
-    def test_unknown_without_group_prefix_warns(self, adapter, caplog):
-        import logging
-        with caplog.at_level(logging.WARNING):
-            result = adapter._is_group_chat("plain_id")
-        assert result is False
-        assert "not in _chat_type_map" in caplog.text
 
 
 class TestChatTypeDirtyFlag:
