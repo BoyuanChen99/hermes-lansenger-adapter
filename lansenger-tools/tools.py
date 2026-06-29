@@ -272,9 +272,9 @@ async def _create_ephemeral_adapter():
 def _load_persisted_token_into_adapter(adapter) -> None:
     """Load persisted token from ~/.hermes/lansenger_token.json into adapter.
 
-    If the persisted token is still valid, set it on the adapter so
-    _get_app_token() skips the API call. If expired or missing, the
-    adapter will fetch a fresh token on first use and persist it back.
+    If the persisted token is still valid and matches the current app_id,
+    set it on the adapter so _get_app_token() skips the API call.
+    If expired, mismatched, or missing, the adapter will fetch a fresh token.
     """
     import json
     from datetime import datetime
@@ -286,6 +286,16 @@ def _load_persisted_token_into_adapter(adapter) -> None:
             return
         data = json.loads(token_file.read_text(encoding="utf-8"))
         if "app_token" in data and "expires_at" in data:
+            # Validate app_id match to prevent cross-bot token reuse
+            stored_app_id = data.get("app_id", "")
+            current_app_id = getattr(adapter, "_app_id", "")
+            if current_app_id and stored_app_id and stored_app_id != current_app_id:
+                logger.debug(
+                    "lansenger-tools: skipping persisted token — app_id mismatch "
+                    "(stored=%s, current=%s)",
+                    stored_app_id[:20], current_app_id[:20],
+                )
+                return
             if datetime.now().timestamp() < data["expires_at"]:
                 adapter._app_token = data["app_token"]
                 adapter._token_expiry = data["expires_at"]

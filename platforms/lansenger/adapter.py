@@ -71,6 +71,7 @@ from . import commands as _commands
 # Constants
 MAX_MESSAGE_LENGTH = 4000
 RECONNECT_BACKOFF = [2, 5, 10, 30, 60]
+INBOUND_SILENCE_TIMEOUT = 1800  # 30min — no inbound WS message for this long = silent death
 DEFAULT_API_GATEWAY_URL = "https://open.e.lanxin.cn/open/apigw"
 
 # API Endpoints
@@ -131,6 +132,7 @@ class LansengerAdapter(BasePlatformAdapter):
         self._http_client: Optional["httpx.AsyncClient"] = None
         self._ws_url: Optional[str] = None
         self._ws_ping_interval: int = 50
+        self._last_inbound_time: float = 0.0  # last WS inbound message timestamp
 
         # Message deduplication
         self._dedup = MessageDeduplicator(max_size=1000)
@@ -343,6 +345,7 @@ class LansengerAdapter(BasePlatformAdapter):
                             self._ws_client = ws
                             backoff_idx = 0
                             self._mark_connected()
+                            self._last_inbound_time = time.time()  # reset silence timer on connect
                             logger.info("[Lansenger] WebSocket connected (ping_interval=%ds, ping_timeout=%ds)",
                                         ping_interval, ping_timeout)
 
@@ -456,37 +459,55 @@ class LansengerAdapter(BasePlatformAdapter):
         asyncio.create_task(_restart_with_fresh_ticket())
 
     async def _ws_keepalive(self, ws, interval: int = 120) -> None:
-        """Application-layer heartbeat to detect CLOSE_WAIT zombie connections.
+        """Application-layer heartbeat to detect zombie connections and silent
+        inbound death.
 
-        The websockets library's TCP-level ping/pong only checks TCP liveness.
+        The websockets library's built-in ping/pong only checks TCP liveness.
         If the remote server closes the connection but the OS socket lingers in
         CLOSE_WAIT, ``async for message in ws`` blocks forever and the lib's
-        ping/pong won't fire.  This task periodically sends a lightweight custom
-        ping through the WS to detect true end-to-end reachability.
+        ping/pong won't fire.
 
-        A send() timeout or exception means the socket is dead — we close the WS
-        so the outer reconnect loop in _run_ws can kick in.
+        Two detection mechanisms:
+        1. Protocol ping/pong: ws.ping() sends an RFC 6455 ping frame and
+           waits for the pong.  If it times out or fails, the connection is
+           dead at protocol level → close and reconnect.
+        2. Inbound silence: if no WS message has arrived for
+           INBOUND_SILENCE_TIMEOUT seconds → the server may be alive at TCP
+           level but not delivering messages → close and reconnect.
         """
         try:
             while self._running:
                 await asyncio.sleep(interval)
                 if not self._running or ws is None:
                     return
+
+                # --- Mechanism 1: Protocol-level ping/pong round-trip ---
                 try:
-                    await asyncio.wait_for(
-                        ws.send(json.dumps({"type": "ping"})),
+                    latency = await asyncio.wait_for(
+                        ws.ping(),
                         timeout=10,
                     )
+                    logger.debug("[Lansenger] Keepalive ping OK, latency=%.3fs", latency)
                 except asyncio.TimeoutError:
                     logger.warning("[Lansenger] Keepalive ping timed out — closing WS for reconnect")
                     await ws.close()
                     return
                 except Exception as e:
-                    logger.warning("[Lansenger] Keepalive send failed: %s — closing WS for reconnect", e)
+                    logger.warning("[Lansenger] Keepalive ping failed: %s — closing WS for reconnect", e)
                     try:
                         await ws.close()
                     except Exception:
                         pass
+                    return
+
+                # --- Mechanism 2: Inbound silence (server not delivering messages) ---
+                silence_duration = time.time() - self._last_inbound_time
+                if silence_duration > INBOUND_SILENCE_TIMEOUT:
+                    logger.warning(
+                        "[Lansenger] No inbound WS message for %ds (>%ds) — silent death, closing for reconnect",
+                        int(silence_duration), INBOUND_SILENCE_TIMEOUT,
+                    )
+                    await ws.close()
                     return
         except asyncio.CancelledError:
             pass
@@ -800,6 +821,7 @@ class LansengerAdapter(BasePlatformAdapter):
 
     async def _on_message(self, raw_message: str) -> None:
         """Process an incoming Lansenger message."""
+        self._last_inbound_time = time.time()  # any WS data proves inbound channel is alive
         logger.info("[Lansenger] WS raw data received (%d bytes)", len(raw_message) if raw_message else 0)
         try:
             data = json.loads(raw_message)
@@ -1286,13 +1308,26 @@ class LansengerAdapter(BasePlatformAdapter):
             return None
 
     def _load_persisted_token(self) -> Optional[Dict[str, Any]]:
-        """Load persisted token from ~/.hermes/lansenger_token.json."""
+        """Load persisted token from ~/.hermes/lansenger_token.json.
+
+        Validates that the stored app_id matches the current bot credentials
+        to prevent cross-bot token reuse when switching bots.
+        """
         try:
             if not self._token_file.exists():
                 return None
             content = self._token_file.read_text(encoding="utf-8")
             data = json.loads(content)
             if "app_token" in data and "expires_at" in data:
+                # Validate app_id match to prevent old token reuse after bot switch
+                stored_app_id = data.get("app_id", "")
+                if stored_app_id and stored_app_id != self._app_id:
+                    logger.info(
+                        "[Lansenger] Persisted token app_id mismatch "
+                        "(stored=%s, current=%s) — discarding old token",
+                        stored_app_id[:20], self._app_id[:20],
+                    )
+                    return None
                 return data
         except Exception as e:
             logger.debug("[Lansenger] Failed to load persisted token: %s", e)
@@ -1304,6 +1339,7 @@ class LansengerAdapter(BasePlatformAdapter):
             data = {
                 "app_token": app_token,
                 "expires_at": expires_at,
+                "app_id": self._app_id,  # validate on load to prevent cross-bot reuse
             }
             self._token_file.parent.mkdir(parents=True, exist_ok=True)
             self._token_file.write_text(json.dumps(data), encoding="utf-8")
