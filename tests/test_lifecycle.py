@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -311,13 +312,15 @@ class TestRunWs:
 
 class TestWsKeepalive:
 
-    async def test_keepalive_sends_ping(self, make_adapter):
-        """Normal operation: keepalive sends {"type":"ping"} every interval."""
+    async def test_keepalive_ping_succeeds(self, make_adapter):
+        """Normal operation: ws.ping() returns latency, no close triggered."""
         adapter = make_adapter()
         adapter._running = True
+        adapter._last_inbound_time = time.time()  # prevent inbound-silence trigger
 
         mock_ws = MagicMock()
-        mock_ws.send = AsyncMock()
+        mock_ws.ping = AsyncMock(return_value=0.015)  # 15ms latency
+        mock_ws.close = AsyncMock()
 
         task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
         await asyncio.sleep(0.12)  # should fire ~2 pings
@@ -328,19 +331,16 @@ class TestWsKeepalive:
         except asyncio.CancelledError:
             pass
 
-        assert mock_ws.send.call_count >= 1
-        # Verify ping payload
-        call_args = mock_ws.send.call_args_list[0]
-        payload = json.loads(call_args[0][0])
-        assert payload == {"type": "ping"}
+        assert mock_ws.ping.call_count >= 1
+        mock_ws.close.assert_not_called()
 
     async def test_keepalive_stops_when_not_running(self, make_adapter):
-        """When _running is False, keepalive should not send any pings."""
+        """When _running is False, keepalive should not call ws.ping()."""
         adapter = make_adapter()
         adapter._running = False
 
         mock_ws = MagicMock()
-        mock_ws.send = AsyncMock()
+        mock_ws.ping = AsyncMock()
 
         task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
         await asyncio.sleep(0.10)
@@ -350,15 +350,16 @@ class TestWsKeepalive:
         except asyncio.CancelledError:
             pass
 
-        mock_ws.send.assert_not_called()
+        mock_ws.ping.assert_not_called()
 
-    async def test_keepalive_timeout_triggers_close(self, make_adapter):
-        """When send() times out (CLOSE_WAIT socket), keepalive closes WS."""
+    async def test_keepalive_ping_timeout_triggers_close(self, make_adapter):
+        """When ws.ping() times out, keepalive closes WS for reconnect."""
         adapter = make_adapter()
         adapter._running = True
+        adapter._last_inbound_time = time.time()
 
         mock_ws = MagicMock()
-        mock_ws.send = AsyncMock(side_effect=asyncio.TimeoutError)
+        mock_ws.ping = AsyncMock(side_effect=asyncio.TimeoutError)
         mock_ws.close = AsyncMock()
 
         task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
@@ -372,13 +373,14 @@ class TestWsKeepalive:
 
         mock_ws.close.assert_called_once()
 
-    async def test_keepalive_send_exception_triggers_close(self, make_adapter):
-        """When send() raises a non-timeout exception, keepalive closes WS."""
+    async def test_keepalive_ping_exception_triggers_close(self, make_adapter):
+        """When ws.ping() raises an exception, keepalive closes WS."""
         adapter = make_adapter()
         adapter._running = True
+        adapter._last_inbound_time = time.time()
 
         mock_ws = MagicMock()
-        mock_ws.send = AsyncMock(side_effect=ConnectionError("socket dead"))
+        mock_ws.ping = AsyncMock(side_effect=ConnectionError("socket dead"))
         mock_ws.close = AsyncMock()
 
         task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
@@ -396,10 +398,32 @@ class TestWsKeepalive:
         """If ws.close() itself raises, keepalive should not crash."""
         adapter = make_adapter()
         adapter._running = True
+        adapter._last_inbound_time = time.time()
 
         mock_ws = MagicMock()
-        mock_ws.send = AsyncMock(side_effect=ConnectionError("socket dead"))
+        mock_ws.ping = AsyncMock(side_effect=ConnectionError("socket dead"))
         mock_ws.close = AsyncMock(side_effect=RuntimeError("close failed"))
+
+        task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
+        await asyncio.sleep(0.12)
+        adapter._running = False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        mock_ws.close.assert_called_once()
+
+    async def test_keepalive_inbound_silence_triggers_close(self, make_adapter):
+        """When no inbound message for > INBOUND_SILENCE_TIMEOUT, keepalive closes WS."""
+        adapter = make_adapter()
+        adapter._running = True
+        adapter._last_inbound_time = 0  # never received any message
+
+        mock_ws = MagicMock()
+        mock_ws.ping = AsyncMock(return_value=0.015)  # protocol ping OK
+        mock_ws.close = AsyncMock()
 
         task = asyncio.create_task(adapter._ws_keepalive(mock_ws, interval=0.05))
         await asyncio.sleep(0.12)

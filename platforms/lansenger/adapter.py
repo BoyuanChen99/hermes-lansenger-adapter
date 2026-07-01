@@ -108,6 +108,11 @@ API_ENDPOINTS = {
 class LansengerAdapter(BasePlatformAdapter):
     """Lansenger chatbot adapter using WebSocket long-connection."""
 
+    # Markdown code blocks render natively in Lansenger formatText messages.
+    supports_code_blocks: bool = True
+    # Adapter's send() handles long-message splitting internally.
+    splits_long_messages: bool = True
+
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
 
     def __init__(self, config: PlatformConfig):
@@ -241,7 +246,7 @@ class LansengerAdapter(BasePlatformAdapter):
 
     # -- Connection lifecycle -----------------------------------------------
 
-    async def connect(self) -> bool:
+    async def connect(self, **kwargs) -> bool:
         """Connect to Lansenger via WebSocket."""
         if not WEBSOCKETS_AVAILABLE or not HTTPX_AVAILABLE:
             return False
@@ -538,7 +543,7 @@ class LansengerAdapter(BasePlatformAdapter):
         except RuntimeError as e:
             logger.critical("[Lansenger] Watchdog: event loop unavailable: %s", e)
 
-    async def disconnect(self) -> None:
+    async def disconnect(self, **kwargs) -> None:
         """Disconnect from Lansenger."""
         self._running = False
         self._mark_disconnected()

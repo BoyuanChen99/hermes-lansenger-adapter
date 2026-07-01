@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.7] - 2026-07-01
+
+### Fixed
+
+- **Hermes v0.17+ compatibility**: `connect()` and `disconnect()` now accept `**kwargs` to match Hermes Agent's updated `connect(self, *, is_reconnect: bool = False)` signature. Without this, gateway runner fails with `TypeError` on startup.
+
+### Added
+
+- **`supports_code_blocks` capability flag**: Set to `True` — Lansenger formatText natively renders Markdown fenced code blocks. Gateway-aware code-block formatting is now enabled.
+- **`splits_long_messages` capability flag**: Set to `True` — Adapter's `send()` handles long-message splitting internally. Gateway no longer truncates messages before delivery.
+
 ## [2.9.6] - 2026-06-26
 
 ### Fixed
