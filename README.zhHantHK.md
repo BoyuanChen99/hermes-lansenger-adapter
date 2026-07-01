@@ -169,7 +169,9 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           ├── platforms/lansenger/            # 網關轉接器
                           │   ├── plugin.yaml                 # manifest（kind: platform）
                           │   ├── __init__.py                  # register() → ctx.register_platform()
-                          │   └── adapter.py                   # 完整轉接器（此處無工具處理器）
+                          │   ├── adapter.py                   # 核心轉接器（多重繼承 Mixin 模組）
+                          │   ├── commands.py                  # 斜線命令註冊
+                          │   └── _*.py / ws_*.py             # 模組化 Mixin 檔案（WS、訊息、權杖、媒體、群組、卡片、審批、i18n）
                           ├── lansenger-tools/           # 媒體與訊息工具
                           │   ├── plugin.yaml                 # manifest（kind: standalone）
                           │   ├── __init__.py                  # register() → ctx.register_tool()

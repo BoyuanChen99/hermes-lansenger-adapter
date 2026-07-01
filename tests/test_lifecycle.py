@@ -24,8 +24,8 @@ class TestConnectLifecycle:
         mock_response.text = json.dumps(WS_ENDPOINT_SUCCESS)
         mock_http.post = AsyncMock(return_value=mock_response)
 
-        with patch("lansenger.adapter.httpx.AsyncClient", return_value=mock_http):
-            with patch("lansenger.adapter.websockets.connect"):
+        with patch("lansenger.ws_lifecycle.httpx.AsyncClient", return_value=mock_http):
+            with patch("lansenger.ws_lifecycle.websockets.connect"):
                 result = await adapter.connect()
 
         assert result is True
@@ -53,7 +53,7 @@ class TestConnectLifecycle:
         mock_response.text = json.dumps(WS_ENDPOINT_FAILURE)
         mock_http.post = AsyncMock(return_value=mock_response)
 
-        with patch("lansenger.adapter.httpx.AsyncClient", return_value=mock_http):
+        with patch("lansenger.ws_lifecycle.httpx.AsyncClient", return_value=mock_http):
             result = await adapter.connect()
 
         assert result is False
@@ -63,7 +63,7 @@ class TestConnectLifecycle:
         mock_http = AsyncMock()
         mock_http.post = AsyncMock(side_effect=Exception("connection refused"))
 
-        with patch("lansenger.adapter.httpx.AsyncClient", return_value=mock_http):
+        with patch("lansenger.ws_lifecycle.httpx.AsyncClient", return_value=mock_http):
             result = await adapter.connect()
 
         assert result is False
@@ -199,7 +199,7 @@ class TestRunWs:
         fake_ws = FakeWs()
         fake_connect = FakeConnect(fake_ws)
 
-        with patch("lansenger.adapter.websockets.connect", return_value=fake_connect):
+        with patch("lansenger.ws_lifecycle.websockets.connect", return_value=fake_connect):
             adapter._ws_task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
             await asyncio.sleep(0.3)
             adapter._running = False
@@ -265,9 +265,9 @@ class TestRunWs:
         async def fast_sleep(delay):
             await original_sleep(min(delay, 0.01))
 
-        with patch("lansenger.adapter.websockets.connect", side_effect=connect_side_effect):
-            with patch("lansenger.adapter.RECONNECT_BACKOFF", [0.01]):
-                with patch("lansenger.adapter.asyncio.sleep", side_effect=fast_sleep):
+        with patch("lansenger.ws_lifecycle.websockets.connect", side_effect=connect_side_effect):
+            with patch("lansenger.ws_lifecycle.RECONNECT_BACKOFF", [0.01]):
+                with patch("lansenger.ws_lifecycle.asyncio.sleep", side_effect=fast_sleep):
                     task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
                     await original_sleep(0.3)
                     adapter._running = False
@@ -296,7 +296,7 @@ class TestRunWs:
 
         adapter._running = True
 
-        with patch("lansenger.adapter.websockets.connect", return_value=InfiniteWs()):
+        with patch("lansenger.ws_lifecycle.websockets.connect", return_value=InfiniteWs()):
             task = asyncio.create_task(adapter._run_ws(WS_TICKET_URL))
             await asyncio.sleep(0.05)
             task.cancel()

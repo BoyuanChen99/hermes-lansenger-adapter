@@ -169,7 +169,9 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           ├── platforms/lansenger/            # Gateway adapter
                           │   ├── plugin.yaml                 # manifest (kind: platform)
                           │   ├── __init__.py                  # register() → ctx.register_platform()
-                          │   └── adapter.py                   # full adapter (no tool handlers here)
+                          │   ├── adapter.py                   # core adapter (multi-inheritance from Mixin modules)
+                          │   ├── commands.py                  # slash command registration
+                          │   └── _*.py / ws_*.py             # modular Mixin files (WS, messages, token, media, groups, cards, approval, i18n)
                           ├── lansenger-tools/           # Media & message tools
                           │   ├── plugin.yaml                 # manifest (kind: standalone)
                           │   ├── __init__.py                  # register() → ctx.register_tool()

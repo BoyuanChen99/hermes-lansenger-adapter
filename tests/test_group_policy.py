@@ -231,7 +231,7 @@ class TestBotNameStripping:
         adapter.handle_message = AsyncMock()
         adapter.send = AsyncMock()
 
-        with patch("lansenger.adapter._commands") as mock_cmds:
+        with patch("lansenger.message_handler._commands") as mock_cmds:
             mock_cmds.dispatch_slash_command = AsyncMock(return_value="done")
             await adapter._on_message(_mk_msg(INBOUND_GROUP_AT_ME_DATA))
             mock_cmds.dispatch_slash_command.assert_called_once()
@@ -335,7 +335,7 @@ class TestAtAllBypass:
         adapter._respond_to_at_all = True
         adapter.handle_message = AsyncMock()
 
-        with patch("lansenger.adapter._commands") as mock_cmds:
+        with patch("lansenger.message_handler._commands") as mock_cmds:
             mock_cmds.dispatch_slash_command = AsyncMock(return_value=None)
             await adapter._on_message(_mk_msg(INBOUND_GROUP_AT_ALL_DATA))
 

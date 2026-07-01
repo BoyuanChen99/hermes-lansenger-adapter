@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.8] - 2026-07-01
+
+### Changed
+
+- **Code structure refactoring**: Split `adapter.py` (4128 lines) into 9 modular files using Mixin pattern — `_constants.py`, `ws_lifecycle.py`, `message_handler.py`, `token_manager.py`, `media.py`, `group_query.py`, `cards.py`, `approval.py`, `i18n_utils.py`. No functional changes.
+
+### Fixed
+
+- Resolved ABC abstract method conflict: added explicit `connect`/`disconnect` delegation methods in `adapter.py` to satisfy `BasePlatformAdapter`'s abstract method requirements.
+
 ## [2.9.7] - 2026-07-01
 
 ### Fixed
