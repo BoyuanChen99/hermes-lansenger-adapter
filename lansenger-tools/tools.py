@@ -51,6 +51,8 @@ import re
 import tempfile
 from typing import Any, Optional
 
+import httpx
+
 logger = logging.getLogger("lansenger-tools")
 
 # --- Auto-detect media_type from file extension ---
@@ -261,7 +263,9 @@ async def _create_ephemeral_adapter():
 
     config = _make_config(env_config)
     adapter = LansengerAdapter(config)
-    adapter._http_client = _get_shared_http_client()
+    # Always create a fresh http client — the shared one may be bound
+    # to a closed event loop from a previous gateway lifecycle.
+    adapter._http_client = httpx.AsyncClient(timeout=30.0)
 
     _load_persisted_token_into_adapter(adapter)
     _load_persisted_chat_types_into_adapter(adapter)

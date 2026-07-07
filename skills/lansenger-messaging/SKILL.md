@@ -22,6 +22,7 @@ Lansenger has multiple message types with different capabilities. Picking the wr
 | linkCard | ✗ | ✗ | ✗ | ✓ |
 
 - **formatText @mention**: newer Lansenger triggers client notification; older versions silently accept without triggering. The API automatically prepends `@displayName` to the message based on `reminder.userIds` / `reminder.botIds` — do NOT manually write `@name` in the text content.
+- **reminder field**: use `reminder.userIds` for human senders, `reminder.botIds` for bot senders. Inbound messages carry `source.is_bot` to indicate the sender type — pass the sender's ID to the matching reminder field.
 - **linkCard** requires 6 fields: title, description, iconLink, link, fromName, fromIconLink.
 - **video** requires 2 mediaIds: [videoId, coverImageId].
 
@@ -55,6 +56,7 @@ You **do not need to call** `lansenger_get_group_info` or `lansenger_get_group_m
 1. **Plain text** → `lansenger_send_text`
 2. **Markdown** → `lansenger_send_markdown` (optional reminder for @mention)
 2a. **Markdown + @mention** → `lansenger_send_markdown` with `reminder={"all":false,"userIds":["id"]}` (API auto-prepends @displayName; do NOT write @name in text)
+   - ⚠️ **User vs Bot @mention**: use `reminder.userIds` when replying to a human (fromType=0), use `reminder.botIds` when replying to a bot (fromType=1). Check `source.is_bot` on the inbound message to determine the sender type.
 3. **Text + attachment** → `lansenger_send_text` with file_path
 4. **Markdown + attachment** → two messages: `lansenger_send_markdown` then `lansenger_send_file`
 5. **Pure attachment** → `lansenger_send_file`

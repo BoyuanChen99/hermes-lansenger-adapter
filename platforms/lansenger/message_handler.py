@@ -252,7 +252,18 @@ class MessageHandlerMixin:
         self._chat_type_map[chat_id] = "group" if is_group else "dm"
         self._chat_type_map_dirty = True
 
-        # 8a. Cache last sender, fromType, and msgId for autoMentionReply and reply ref
+        # 8a. Cache last sender, fromType, and msgId in contextvar for
+        # autoMentionReply and reply ref — per-task isolation prevents
+        # races when concurrent messages update the global dict.
+        from .adapter import _current_sender_cache
+        sender_cache = _current_sender_cache.get().copy()
+        sender_cache[chat_id] = {
+            "sender_id": sender_id,
+            "from_type": msg_data.get("fromType", 0),
+            "msg_id": msg_id,
+        }
+        _current_sender_cache.set(sender_cache)
+        # Also update legacy dict for non-task-context code paths
         self._chat_last_sender[chat_id] = sender_id
         self._chat_last_from_type[chat_id] = msg_data.get("fromType", 0)
         self._chat_last_msg_id[chat_id] = msg_id
@@ -307,6 +318,7 @@ class MessageHandlerMixin:
             user_id=sender_id,
             user_name=msg_data.get("senderName", sender_id),
             chat_topic=chat_topic,
+            is_bot=msg_data.get("fromType") == 1,
         )
 
         # Attach group context in raw_message for downstream consumers

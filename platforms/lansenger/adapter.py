@@ -22,6 +22,7 @@ register(ctx) entry point.  No modifications to core Hermes code are needed.
 """
 
 import asyncio
+import contextvars
 import itertools
 import logging
 import json
@@ -74,6 +75,14 @@ from ._constants import (
 
 
 # check_requirements is defined at the bottom of this file (near register()).
+
+
+# Per-task sender context for auto @reply and auto quote reply.
+# contextvars ensures each asyncio task sees its own copy — no race
+# when message B arrives while the Agent is still processing message A.
+_current_sender_cache: contextvars.ContextVar[dict] = contextvars.ContextVar(
+    "lansenger_sender_cache", default={}
+)
 
 
 class LansengerAdapter(
@@ -449,10 +458,13 @@ class LansengerAdapter(
             if isinstance(auto_mention, str):
                 auto_mention = str(auto_mention).lower() in ("true", "1", "yes")
             if auto_mention:
-                last_sender = self._chat_last_sender.get(chat_id)
-                if last_sender:
-                    from_type = self._chat_last_from_type.get(chat_id, 0)
-                    # fromType: 0=user, 1=app (bot)
+                # Use contextvar (per-task) to avoid race when concurrent messages
+                # update the global _chat_last_sender dict.
+                sender_cache = _current_sender_cache.get()
+                sender_info = sender_cache.get(chat_id)
+                if sender_info:
+                    last_sender = sender_info["sender_id"]
+                    from_type = sender_info["from_type"]
                     if str(from_type) == "1":
                         reminder = {"botIds": [last_sender]}
                     else:
@@ -468,7 +480,10 @@ class LansengerAdapter(
         if isinstance(auto_quote, str):
             auto_quote = str(auto_quote).lower() in ("true", "1", "yes")
         if auto_quote:
-            ref_msg_id = self._chat_last_msg_id.get(chat_id)
+            sender_cache = _current_sender_cache.get()
+            sender_info = sender_cache.get(chat_id)
+            if sender_info:
+                ref_msg_id = sender_info.get("msg_id")
 
         return await self.send_format_text(chat_id, content, reminder=reminder, ref_msg_id=ref_msg_id)
 
