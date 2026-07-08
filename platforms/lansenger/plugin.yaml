@@ -1,7 +1,7 @@
 name: lansenger-platform
 label: Lansenger (蓝信)
 kind: platform
-version: 2.9.9
+version: 2.9.10
 description: >
   Lansenger (蓝信) gateway adapter for Hermes Agent.
   Connects to Lansenger Bot API via WebSocket long-connection for

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.10] - 2026-07-07
+
+### Fixed
+- **WebSocket stability**: Pong timeout raised to 15s minimum (from 10s), per Lansenger server team recommendation.
+- **WebSocket close**: all `ws.close()` calls now await completion with timeout before reconnecting.
+
 ## [2.9.9] - 2026-07-06
 
 ### Added

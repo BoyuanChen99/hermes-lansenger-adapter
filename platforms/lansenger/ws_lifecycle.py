@@ -123,7 +123,9 @@ class WsLifecycleMixin:
             while self._running:
                 try:
                     ping_interval = self._ws_ping_interval
-                    ping_timeout = max(10, ping_interval // 3)
+                    # Pong timeout: server recommends ≥15s; use 1/3 of interval
+                    # but never below 15s for stability.
+                    ping_timeout = max(15, ping_interval // 3)
                     logger.info("[Lansenger] Connecting to WebSocket: %s (ping_interval=%ds, ping_timeout=%ds)",
                                 ws_url, ping_interval, ping_timeout)
                     try:
@@ -281,17 +283,20 @@ class WsLifecycleMixin:
                 try:
                     latency = await asyncio.wait_for(
                         ws.ping(),
-                        timeout=10,
+                        timeout=15,  # server recommends ≥15s for Pong timeout
                     )
                     logger.debug("[Lansenger] Keepalive ping OK, latency=%.3fs", latency)
                 except asyncio.TimeoutError:
                     logger.warning("[Lansenger] Keepalive ping timed out — closing WS for reconnect")
-                    await ws.close()
+                    try:
+                        await asyncio.wait_for(ws.close(), timeout=10)
+                    except Exception:
+                        pass
                     return
                 except Exception as e:
                     logger.warning("[Lansenger] Keepalive ping failed: %s — closing WS for reconnect", e)
                     try:
-                        await ws.close()
+                        await asyncio.wait_for(ws.close(), timeout=10)
                     except Exception:
                         pass
                     return
@@ -303,7 +308,10 @@ class WsLifecycleMixin:
                         "[Lansenger] No inbound WS message for %ds (>%ds) — silent death, closing for reconnect",
                         int(silence_duration), INBOUND_SILENCE_TIMEOUT,
                     )
-                    await ws.close()
+                    try:
+                        await asyncio.wait_for(ws.close(), timeout=10)
+                    except Exception:
+                        pass
                     return
         except asyncio.CancelledError:
             pass
