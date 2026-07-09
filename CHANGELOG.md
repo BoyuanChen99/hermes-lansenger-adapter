@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.11] - 2026-07-09
+
+### Added
+- **`lansenger_download_media` tool**: download media files by media_id — enables Agent to re-download files lost on restart.
+- **MediaId in inbound messages**: all media types (image/video/file/voice) now include their media_id in the message text as `[Type: {media_id}]`.
+
+### Changed
+- **Images routed to `media_urls`**: inbound images are now passed via `event.media_urls` for vision processing, not embedded as text paths.
+- **Reference messages enhanced**: format/sticker/file/image/video/voice references now download media, extract content, and include media_id.
+- **Original filenames preserved**: downloaded media files now use the API-returned filename as temp file prefix.
+
+### Fixed
+- `_extract_reference_text` now supports missing reference types (format, sticker, file with content).
+- Media download failures retain the media_id in message text for later re-download.
+
 ## [2.9.10] - 2026-07-07
 
 ### Fixed

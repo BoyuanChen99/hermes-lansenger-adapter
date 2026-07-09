@@ -10,7 +10,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from gateway.platforms.base import MessageEvent, MessageType
 
@@ -175,13 +175,9 @@ class MessageHandlerMixin:
         msg_id = msg_data.get("msgId") or uuid.uuid4().hex
         logger.info("[Lansenger] msg_id=%s (group=%s)", msg_id[:30], is_group)
 
-        # 2a. Log full raw event for approveCard / verifyCard (button-callback observation)
-        if msg_type in ("approveCard", "verifyCard"):
-            logger.info(
-                "[Lansenger] 🎯 %s EVENT — raw data:\n%s",
-                msg_type,
-                json.dumps(event_data, ensure_ascii=False, indent=2),
-            )
+        # 2a. Log full raw event for debugging new msgTypes
+        logger.info("[Lansenger] RAW event JSON: %s",
+                    json.dumps(event_data, ensure_ascii=False)[:3000])
 
         if self._dedup.is_duplicate(msg_id):
             logger.debug("[Lansenger] Duplicate message %s, skipping", msg_id)
@@ -196,9 +192,9 @@ class MessageHandlerMixin:
                 logger.debug("[Lansenger] Skipping self-echo from bot %s", self_bot_id)
                 return
 
-        # 4. Extract message text (handles text, image, video, file, voice, position, card, sticker)
-        text = await self._extract_text(msg_data)
-        if not text:
+        # 4. Extract message text and media (images → media_urls for vision)
+        text, media_urls, media_types = await self._extract_text(msg_data)
+        if not text and not media_urls:
             logger.info("[Lansenger] Empty message (msgType=%s), skipping — data keys=%s", msg_type, list(msg_data.keys()))
             # Dump raw msgData for unsupported msgTypes so we can add support
             raw_msg_data = msg_data.get("msgData", {})
@@ -244,9 +240,12 @@ class MessageHandlerMixin:
                 return
 
         # 7. Parse quoted message (referenceMsg) if present
-        ref_text = self._extract_reference_text(msg_data.get("referenceMsg"))
+        ref_text, ref_media_urls, ref_media_types = await self._extract_reference_text(msg_data.get("referenceMsg"))
         if ref_text:
             text = f"[引用消息] {ref_text}\n---\n{text}"
+        if ref_media_urls:
+            media_urls = ref_media_urls + media_urls
+            media_types = ref_media_types + media_types
 
         # 8. Cache chat type for outbound routing
         self._chat_type_map[chat_id] = "group" if is_group else "dm"
@@ -338,6 +337,8 @@ class MessageHandlerMixin:
             source=source,
             message_id=msg_id,
             raw_message=enriched_raw,
+            media_urls=media_urls,
+            media_types=media_types,
             timestamp=timestamp,
         )
 
@@ -388,118 +389,204 @@ class MessageHandlerMixin:
         if _cmd_text.startswith("/"):
             await self._maybe_update_approval_card(chat_id, sender_id, _cmd_text, is_group)
 
-    async def _extract_text(self, msg_data: Dict[str, Any]) -> str:
-        """Extract text from message, downloading media if needed.
-        
-        For image/video/file/voice: downloads first media and returns file path.
+    async def _extract_text(self, msg_data: Dict[str, Any]) -> Tuple[str, List[str], List[str]]:
+        """Extract text and media from message.
+
+        Returns (text, media_urls, media_types).  Image/video media are returned
+        in media_urls for vision processing; text content is returned in text.
         """
         msg_type = msg_data.get("msgType", "text")
         msg_payload = msg_data.get("msgData", {})
+        _empty = "", [], []
 
         if msg_type == "text":
-            return msg_payload.get("text", {}).get("content", "").strip()
+            return msg_payload.get("text", {}).get("content", "").strip(), [], []
         
         elif msg_type in ("format", "formatText"):
             # WS event uses "format" (not "formatText") as msgData key
             # Format: {"format": {"formatType": "markdown", "text": "...", "sequence": N}}
             fmt = msg_payload.get("format") or msg_payload.get("formatText", {})
-            return fmt.get("text", "") if isinstance(fmt, dict) else ""
+            return fmt.get("text", "") if isinstance(fmt, dict) else "", [], []
         
         elif msg_type == "image":
             media_ids = msg_payload.get("image", {}).get("mediaIds", [])
-            if media_ids:
-                media_bytes = await self._download_media(media_ids[0])
-                if media_bytes:
-                    path = await self._save_media_temp(media_bytes, "image")
-                    return path if path else "[Image download failed]"
-            return "[Image]"
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[Image: {media_id}]" if media_id else "[Image]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "image", filename)
+                    if path:
+                        return tag, [path], ["image"]
+            return tag, [], []
         
         elif msg_type == "video":
             media_ids = msg_payload.get("video", {}).get("mediaIds", [])
-            if media_ids:
-                media_bytes = await self._download_media(media_ids[0])
-                if media_bytes:
-                    path = await self._save_media_temp(media_bytes, "video")
-                    return path if path else "[Video download failed]"
-            return "[Video]"
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[Video: {media_id}]" if media_id else "[Video]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "video", filename)
+                    if path:
+                        return tag, [path], ["video"]
+            return tag, [], []
         
         elif msg_type == "file":
             media_ids = msg_payload.get("file", {}).get("mediaIds", [])
-            if media_ids:
-                media_bytes = await self._download_media(media_ids[0])
-                if media_bytes:
-                    path = await self._save_media_temp(media_bytes, "file")
-                    return path if path else "[File download failed]"
-            return "[File]"
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[File: {media_id}]" if media_id else "[File]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "file", filename)
+                    if path:
+                        return f"{tag}\n{path}", [], []
+            return tag, [], []
         
         elif msg_type == "voice":
             media_ids = msg_payload.get("voice", {}).get("mediaIds", [])
-            if media_ids:
-                media_bytes = await self._download_media(media_ids[0])
-                if media_bytes:
-                    path = await self._save_media_temp(media_bytes, "voice")
-                    return path if path else "[Voice download failed]"
-            return "[Voice]"
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[Voice: {media_id}]" if media_id else "[Voice]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "voice", filename)
+                    if path:
+                        return f"{tag}\n{path}", [], []
+            return tag, [], []
         
         elif msg_type == "position":
             pos = msg_payload.get("position", {})
             name = pos.get("name", "")
             address = pos.get("address", "")
-            return f"[Location] {name} {address}" if name or address else "[Location]"
+            return f"[Location] {name} {address}" if name or address else "[Location]", [], []
         
         elif msg_type == "card":
             staff_id = msg_payload.get("card", {}).get("staffId", "")
-            return f"[Contact Card] {staff_id}" if staff_id else "[Contact Card]"
+            return f"[Contact Card] {staff_id}" if staff_id else "[Contact Card]", [], []
         
         elif msg_type == "sticker":
             sticker_id = msg_payload.get("sticker", {}).get("stickerId", "")
-            return f"[Sticker] {sticker_id}" if sticker_id else "[Sticker]"
+            return f"[Sticker] {sticker_id}" if sticker_id else "[Sticker]", [], []
 
-        return ""
+        return "", [], []
 
-    @staticmethod
-    def _extract_reference_text(reference_msg: Optional[Dict[str, Any]]) -> str:
-        """Extract displayable text from a referenceMsg (quoted message).
+    async def _extract_reference_text(self, reference_msg: Optional[Dict[str, Any]]) -> Tuple[str, List[str], List[str]]:
+        """Extract displayable text and media from a referenceMsg (quoted message).
 
         Lansenger sends referenceMsg alongside the main message when a user
         replies by quoting an earlier message.  Only the first level is
         returned — the API does not support recursive nested references.
 
-        Returns empty string if reference_msg is None or has no text content.
+        Returns (text, media_urls, media_types).  Images are extracted to
+        media_urls for vision processing; content/description stays in text.
         """
         if not reference_msg or not isinstance(reference_msg, dict):
-            return ""
+            return "", [], []
 
         msg_type = reference_msg.get("msgType", "text")
         msg_payload = reference_msg.get("msgData", {}) or {}
 
         if msg_type == "text":
-            return msg_payload.get("text", {}).get("content", "").strip()
+            return msg_payload.get("text", {}).get("content", "").strip(), [], []
+
+        if msg_type in ("format", "formatText"):
+            fmt = msg_payload.get("format") or msg_payload.get("formatText", {})
+            return fmt.get("text", "") if isinstance(fmt, dict) else "", [], []
 
         if msg_type == "image":
-            count = len(msg_payload.get("image", {}).get("mediaIds", []))
-            return "[Image]" if count <= 1 else f"[Image: {count}]"
+            payload = msg_payload.get("image", {}) if isinstance(msg_payload, dict) else {}
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[Image: {media_id}]" if media_id else "[Image]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "image", filename)
+                    if path:
+                        if content:
+                            return f"{tag} {content}", [path], ["image"]
+                        return tag, [path], ["image"]
+            if content:
+                return f"{tag} {content}", [], []
+            return tag, [], []
 
         if msg_type == "video":
-            return "[Video]"
+            payload = msg_payload.get("video", {}) if isinstance(msg_payload, dict) else {}
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[Video: {media_id}]" if media_id else "[Video]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "video", filename)
+                    if path:
+                        if content:
+                            return f"{tag} {content}", [path], ["video"]
+                        return tag, [path], ["video"]
+            if content:
+                return f"{tag} {content}", [], []
+            return tag, [], []
 
         if msg_type == "file":
-            count = len(msg_payload.get("file", {}).get("mediaIds", []))
-            return "[File]" if count <= 1 else f"[File: {count}]"
+            payload = msg_payload.get("file", {}) if isinstance(msg_payload, dict) else {}
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[File: {media_id}]" if media_id else "[File]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "file", filename)
+                    if path:
+                        label = f"{tag} {content}" if content else tag
+                        return f"{label}\n{path}", [], []
+            if content:
+                return f"{tag} {content}", [], []
+            return tag, [], []
 
         if msg_type == "voice":
-            return "[Voice]"
+            payload = msg_payload.get("voice", {}) if isinstance(msg_payload, dict) else {}
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
+            media_id = media_ids[0] if media_ids else None
+            tag = f"[Voice: {media_id}]" if media_id else "[Voice]"
+            if media_id:
+                result = await self._download_media(media_id)
+                if result:
+                    media_bytes, filename = result
+                    path = await self._save_media_temp(media_bytes, "voice", filename)
+                    if path:
+                        label = f"{tag} {content}" if content else tag
+                        return f"{label}\n{path}", [], []
+            if content:
+                return f"{tag} {content}", [], []
+            return tag, [], []
 
         if msg_type == "position":
             pos = msg_payload.get("position", {})
             name = pos.get("name", "")
-            return f"[Location] {name}" if name else "[Location]"
+            return f"[Location] {name}" if name else "[Location]", [], []
 
         if msg_type == "card":
             staff_id = msg_payload.get("card", {}).get("staffId", "")
-            return f"[Contact Card] {staff_id}" if staff_id else "[Contact Card]"
+            return f"[Contact Card] {staff_id}" if staff_id else "[Contact Card]", [], []
 
-        return f"[{msg_type}]"
+        if msg_type == "sticker":
+            sticker_id = msg_payload.get("sticker", {}).get("stickerId", "")
+            return f"[Sticker] {sticker_id}" if sticker_id else "[Sticker]", [], []
+
+        return f"[{msg_type}]", [], []
 
     def _check_group_policy(self, chat_id: str, sender_id: str, is_at_me: bool, is_at_all: bool = False) -> bool:
         """Check if a group message should be blocked by policy.

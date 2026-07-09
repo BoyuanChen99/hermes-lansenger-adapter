@@ -7,7 +7,7 @@ import logging
 import os
 import subprocess
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -21,8 +21,12 @@ logger = logging.getLogger(__name__)
 class MediaMixin:
     """Media handling methods for LansengerAdapter."""
 
-    async def _download_media(self, media_id: str) -> Optional[bytes]:
-        """Download media file by media ID. Returns raw file bytes or None."""
+    async def _download_media(self, media_id: str) -> Optional[Tuple[bytes, Optional[str]]]:
+        """Download media file by media ID.
+
+        Returns (bytes, filename) tuple or None.  Filename is extracted from
+        the Content-Disposition response header when available.
+        """
         token = await self._get_app_token()
         if not token:
             return None
@@ -32,25 +36,42 @@ class MediaMixin:
             params = {"app_token": token}
             response = await self._http_client.get(url, params=params)
             response.raise_for_status()
-            return response.content
+            filename = None
+            cd = response.headers.get("Content-Disposition", "")
+            if "filename=" in cd:
+                import re
+                m = re.search(r'filename[^=]*=([^;]+)', cd)
+                if m:
+                    filename = m.group(1).strip().strip('"\'')
+            return response.content, filename
         except Exception as e:
             logger.error("[Lansenger] Download media error: %s", e)
             return None
 
-    async def _save_media_temp(self, media_bytes: bytes, media_type: str = "file") -> str:
-        """Save media bytes to temp file, return file path."""
+    async def _save_media_temp(self, media_bytes: bytes, media_type: str = "file",
+                                original_name: Optional[str] = None) -> str:
+        """Save media bytes to temp file, return file path.
+
+        Uses original filename when available, preserves extension for
+        image type detection.
+        """
         import tempfile
-        
+
         ext_map = {"image": ".jpg", "video": ".mp4", "file": ".dat", "voice": ".amr"}
-        ext = ext_map.get(media_type, ".dat")
-        
+        suffix = ext_map.get(media_type, ".dat")
+
+        # Use original filename if provided (and safe)
+        prefix = f"lansenger_{media_type}_"
+        if original_name and '/' not in original_name and '\x00' not in original_name:
+            prefix = f"lansenger_{os.path.splitext(original_name)[0]}_"
+
         # Detect image type from magic bytes
         if media_type == "image" and len(media_bytes) >= 8:
-            if media_bytes[:2] == b'\xff\xd8': ext = ".jpg"
-            elif media_bytes[:8] == b'\x89PNG\r\n\x1a\n': ext = ".png"
-            elif media_bytes[:6] in (b'GIF87a', b'GIF89a'): ext = ".gif"
-        
-        fd, path = tempfile.mkstemp(suffix=ext, prefix=f"lansenger_{media_type}_")
+            if media_bytes[:2] == b'\xff\xd8': suffix = ".jpg"
+            elif media_bytes[:8] == b'\x89PNG\r\n\x1a\n': suffix = ".png"
+            elif media_bytes[:6] in (b'GIF87a', b'GIF89a'): suffix = ".gif"
+
+        fd, path = tempfile.mkstemp(suffix=suffix, prefix=prefix)
         try:
             with os.fdopen(fd, 'wb') as f:
                 f.write(media_bytes)

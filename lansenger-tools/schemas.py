@@ -750,6 +750,27 @@ LANSENGER_GET_GROUP_INFO = {
     },
 }
 
+LANSENGER_DOWNLOAD_MEDIA = {
+    "name": "lansenger_download_media",
+    "description": (
+        "Download a media file (image, file, video, voice) from Lansenger (蓝信) by its media_id. "
+        "Use this when you need to re-download a file that was previously referenced in a message "
+        "but the temporary file is no longer available (e.g. after a restart). "
+        "The file is saved to a local temp path and returned. "
+        "media_ids are embedded in inbound messages as '[Image: {media_id}]', '[File: {media_id}]', etc."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "media_id": {
+                "type": "string",
+                "description": "The media_id to download (e.g. '13107200-abc123...'). Found in inbound message tags like [File: media_id].",
+            },
+        },
+        "required": ["media_id"],
+    },
+}
+
 LANSENGER_GET_GROUP_MEMBERS = {
     "name": "lansenger_get_group_members",
     "description": (

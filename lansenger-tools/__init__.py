@@ -193,8 +193,17 @@ def register(ctx):
         check_fn=check_available,
     )
 
+    ctx.register_tool(
+        name="lansenger_download_media",
+        toolset="lansenger-tools",
+        schema=schemas.LANSENGER_DOWNLOAD_MEDIA,
+        handler=tools.lansenger_download_media,
+        description="Download a media file from Lansenger (蓝信) by media_id — useful when temp files are lost after restart",
+        check_fn=check_available,
+    )
+
     logger.info(
-        "lansenger-tools: registered 13 tools "
+        "lansenger-tools: registered 14 tools "
         "(credentials: %s)",
         "available" if check_available() else "not configured — tools hidden",
     )

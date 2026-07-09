@@ -78,6 +78,18 @@ You **do not need to call** `lansenger_get_group_info` or `lansenger_get_group_m
 14. **Get group details** → `lansenger_get_group_info` (name, members count, state — but note: basic info is auto-injected for current group)
 15. **Get group members** → `lansenger_get_group_members` (member list with roles; only needed when members not auto-injected, i.e. groups > 100 people)
 16. **Check membership** → `lansenger_check_in_group` (verify if a staff/bot is in a specific group)
+17. **Download media** → `lansenger_download_media` (re-download a file/image/video/voice by media_id when the temp file is lost, e.g. after restart)
+
+## Inbound Media & mediaId
+
+All inbound media messages (image, video, file, voice) include their media_id in the message text:
+
+- `[Image: 13107200-abc...]` — image referenced; temp path also provided if downloaded
+- `[File: 13107200-xyz...]` — file referenced
+- `[Video: 13107200-def...]` — video referenced
+- `[Voice: 13107200-ghi...]` — voice/audio referenced
+
+Images are also passed via `media_urls` for vision processing. Downloaded files are saved to temp paths — these **will be lost on restart**. If you need to re-access a media file, use `lansenger_download_media(media_id="13107200-...")` to download it again.
 
 ## Critical Pitfalls
 

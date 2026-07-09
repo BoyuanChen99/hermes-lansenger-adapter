@@ -686,6 +686,77 @@ def lansenger_send_text(args: dict, **kwargs) -> str:
         return json.dumps({"success": False, "error": str(e)})
 
 
+async def _download_media_async(media_id: str) -> dict:
+    """Async: download a media file by media_id and save to temp file."""
+    import tempfile
+
+    adapter = await _create_ephemeral_adapter()
+    try:
+        token = await adapter._get_app_token()
+        if not token:
+            return {"success": False, "error": "Failed to get app token"}
+
+        url = f"{adapter._api_gateway_url}/v1/medias/{media_id}/fetch"
+        params = {"app_token": token}
+        response = await adapter._http_client.get(url, params=params)
+        response.raise_for_status()
+
+        # Extract filename from Content-Disposition
+        filename = None
+        cd = response.headers.get("Content-Disposition", "")
+        if "filename=" in cd:
+            import re
+            m = re.search(r'filename[^=]*=([^;]+)', cd)
+            if m:
+                filename = m.group(1).strip().strip('"\'')
+
+        # Save to temp file
+        prefix = f"lansenger_download_{media_id[:12]}_"
+        suffix = ".dat"
+        if filename and '.' in filename and '/' not in filename:
+            suffix = os.path.splitext(filename)[1] or ".dat"
+            prefix = f"lansenger_{os.path.splitext(filename)[0]}_"
+
+        fd, path = tempfile.mkstemp(suffix=suffix, prefix=prefix)
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(response.content)
+            return {
+                "success": True,
+                "path": path,
+                "size": len(response.content),
+                "filename": filename,
+                "media_id": media_id,
+                "platform": "lansenger",
+                "operation": "download_media",
+            }
+        except Exception as e:
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
+            return {"success": False, "error": f"Failed to save file: {e}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def lansenger_download_media(args: dict, **kwargs) -> str:
+    """Download a media file from Lansenger by media_id. Returns the local file path."""
+    media_id = args.get("media_id", "").strip()
+    if not media_id:
+        return json.dumps({"error": "media_id is required"})
+
+    env_result = _check_env()
+    if "error" in env_result:
+        return json.dumps(env_result)
+
+    try:
+        result = _run_async(_download_media_async(media_id))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": str(e)})
+
+
 def lansenger_send_markdown(args: dict, **kwargs) -> str:
     """Send a Markdown-formatted message (msgType=formatText), optionally with @mentions.
 
