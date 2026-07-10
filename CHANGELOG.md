@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.12] - 2026-07-10
+
+### Added
+- **`approveCard` message support**: inbound approveCard messages now parsed with title and text.
+- **`box` (聊天记录/合并转发) message support**: direct box messages display sender, time, and content per item; referenced boxes use compact format.
+- **`forward` message support**: standalone forward messages (as reference) now show the forward title.
+- **Sender & time in references**: all quoted messages now include sender ID and send time.
+- **Sender & time in box items**: each sub-message in direct box messages now annotated with sender and timestamp.
+- **`content` field for image/video/file/voice**: direct inbound media messages now extract the optional `content` field (text description).
+
+### Changed
+- Reference box messages now use compact single-line format to avoid double-tag clutter.
+
 ## [2.9.11] - 2026-07-09
 
 ### Added

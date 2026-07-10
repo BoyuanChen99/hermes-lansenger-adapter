@@ -175,9 +175,9 @@ class MessageHandlerMixin:
         msg_id = msg_data.get("msgId") or uuid.uuid4().hex
         logger.info("[Lansenger] msg_id=%s (group=%s)", msg_id[:30], is_group)
 
-        # 2a. Log full raw event for debugging new msgTypes
-        logger.info("[Lansenger] RAW event JSON: %s",
-                    json.dumps(event_data, ensure_ascii=False)[:3000])
+        # 2a. Log full raw event at DEBUG for troubleshooting new msgTypes
+        logger.debug("[Lansenger] RAW event JSON: %s",
+                     json.dumps(event_data, ensure_ascii=False)[:3000])
 
         if self._dedup.is_duplicate(msg_id):
             logger.debug("[Lansenger] Duplicate message %s, skipping", msg_id)
@@ -242,7 +242,14 @@ class MessageHandlerMixin:
         # 7. Parse quoted message (referenceMsg) if present
         ref_text, ref_media_urls, ref_media_types = await self._extract_reference_text(msg_data.get("referenceMsg"))
         if ref_text:
-            text = f"[引用消息] {ref_text}\n---\n{text}"
+            ref_msg = msg_data.get("referenceMsg")
+            ref_sender = ref_msg.get("from", "") if isinstance(ref_msg, dict) else ""
+            ref_time = self._extract_reference_time(ref_msg)
+            ref_meta = f"{ref_sender} ({ref_time})" if ref_sender and ref_time else f"{ref_sender}" if ref_sender else f"({ref_time})" if ref_time else ""
+            if ref_meta:
+                text = f"[引用消息] {ref_meta}: {ref_text}\n---\n{text}"
+            else:
+                text = f"[引用消息] {ref_text}\n---\n{text}"
         if ref_media_urls:
             media_urls = ref_media_urls + media_urls
             media_types = ref_media_types + media_types
@@ -409,7 +416,9 @@ class MessageHandlerMixin:
             return fmt.get("text", "") if isinstance(fmt, dict) else "", [], []
         
         elif msg_type == "image":
-            media_ids = msg_payload.get("image", {}).get("mediaIds", [])
+            payload = msg_payload.get("image", {})
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
             media_id = media_ids[0] if media_ids else None
             tag = f"[Image: {media_id}]" if media_id else "[Image]"
             if media_id:
@@ -418,11 +427,17 @@ class MessageHandlerMixin:
                     media_bytes, filename = result
                     path = await self._save_media_temp(media_bytes, "image", filename)
                     if path:
+                        if content:
+                            return f"{tag} {content}", [path], ["image"]
                         return tag, [path], ["image"]
+            if content:
+                return f"{tag} {content}", [], []
             return tag, [], []
         
         elif msg_type == "video":
-            media_ids = msg_payload.get("video", {}).get("mediaIds", [])
+            payload = msg_payload.get("video", {})
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
             media_id = media_ids[0] if media_ids else None
             tag = f"[Video: {media_id}]" if media_id else "[Video]"
             if media_id:
@@ -431,11 +446,17 @@ class MessageHandlerMixin:
                     media_bytes, filename = result
                     path = await self._save_media_temp(media_bytes, "video", filename)
                     if path:
+                        if content:
+                            return f"{tag} {content}", [path], ["video"]
                         return tag, [path], ["video"]
+            if content:
+                return f"{tag} {content}", [], []
             return tag, [], []
         
         elif msg_type == "file":
-            media_ids = msg_payload.get("file", {}).get("mediaIds", [])
+            payload = msg_payload.get("file", {})
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
             media_id = media_ids[0] if media_ids else None
             tag = f"[File: {media_id}]" if media_id else "[File]"
             if media_id:
@@ -444,11 +465,16 @@ class MessageHandlerMixin:
                     media_bytes, filename = result
                     path = await self._save_media_temp(media_bytes, "file", filename)
                     if path:
-                        return f"{tag}\n{path}", [], []
+                        label = f"{tag} {content}" if content else tag
+                        return f"{label}\n{path}", [], []
+            if content:
+                return f"{tag} {content}", [], []
             return tag, [], []
         
         elif msg_type == "voice":
-            media_ids = msg_payload.get("voice", {}).get("mediaIds", [])
+            payload = msg_payload.get("voice", {})
+            content = (payload.get("content") or "").strip()
+            media_ids = payload.get("mediaIds", [])
             media_id = media_ids[0] if media_ids else None
             tag = f"[Voice: {media_id}]" if media_id else "[Voice]"
             if media_id:
@@ -457,7 +483,10 @@ class MessageHandlerMixin:
                     media_bytes, filename = result
                     path = await self._save_media_temp(media_bytes, "voice", filename)
                     if path:
-                        return f"{tag}\n{path}", [], []
+                        label = f"{tag} {content}" if content else tag
+                        return f"{label}\n{path}", [], []
+            if content:
+                return f"{tag} {content}", [], []
             return tag, [], []
         
         elif msg_type == "position":
@@ -474,7 +503,187 @@ class MessageHandlerMixin:
             sticker_id = msg_payload.get("sticker", {}).get("stickerId", "")
             return f"[Sticker] {sticker_id}" if sticker_id else "[Sticker]", [], []
 
+        elif msg_type == "approveCard":
+            card = msg_payload.get("approveCard", {})
+            if not isinstance(card, dict):
+                return "[ApproveCard]", [], []
+            title = card.get("title", "")
+            text = card.get("text", "")
+            if title and text:
+                return f"[ApproveCard: {title}] {text}", [], []
+            if title:
+                return f"[ApproveCard: {title}]", [], []
+            if text:
+                return f"[ApproveCard] {text}", [], []
+            return "[ApproveCard]", [], []
+
+        elif msg_type == "forward":
+            fwd = msg_payload.get("forward", {})
+            title = fwd.get("title", "") if isinstance(fwd, dict) else ""
+            return f"[Forward] {title}" if title else "[Forward]", [], []
+
+        elif msg_type == "box":
+            return self._extract_box_text(msg_payload, as_reference=False)
+
         return "", [], []
+
+    def _extract_box_text(self, msg_payload: Dict[str, Any], as_reference: bool = False) -> Tuple[str, List[str], List[str]]:
+        """Extract text from a box (消息盒子/合并转发) message.
+
+        Box structure:
+           box.content      — 聊天记录标题
+           box.messageItems[]  — 聊天记录中的每条消息
+          box.msgBoxType — 1=盒子, 2=引用
+
+        Only one level is returned (no nested box within box).
+
+        When as_reference=True, uses a compact one-line format suitable
+        for being prepended with "[引用消息]".
+        """
+        box_data = msg_payload.get("box", {})
+        if not isinstance(box_data, dict):
+            return "[聊天记录]", [], []
+
+        title = box_data.get("content", "")
+        items = box_data.get("messageItems", [])
+        if not items:
+            if title:
+                return f"[聊天记录: {title}]", [], []
+            return "[聊天记录]", [], []
+
+        if as_reference:
+            # Compact format for references: include sender, time, and content per item
+            parts = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                sub_type = item.get("msgType", "text")
+                sub_payload = item.get("msgData", {})
+                sub_text = self._extract_sub_message_text(sub_type, sub_payload)
+                if sub_text:
+                    sender = item.get("from", "?")
+                    send_time = item.get("sendTime", "")
+                    time_label = self._format_send_time(send_time)
+                    if time_label:
+                        parts.append(f"{sender} ({time_label}): {sub_text}")
+                    else:
+                        parts.append(f"{sender}: {sub_text}")
+            summary = "; ".join(parts)
+            header = f"[聊天记录: {title}]" if title else "[聊天记录]"
+            if summary:
+                return f"{header} {summary}", [], []
+            return header, [], []
+
+        lines = []
+        if title:
+            lines.append(f"[聊天记录: {title}]")
+        else:
+            lines.append("[聊天记录]")
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            sub_type = item.get("msgType", "text")
+            sub_payload = item.get("msgData", {})
+
+            sub_text = self._extract_sub_message_text(sub_type, sub_payload)
+            if sub_text:
+                from_user = item.get("from", "unknown")
+                send_time = item.get("sendTime", "")
+                time_label = self._format_send_time(send_time)
+                if time_label:
+                    lines.append(f"  {from_user} ({time_label}): {sub_text}")
+                else:
+                    lines.append(f"  {from_user}: {sub_text}")
+
+        return "\n".join(lines), [], []
+
+    @staticmethod
+    def _format_send_time(send_time: str) -> str:
+        """Convert microsecond timestamp to readable datetime string.
+
+        Returns empty string if send_time is invalid or empty.
+        Format: YYYY-MM-DD HH:MM:SS
+        """
+        if not send_time:
+            return ""
+        try:
+            ts = int(send_time) / 1_000_000
+            dt = datetime.fromtimestamp(ts)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, OSError):
+            return ""
+
+    @staticmethod
+    def _extract_reference_time(reference_msg: Optional[Dict[str, Any]]) -> str:
+        """Extract the sendTime from a reference message.
+
+        The sendTime is at msgData[msgType].sendTime for most types,
+        or msgData.box.sendTime for box messages.
+        """
+        if not reference_msg or not isinstance(reference_msg, dict):
+            return ""
+        msg_type = reference_msg.get("msgType", "")
+        msg_payload = reference_msg.get("msgData", {}) or {}
+        if not isinstance(msg_payload, dict):
+            return ""
+
+        # Try msgData[msgType].sendTime (common pattern)
+        inner = msg_payload.get(msg_type, {})
+        if isinstance(inner, dict):
+            send_time = inner.get("sendTime", "")
+            if send_time:
+                return MessageHandlerMixin._format_send_time(str(send_time))
+            # fallback: try msgData[msgType].sequence (only if no sendTime)
+            # Not useful as a time but keep logic clean
+
+        # Try msgData.box.sendTime (box type)
+        if msg_type == "box":
+            box_data = msg_payload.get("box", {})
+            if isinstance(box_data, dict):
+                send_time = box_data.get("sendTime", "")
+                return MessageHandlerMixin._format_send_time(str(send_time)) or ""
+
+        return ""
+
+    @staticmethod
+    def _extract_sub_message_text(sub_type: str, sub_payload: dict) -> str:
+        """Extract a short text representation from a sub-message inside a box."""
+        if sub_type == "text":
+            return sub_payload.get("text", {}).get("content", "")
+        if sub_type in ("format", "formatText"):
+            fmt = sub_payload.get("format") or sub_payload.get("formatText", {})
+            return fmt.get("text", "") if isinstance(fmt, dict) else ""
+        if sub_type == "image":
+            return sub_payload.get("image", {}).get("content", "") or "[图片]"
+        if sub_type == "video":
+            return sub_payload.get("video", {}).get("content", "") or "[视频]"
+        if sub_type == "file":
+            content = sub_payload.get("file", {}).get("content", "")
+            return f"[文件] {content}" if content else "[文件]"
+        if sub_type == "voice":
+            return sub_payload.get("voice", {}).get("content", "") or "[语音]"
+        if sub_type == "approveCard":
+            card = sub_payload.get("approveCard", {})
+            if not isinstance(card, dict):
+                return "[审批卡片]"
+            card_title = card.get("title", "")
+            card_text = card.get("text", "")
+            if card_title and card_text:
+                return f"[审批卡片: {card_title}] {card_text}"
+            if card_title:
+                return f"[审批卡片: {card_title}]"
+            if card_text:
+                return f"[审批卡片] {card_text}"
+            return "[审批卡片]"
+        if sub_type == "sticker":
+            return "[表情]"
+        if sub_type == "position":
+            pos = sub_payload.get("position", {})
+            name = pos.get("name", "")
+            return f"[位置] {name}" if name else "[位置]"
+        if sub_type == "card":
+            return "[名片]"
+        return f"[{sub_type}]"
 
     async def _extract_reference_text(self, reference_msg: Optional[Dict[str, Any]]) -> Tuple[str, List[str], List[str]]:
         """Extract displayable text and media from a referenceMsg (quoted message).
@@ -585,6 +794,28 @@ class MessageHandlerMixin:
         if msg_type == "sticker":
             sticker_id = msg_payload.get("sticker", {}).get("stickerId", "")
             return f"[Sticker] {sticker_id}" if sticker_id else "[Sticker]", [], []
+
+        if msg_type == "approveCard":
+            card = msg_payload.get("approveCard", {})
+            if not isinstance(card, dict):
+                return "[ApproveCard]", [], []
+            title = card.get("title", "")
+            text = card.get("text", "")
+            if title and text:
+                return f"[ApproveCard: {title}] {text}", [], []
+            if title:
+                return f"[ApproveCard: {title}]", [], []
+            if text:
+                return f"[ApproveCard] {text}", [], []
+            return "[ApproveCard]", [], []
+
+        if msg_type == "forward":
+            fwd = msg_payload.get("forward", {})
+            title = fwd.get("title", "") if isinstance(fwd, dict) else ""
+            return f"[Forward] {title}" if title else "[Forward]", [], []
+
+        if msg_type == "box":
+            return self._extract_box_text(msg_payload, as_reference=True)
 
         return f"[{msg_type}]", [], []
 
