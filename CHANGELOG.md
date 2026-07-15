@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.14] - 2026-07-15
+
+### Fixed
+- **NameError in `_send_appcard_approval`** (#10): `token` variable was undefined, causing the approveCard → appCard fallback path to crash. Added `token = await self._get_app_token()` before use.
+- **HTTP connection leak in lansenger-tools** (#11): ephemeral adapters created a new `httpx.AsyncClient` per tool invocation but never closed it. All 14 `_xxx_async()` functions now close the client in a `finally` block.
+- **Inbound silence timeout too aggressive** (#8): `INBOUND_SILENCE_TIMEOUT` increased from 1800s (30min) to 7200s (2h, matching ticket TTL). Now configurable via `LANSENGER_INBOUND_SILENCE_TIMEOUT` env var.
+
+### Removed
+- Dead code: `_shared_http_client` singleton (`_get_shared_http_client()` / `_close_shared_http_client()`) — never called since `_create_ephemeral_adapter()` intentionally creates a fresh client per invocation (#13).
+
 ## [2.9.13] - 2026-07-15
 
 ### Fixed
