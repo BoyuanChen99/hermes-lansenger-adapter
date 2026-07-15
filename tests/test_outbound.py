@@ -111,7 +111,7 @@ class TestSendText:
         assert msg_data.get("text", {}).get("reminder") == reminder
 
     async def test_unknown_chat_type_defaults_to_group(self, make_adapter):
-        """Without owner_id, unknown chat_id → group endpoint (personal bot: only owner can DM)"""
+        """Without owner_id and without chat_type_map → group endpoint (final fallback)"""
         adapter = make_adapter()
         await _ensure_token(adapter)
         adapter._http_client = AsyncMock()
@@ -127,6 +127,25 @@ class TestSendText:
         call_args = adapter._http_client.post.call_args
         url = call_args[0][0] if call_args[0] else call_args.kwargs.get("url")
         assert "/v1/messages/group/create" in url
+
+    async def test_chat_type_map_dm_not_owner_routes_to_bot(self, make_adapter):
+        """chat_type_map says DM → private endpoint even if not owner (e.g. first install)"""
+        adapter = make_adapter()
+        await _ensure_token(adapter)
+        adapter._http_client = AsyncMock()
+
+        chat_id = "2285568-dm-user"
+        adapter._chat_type_map[chat_id] = "dm"
+        # owner_id is NOT set (simulates first install before first DM)
+
+        mock_response = _make_http_response({"errCode": 0, "data": {"msgId": "msg-7"}})
+        adapter._http_client.post = AsyncMock(return_value=mock_response)
+
+        await adapter.send_text(chat_id, "hello")
+
+        call_args = adapter._http_client.post.call_args
+        url = call_args[0][0] if call_args[0] else call_args.kwargs.get("url")
+        assert "/v1/bot/messages/create" in url
 
 
 class TestSendFormatText:

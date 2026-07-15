@@ -36,20 +36,36 @@ def adapter(make_adapter):
 class TestIsGroupChat:
 
     def test_owner_is_dm(self, adapter):
-        """chat_id == owner_id → DM (personal bot can only DM owner)"""
+        """chat_id == owner_id → DM (fast path, priority 1)"""
         adapter._owner_id = "staff-123"
         assert adapter._is_group_chat("staff-123") is False
 
     def test_non_owner_is_group(self, adapter):
-        """Any other chat_id → group (only owner can be DM)"""
+        """Non-owner, no chat_type_map entry → group (fallback)"""
         adapter._owner_id = "staff-123"
         assert adapter._is_group_chat("group-abc") is True
         assert adapter._is_group_chat("some-random-id") is True
 
-    def test_no_owner_defaults_to_group(self, adapter):
-        """Without owner_id, everything goes to group endpoint"""
+    def test_no_owner_and_empty_map_fallback_to_group(self, adapter):
+        """Without owner_id and without chat_type_map → group (final fallback)"""
         assert adapter._is_group_chat("any_chat_id") is True
         assert adapter._is_group_chat("group:some_id") is True
+
+    def test_chat_type_map_dm_without_owner(self, adapter):
+        """chat_type_map says DM → DM even without owner_id (priority 2)"""
+        adapter._chat_type_map["dm-chat"] = "dm"
+        assert adapter._is_group_chat("dm-chat") is False
+
+    def test_chat_type_map_group_without_owner(self, adapter):
+        """chat_type_map says group → group even without owner_id (priority 2)"""
+        adapter._chat_type_map["group-chat"] = "group"
+        assert adapter._is_group_chat("group-chat") is True
+
+    def test_owner_id_wins_over_chat_type_map(self, adapter):
+        """owner_id match takes priority over chat_type_map (just in case)"""
+        adapter._owner_id = "staff-123"
+        adapter._chat_type_map["staff-123"] = "group"  # shouldn't happen, but test it
+        assert adapter._is_group_chat("staff-123") is False
 
 
 class TestChatTypeDirtyFlag:
