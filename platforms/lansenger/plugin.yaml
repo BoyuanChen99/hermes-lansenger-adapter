@@ -17,11 +17,11 @@ requires_env:
     description: "Lansenger Bot App Secret"
     prompt: "Lansenger App Secret"
     password: true
-optional_env:
   - name: LANSENGER_API_GATEWAY_URL
-    description: "Lansenger API Gateway URL (default: https://open.e.lanxin.cn/open/apigw)"
+    description: "Lansenger API Gateway URL (e.g. https://apigw.lx.qianxin.com for production, https://open-app22.t.lanxin.cn/open/apigw for sandbox)"
     prompt: "API Gateway URL"
     password: false
+optional_env:
   - name: LANSENGER_ALLOWED_USERS
     description: "Comma-separated Lansenger user IDs allowed to talk to the bot"
     prompt: "Allowed users (comma-separated)"

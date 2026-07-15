@@ -40,7 +40,7 @@ class WsLifecycleMixin:
         """Connect to Lansenger via WebSocket."""
         if not WEBSOCKETS_AVAILABLE or not HTTPX_AVAILABLE:
             return False
-        if not self._app_id or not self._app_secret:
+        if not self._app_id or not self._app_secret or not self._api_gateway_url:
             return False
 
         try:

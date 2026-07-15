@@ -151,9 +151,14 @@ def _check_env() -> dict:
                 "Set LANSENGER_APP_ID and LANSENGER_APP_SECRET in .env or config.yaml."
             )
         }
-    api_gateway = os.environ.get(
-        "LANSENGER_API_GATEWAY_URL", "https://open.e.lanxin.cn/open/apigw"
-    ).strip()
+    api_gateway = os.environ.get("LANSENGER_API_GATEWAY_URL", "").strip()
+    if not api_gateway:
+        return {
+            "error": (
+                "Lansenger API Gateway URL not configured. "
+                "Set LANSENGER_API_GATEWAY_URL in .env or config.yaml."
+            )
+        }
     return {"app_id": app_id, "app_secret": app_secret, "api_gateway_url": api_gateway}
 
 

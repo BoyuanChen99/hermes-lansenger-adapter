@@ -15,7 +15,7 @@ Configuration in config.yaml:
         extra:
           app_id: "your-app-id"        # or LANSENGER_APP_ID env var
           app_secret: "your-secret"    # or LANSENGER_APP_SECRET env var
-          api_gateway_url: "https://open.e.lanxin.cn/open/apigw"  # optional
+          api_gateway_url: "https://open-app22.t.lanxin.cn/open/apigw"  # required
 
 This is a PLUGIN adapter — registered via ctx.register_platform() in the
 register(ctx) entry point.  No modifications to core Hermes code are needed.
@@ -67,7 +67,6 @@ from .i18n_utils import I18nUtilsMixin
 # Constants (shared via _constants.py to avoid circular imports with mixin modules)
 from ._constants import (
     API_ENDPOINTS,
-    DEFAULT_API_GATEWAY_URL,
     INBOUND_SILENCE_TIMEOUT,
     MAX_MESSAGE_LENGTH,
     RECONNECT_BACKOFF,
@@ -112,7 +111,7 @@ class LansengerAdapter(
         # Priority: env var > config.yaml extra (matches Hermes convention)
         self._app_id: str = os.getenv("LANSENGER_APP_ID") or extra.get("app_id", "")
         self._app_secret: str = os.getenv("LANSENGER_APP_SECRET") or extra.get("app_secret", "")
-        self._api_gateway_url: str = os.getenv("LANSENGER_API_GATEWAY_URL") or extra.get("api_gateway_url") or DEFAULT_API_GATEWAY_URL
+        self._api_gateway_url: str = os.getenv("LANSENGER_API_GATEWAY_URL") or extra.get("api_gateway_url", "")
         # Store extra config for commands.py permission lookups
         self._config_extra: dict = extra
 
@@ -971,7 +970,7 @@ def _interactive_setup():
     # Prompt for credentials
     app_id = _prompt_field("LANSENGER_APP_ID", "App ID")
     app_secret = _prompt_field("LANSENGER_APP_SECRET", "App Secret", sensitive=True)
-    gateway_url = _prompt_field("LANSENGER_API_GATEWAY_URL", "API Gateway URL", default="https://open.e.lanxin.cn/open/apigw")
+    gateway_url = _prompt_field("LANSENGER_API_GATEWAY_URL", "API Gateway URL")
     
     # Build updated .env content — replace existing keys or append new ones
     changes = {}

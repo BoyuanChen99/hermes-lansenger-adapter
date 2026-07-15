@@ -6,7 +6,6 @@ Import-safe — has no circular dependencies on adapter.py or mixin modules.
 MAX_MESSAGE_LENGTH = 4000
 RECONNECT_BACKOFF = [2, 5, 10, 30, 60]
 INBOUND_SILENCE_TIMEOUT = 7200  # 2h — matches ticket TTL; no inbound WS message for this long = silent death
-DEFAULT_API_GATEWAY_URL = "https://open.e.lanxin.cn/open/apigw"
 
 # API Endpoints
 API_ENDPOINTS = {

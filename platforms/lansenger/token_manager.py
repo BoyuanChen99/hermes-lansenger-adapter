@@ -11,8 +11,6 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-from ._constants import DEFAULT_API_GATEWAY_URL
-
 logger = logging.getLogger(__name__)
 
 
