@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.13] - 2026-07-15
+
+### Fixed
+- **DM routing when owner_id unknown**: `_is_group_chat()` now consults the chat type map (populated from inbound WS events) as fallback when `_owner_id` is not yet set. Prevents DM messages from being incorrectly routed to the group chat API, which would cause send failures before the first inbound DM.
+
 ## [2.9.12] - 2026-07-10
 
 ### Added

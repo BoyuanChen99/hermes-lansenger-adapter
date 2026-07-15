@@ -429,12 +429,21 @@ class LansengerAdapter(
     def _is_group_chat(self, chat_id: str) -> bool:
         """Check if chat_id is a group chat.
 
-        Personal bots can only DM with the owner. Therefore:
-        - chat_id == owner_id → DM (private chat)
-        - Everything else → group (either a real group or will fail gracefully)
+        Routes by priority:
+        1. chat_id == owner_id → DM (fast path for personal bot's owner)
+        2. chat_type_map lookup → definitive type from inbound events
+        3. Fallback → assume group chat
         """
+        # 1. Fast path: owner's DM
         if self._owner_id and chat_id == self._owner_id:
             return False
+        # 2. Query chat type map (populated from inbound WS events)
+        chat_type = self._chat_type_map.get(chat_id)
+        if chat_type == "dm":
+            return False
+        if chat_type == "group":
+            return True
+        # 3. Fallback: assume group chat
         return True
 
     # -- Outbound message sending -------------------------------------------
