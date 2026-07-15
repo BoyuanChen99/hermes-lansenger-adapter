@@ -89,6 +89,7 @@ hermes gateway restart
 |----------|-------------|---------|
 | `LANSENGER_APP_ID` | 机器人应用 ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | 机器人应用密钥 | `your-app-secret` |
+| `LANSENGER_API_GATEWAY_URL` | API 网关 URL | `https://apigw.lx.qianxin.com` |
 
 **凭据路径：** 蓝信桌面端 → 通讯录 → 智能机器人 → 个人机器人 → 点击右侧 ℹ️ 图标查看凭证（移动端不支持查看凭证）
 
@@ -96,7 +97,6 @@ hermes gateway restart
 
 | 变量 | 说明 | 默认值 |
 |----------|-------------|---------|
-| `LANSENGER_API_GATEWAY_URL` | API 网关 URL | `https://open.e.lanxin.cn/open/apigw` |
 | `LANSENGER_ALLOWED_USERS` | 允许的用户 ID（逗号分隔） | — |
 | `LANSENGER_ALLOW_ALL_USERS` | 允许所有用户（仅开发环境） | `false` |
 | `LANSENGER_HOME_CHANNEL` | 默认定时推送的聊天 ID | 自动检测 |
@@ -114,7 +114,7 @@ platforms:
       # 凭证（若已通过环境变量设置则可省略；环境变量优先）
       # app_id: "your-app-id"
       # app_secret: "your-app-secret"
-      # api_gateway_url: "https://open.e.lanxin.cn/open/apigw"
+      api_gateway_url: "https://apigw.lx.qianxin.com"  # 必填
       # 可选：禁用钩子日志（默认：true）
       # hook_logging: false
 ```

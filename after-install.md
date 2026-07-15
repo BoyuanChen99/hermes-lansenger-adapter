@@ -18,7 +18,7 @@ A bundle plugin and two skills were installed:
 hermes setup gateway
 ```
 
-Select **Lansenger** from the platform list, then paste your App ID, App Secret, and optionally confirm the API Gateway URL.
+Select **Lansenger** from the platform list, then paste your App ID, App Secret, and provide the API Gateway URL (e.g. `https://apigw.lx.qianxin.com` for public cloud).
 
 > 💡 App ID and App Secret can be found in Lansenger desktop → Contacts → Bots → Personal Bots → ℹ️ icon (mobile does not support viewing credentials)
 
@@ -31,7 +31,7 @@ platforms:
     extra:
       app_id: "YOUR_APP_ID"
       app_secret: "YOUR_APP_SECRET"
-      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"  # or your custom gateway URL
+      api_gateway_url: "https://apigw.lx.qianxin.com"  # required
 ```
 
 ### Option C: .env file
@@ -39,7 +39,7 @@ platforms:
 ```
 LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
-LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
+LANSENGER_API_GATEWAY_URL=https://apigw.lx.qianxin.com
 ```
 
 ## Restart Gateway

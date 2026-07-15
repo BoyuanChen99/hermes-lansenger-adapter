@@ -88,7 +88,7 @@ tags: [lansenger, setup, configuration, slash-commands, approval]
 |--------|----------|------------------|------|------|
 | App ID | `LANSENGER_APP_ID` | `platforms.lansenger.extra.app_id` | ✅ | 机器人 App ID，格式：`orgId-applicationId`。获取路径：蓝信桌面端 → 通讯录 → 智能机器人 → 个人机器人 → ℹ️ |
 | App Secret | `LANSENGER_APP_SECRET` | `platforms.lansenger.extra.app_secret` | ✅ | 机器人 App Secret。**敏感信息，绝对不要完整回显，始终脱敏处理。** |
-| API Gateway URL | `LANSENGER_API_GATEWAY_URL` | `platforms.lansenger.extra.api_gateway_url` | ❌ | API 网关地址。公有云默认 `https://open.e.lanxin.cn/open/apigw`，企业私有部署需设置自定义地址。 |
+| API Gateway URL | `LANSENGER_API_GATEWAY_URL` | `platforms.lansenger.extra.api_gateway_url` | ✅ | API 网关地址（必填）。公有云：`https://apigw.lx.qianxin.com`，测试环境：`https://open-app22.t.lanxin.cn/open/apigw`。 |
 
 ### 群聊设置
 
@@ -162,7 +162,7 @@ platforms:
 向用户询问：
 1. **App ID**（必填）
 2. **App Secret**（必填）
-3. **API Gateway URL**（可选，公有云用户无需提供）
+3. **API Gateway URL**（必填，公有云：`https://apigw.lx.qianxin.com`，测试环境：`https://open-app22.t.lanxin.cn/open/apigw`）
 
 **安全规则：** 绝对不要完整回显 App Secret。确认时始终脱敏处理（如 `63F9***35AD`）。
 
@@ -187,7 +187,7 @@ platforms:
     extra:
       app_id: "<用户提供的 App ID>"
       app_secret: "<用户提供的 App Secret>"
-      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"  # 公有云；私有部署用自定义地址
+      api_gateway_url: "https://apigw.lx.qianxin.com"  # 必填；公有云或私有部署地址
 ```
 
 **方式 B：写入 .env 文件**
@@ -196,7 +196,7 @@ platforms:
 # 在 ~/.hermes/.env 中添加
 LANSENGER_APP_ID=<用户提供的 App ID>
 LANSENGER_APP_SECRET=<用户提供的 App Secret>
-LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
+LANSENGER_API_GATEWAY_URL=https://apigw.lx.qianxin.com
 ```
 
 > 注意：如果 `.env` 已存在旧的凭证，需先删除旧行再写入新值。环境变量优先级高于 config.yaml，如果同时存在则以 `.env` 为准。

@@ -21,7 +21,7 @@
 | Item | Location | Format |
 |------|----------|--------|
 | APP_ID + SECRET | config.yaml `platforms.lansenger.extra` or env vars | LANSENGER_APP_ID / LANSENGER_APP_SECRET |
-| API Gateway URL | config.yaml or env var | LANSENGER_API_GATEWAY_URL (default: https://open.e.lanxin.cn/open/apigw) |
+| API Gateway URL | config.yaml or env var | LANSENGER_API_GATEWAY_URL (required, no default) |
 | appToken | ~/.hermes/lansenger_token.json | {"app_token": "...", "expires_at": timestamp} |
 | Owner ID | ~/.hermes/lansenger_owner.json | {"owner_id": "2285568-..."} |
 | Chat Type Map | ~/.hermes/lansenger_chat_types.json | {"<chat_id>": "group"|"dm"} |

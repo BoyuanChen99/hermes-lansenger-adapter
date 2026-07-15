@@ -89,6 +89,7 @@ Add these to `~/.hermes/.env`:
 |----------|-------------|---------|
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
+| `LANSENGER_API_GATEWAY_URL` | API Gateway URL | `https://apigw.lx.qianxin.com` |
 
 **Credential path:** Lansenger desktop → Contacts → Bots → Personal Bots → click the ℹ️ icon to view credentials (mobile client does not support viewing credentials)
 
@@ -96,7 +97,6 @@ Add these to `~/.hermes/.env`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LANSENGER_API_GATEWAY_URL` | API Gateway URL | `https://open.e.lanxin.cn/open/apigw` |
 | `LANSENGER_ALLOWED_USERS` | Allowed user IDs (comma-separated) | — |
 | `LANSENGER_ALLOW_ALL_USERS` | Allow any user (dev only) | `false` |
 | `LANSENGER_HOME_CHANNEL` | Default cron delivery chat ID | Auto-detected |
@@ -114,7 +114,7 @@ platforms:
       # Credentials (optional if set via env vars; env vars take precedence)
       # app_id: "your-app-id"
       # app_secret: "your-app-secret"
-      # api_gateway_url: "https://open.e.lanxin.cn/open/apigw"
+      api_gateway_url: "https://apigw.lx.qianxin.com"  # required
       # Optional: disable hook logging (default: true)
       # hook_logging: false
 ```

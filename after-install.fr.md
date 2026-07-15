@@ -18,7 +18,7 @@ Exécutez l'assistant de configuration intégré — il vous guide étape par é
 hermes setup gateway
 ```
 
-Sélectionnez **Lansenger** dans la liste des plateformes, puis collez votre App ID, App Secret, et confirmez éventuellement l'URL de la passerelle API. Les valeurs déjà configurées sont affichées (les secrets sont masqués) et peuvent être remplacées.
+Sélectionnez **Lansenger** dans la liste des plateformes, puis collez votre App ID, App Secret, et fournissez l'URL de la passerelle API (ex. `https://apigw.lx.qianxin.com` pour le cloud public). Les valeurs déjà configurées sont affichées (les secrets sont masqués) et peuvent être remplacées.
 
 > 💡 L'App ID et l'App Secret se trouvent dans Lansenger desktop → Contacts → Robots → Robots personnels → icône ℹ️ (le client mobile ne permet pas de voir les identifiants)
 
@@ -33,7 +33,7 @@ platforms:
     extra:
       app_id: "YOUR_APP_ID"
       app_secret: "YOUR_APP_SECRET"
-      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # ou votre URL de passerelle personnalisée
+      api_gateway_url: "https://apigw.lx.qianxin.com"   # requis
 ```
 
 ### Option C : fichier .env (manuel)
@@ -43,7 +43,7 @@ platforms:
 ```
 LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
-LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
+LANSENGER_API_GATEWAY_URL=https://apigw.lx.qianxin.com
 ```
 
 ## Redémarrer la passerelle

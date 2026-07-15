@@ -18,7 +18,7 @@
 hermes setup gateway
 ```
 
-從平台清單中選擇 **Lansenger**，然後貼上您的 App ID、App Secret，並可選擇確認 API 網關 URL。已設定的值會顯示出來（密鑰會被遮掩），可以覆蓋修改。
+從平台清單中選擇 **Lansenger**，然後貼上您的 App ID、App Secret，並提供 API 網關 URL（公有雲：`https://apigw.lx.qianxin.com`）。已設定的值會顯示出來（密鑰會被遮掩），可以覆蓋修改。
 
 > 💡 App ID 及 App Secret 可在藍信桌面端 → 通訊錄 → 智能機械人 → 個人機械人 → ℹ️ 圖標中找到（行動端不支援查看憑證）
 
@@ -33,7 +33,7 @@ platforms:
     extra:
       app_id: "YOUR_APP_ID"
       app_secret: "YOUR_APP_SECRET"
-      api_gateway_url: "https://open.e.lanxin.cn/open/apigw"   # 或您的自訂網關 URL
+      api_gateway_url: "https://apigw.lx.qianxin.com"   # 必填
 ```
 
 ### 方式 C：.env 檔案（手動）
@@ -43,7 +43,7 @@ platforms:
 ```
 LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
-LANSENGER_API_GATEWAY_URL=https://open.e.lanxin.cn/open/apigw
+LANSENGER_API_GATEWAY_URL=https://apigw.lx.qianxin.com
 ```
 
 ## 重啟網關

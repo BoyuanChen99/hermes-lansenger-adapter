@@ -89,6 +89,7 @@ Ajoutez ces variables à `~/.hermes/.env` :
 |----------|-------------|---------|
 | `LANSENGER_APP_ID` | ID App du Bot | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Secret App du Bot | `your-app-secret` |
+| `LANSENGER_API_GATEWAY_URL` | URL de la passerelle API | `https://apigw.lx.qianxin.com` |
 
 **Chemin des identifiants :** Lansenger (client desktop) → Contacts → Rebots → Robots personnels → cliquer sur l’icône ℹ️ pour voir les identifiants (le client mobile ne permet pas de voir les identifiants)
 
@@ -96,7 +97,6 @@ Ajoutez ces variables à `~/.hermes/.env` :
 
 | Variable | Description | Valeur par défaut |
 |----------|-------------|-------------------|
-| `LANSENGER_API_GATEWAY_URL` | URL de la passerelle API | `https://open.e.lanxin.cn/open/apigw` |
 | `LANSENGER_ALLOWED_USERS` | IDs d’utilisateurs autorisés (séparés par des virgules) | — |
 | `LANSENGER_ALLOW_ALL_USERS` | Autoriser tous les utilisateurs (développement uniquement) | `false` |
 | `LANSENGER_HOME_CHANNEL` | ID de chat par défaut pour la livraison planifiée | Détection automatique |
@@ -114,7 +114,7 @@ platforms:
       # Identifiants (optionnel si défini via variables d'env; variables d'env prioritaires)
       # app_id: "your-app-id"
       # app_secret: "your-app-secret"
-      # api_gateway_url: "https://open.e.lanxin.cn/open/apigw"
+      api_gateway_url: "https://apigw.lx.qianxin.com"  # requis
       # Optionnel : désactiver la journalisation des hooks (défaut : true)
       # hook_logging: false
 ```
