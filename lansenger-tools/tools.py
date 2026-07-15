@@ -378,6 +378,8 @@ async def _send_text_async(chat_id: str, content: str,
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _send_markdown_async(chat_id: str, content: str,
@@ -411,6 +413,8 @@ async def _send_markdown_async(chat_id: str, content: str,
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _send_file_async(chat_id: str, file_path: str, caption: str, media_type: int,
@@ -436,6 +440,8 @@ async def _send_file_async(chat_id: str, file_path: str, caption: str, media_typ
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _send_image_url_async(chat_id: str, image_url: str, caption: str) -> dict:
@@ -497,6 +503,8 @@ async def _revoke_async(message_ids: list, chat_id: str = "") -> dict:
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _send_link_card_async(chat_id: str, title: str, link: str,
@@ -527,6 +535,8 @@ async def _send_link_card_async(chat_id: str, title: str, link: str,
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _send_app_articles_async(chat_id: str, articles: list) -> dict:
@@ -545,6 +555,8 @@ async def _send_app_articles_async(chat_id: str, articles: list) -> dict:
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _send_app_card_async(
@@ -574,6 +586,8 @@ async def _send_app_card_async(
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _send_approve_card_async(
@@ -598,6 +612,8 @@ async def _send_approve_card_async(
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _update_dynamic_card_async(
@@ -621,6 +637,8 @@ async def _update_dynamic_card_async(
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _query_groups_async(page_offset: int, page_size: int) -> dict:
@@ -639,6 +657,8 @@ async def _query_groups_async(page_offset: int, page_size: int) -> dict:
     except Exception as e:
 
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 # --- Synchronous handlers (called by Hermes tool registry) ---
@@ -738,6 +758,8 @@ async def _download_media_async(media_id: str) -> dict:
             return {"success": False, "error": f"Failed to save file: {e}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 def lansenger_download_media(args: dict, **kwargs) -> str:
@@ -1114,6 +1136,8 @@ async def _get_group_info_async(group_id: str) -> dict:
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _get_group_members_async(group_id: str, page_offset: int = 0,
@@ -1135,6 +1159,8 @@ async def _get_group_members_async(group_id: str, page_offset: int = 0,
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 async def _check_in_group_async(group_id: str, staff_id: str = "") -> dict:
@@ -1153,6 +1179,8 @@ async def _check_in_group_async(group_id: str, staff_id: str = "") -> dict:
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        await adapter._http_client.aclose()
 
 
 # --- Synchronous handlers ---

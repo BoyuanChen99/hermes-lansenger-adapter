@@ -624,6 +624,10 @@ class ApprovalMixin:
             "colour": "#FFB116",
         }
 
+        token = await self._get_app_token()
+        if not token:
+            return SendResult(success=False, error="No access token")
+
         try:
             url = self._build_send_url(chat_id, token)
             app_card_data = {

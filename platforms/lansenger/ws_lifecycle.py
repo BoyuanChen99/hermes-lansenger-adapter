@@ -22,7 +22,6 @@ from . import commands as _commands
 
 from ._constants import (
     API_ENDPOINTS,
-    INBOUND_SILENCE_TIMEOUT,
     RECONNECT_BACKOFF,
 )
 
@@ -270,7 +269,7 @@ class WsLifecycleMixin:
            waits for the pong.  If it times out or fails, the connection is
            dead at protocol level → close and reconnect.
         2. Inbound silence: if no WS message has arrived for
-           INBOUND_SILENCE_TIMEOUT seconds → the server may be alive at TCP
+           self._inbound_silence_timeout seconds → the server may be alive at TCP
            level but not delivering messages → close and reconnect.
         """
         try:
@@ -303,10 +302,10 @@ class WsLifecycleMixin:
 
                 # --- Mechanism 2: Inbound silence (server not delivering messages) ---
                 silence_duration = time.time() - self._last_inbound_time
-                if silence_duration > INBOUND_SILENCE_TIMEOUT:
+                if silence_duration > self._inbound_silence_timeout:
                     logger.warning(
                         "[Lansenger] No inbound WS message for %ds (>%ds) — silent death, closing for reconnect",
-                        int(silence_duration), INBOUND_SILENCE_TIMEOUT,
+                        int(silence_duration), self._inbound_silence_timeout,
                     )
                     try:
                         await asyncio.wait_for(ws.close(), timeout=10)

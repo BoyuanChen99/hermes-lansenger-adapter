@@ -58,6 +58,10 @@ optional_env:
     description: "Comma-separated sender IDs allowed to approve dangerous commands (besides the bot owner). Default: only owner can approve."
     prompt: "Additional approvers (comma-separated, or empty for owner-only)"
     password: false
+  - name: LANSENGER_INBOUND_SILENCE_TIMEOUT
+    description: "Seconds without inbound WS messages before triggering reconnect (default: 7200). Increase for cron-driven bots with rare inbound traffic."
+    prompt: "Inbound silence timeout in seconds (or empty for default 7200)"
+    password: false
 # Per-group config: set in config.yaml platforms.lansenger.extra.groups:
 # In allowlist mode, only groups listed in this map are allowed.
 #   groups:

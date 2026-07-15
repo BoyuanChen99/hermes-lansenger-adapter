@@ -129,6 +129,13 @@ class LansengerAdapter(
         self._ws_ping_interval: int = 50
         self._last_inbound_time: float = 0.0  # last WS inbound message timestamp
 
+        # Inbound silence timeout — env var override (default: 7200s = ticket TTL)
+        _silence_timeout = os.getenv("LANSENGER_INBOUND_SILENCE_TIMEOUT") or extra.get("inbound_silence_timeout", "")
+        try:
+            self._inbound_silence_timeout: int = int(_silence_timeout) if _silence_timeout else INBOUND_SILENCE_TIMEOUT
+        except ValueError:
+            self._inbound_silence_timeout = INBOUND_SILENCE_TIMEOUT
+
         # Message deduplication
         self._dedup = MessageDeduplicator(max_size=1000)
 
