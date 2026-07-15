@@ -18,7 +18,7 @@ requires_env:
     prompt: "Lansenger App Secret"
     password: true
   - name: LANSENGER_API_GATEWAY_URL
-    description: "Lansenger API Gateway URL (e.g. https://apigw.lx.qianxin.com for production, https://open-app22.t.lanxin.cn/open/apigw for sandbox)"
+    description: "Lansenger API Gateway URL (e.g. https://your-api-gateway-url)"
     prompt: "API Gateway URL"
     password: false
 optional_env:

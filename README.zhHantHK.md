@@ -89,7 +89,7 @@ hermes gateway restart
 |----------|-------------|---------|
 | `LANSENGER_APP_ID` | Bot App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Bot App Secret | `your-app-secret` |
-| `LANSENGER_API_GATEWAY_URL` | API 網關 URL | `https://apigw.lx.qianxin.com` |
+| `LANSENGER_API_GATEWAY_URL` | API 網關 URL | `https://your-api-gateway-url` |
 
 **憑證路徑：** 藍信桌面端 → 通訊錄 → 智能機械人 → 個人機械人 → 點擊右側 ℹ️ 圖標查看憑證（行動端不支援查看憑證）
 
@@ -114,7 +114,7 @@ platforms:
       # 憑證（若已透過環境變數設定則可省略；環境變數優先）
       # app_id: "your-app-id"
       # app_secret: "your-app-secret"
-      api_gateway_url: "https://apigw.lx.qianxin.com"  # 必填
+      api_gateway_url: "https://your-api-gateway-url"  # 必填
       # 可選：停用鉤子日誌（預設：true）
       # hook_logging: false
 ```

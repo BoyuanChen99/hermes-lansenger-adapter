@@ -89,7 +89,7 @@ Ajoutez ces variables à `~/.hermes/.env` :
 |----------|-------------|---------|
 | `LANSENGER_APP_ID` | ID App du Bot | `your-app-id` |
 | `LANSENGER_APP_SECRET` | Secret App du Bot | `your-app-secret` |
-| `LANSENGER_API_GATEWAY_URL` | URL de la passerelle API | `https://apigw.lx.qianxin.com` |
+| `LANSENGER_API_GATEWAY_URL` | URL de la passerelle API | `https://your-api-gateway-url` |
 
 **Chemin des identifiants :** Lansenger (client desktop) → Contacts → Rebots → Robots personnels → cliquer sur l’icône ℹ️ pour voir les identifiants (le client mobile ne permet pas de voir les identifiants)
 
@@ -114,7 +114,7 @@ platforms:
       # Identifiants (optionnel si défini via variables d'env; variables d'env prioritaires)
       # app_id: "your-app-id"
       # app_secret: "your-app-secret"
-      api_gateway_url: "https://apigw.lx.qianxin.com"  # requis
+      api_gateway_url: "https://your-api-gateway-url"  # requis
       # Optionnel : désactiver la journalisation des hooks (défaut : true)
       # hook_logging: false
 ```

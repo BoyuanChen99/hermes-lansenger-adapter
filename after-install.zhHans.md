@@ -18,7 +18,7 @@
 hermes setup gateway
 ```
 
-从平台列表中选择 **Lansenger**，然后粘贴您的 App ID、App Secret，并提供 API 网关 URL（公有云：`https://apigw.lx.qianxin.com`）。
+从平台列表中选择 **Lansenger**，然后粘贴您的 App ID、App Secret，并提供 API 网关 URL（例如 `https://your-api-gateway-url`）。
 
 > 💡 App ID 和 App Secret 可在蓝信桌面端 → 通讯录 → 智能机器人 → 个人机器人 → ℹ️ 图标中找到（移动端不支持查看凭证）
 
@@ -31,7 +31,7 @@ platforms:
     extra:
       app_id: "YOUR_APP_ID"
       app_secret: "YOUR_APP_SECRET"
-      api_gateway_url: "https://apigw.lx.qianxin.com"   # 必填
+      api_gateway_url: "https://your-api-gateway-url"   # 必填
 ```
 
 ### 方式 C：.env 文件
@@ -39,7 +39,7 @@ platforms:
 ```
 LANSENGER_APP_ID=YOUR_APP_ID
 LANSENGER_APP_SECRET=YOUR_APP_SECRET
-LANSENGER_API_GATEWAY_URL=https://apigw.lx.qianxin.com
+LANSENGER_API_GATEWAY_URL=https://your-api-gateway-url
 ```
 
 ## 重启网关

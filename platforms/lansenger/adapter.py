@@ -15,7 +15,7 @@ Configuration in config.yaml:
         extra:
           app_id: "your-app-id"        # or LANSENGER_APP_ID env var
           app_secret: "your-secret"    # or LANSENGER_APP_SECRET env var
-          api_gateway_url: "https://open-app22.t.lanxin.cn/open/apigw"  # required
+          api_gateway_url: "https://your-api-gateway-url"  # required
 
 This is a PLUGIN adapter — registered via ctx.register_platform() in the
 register(ctx) entry point.  No modifications to core Hermes code are needed.
