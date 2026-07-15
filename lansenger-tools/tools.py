@@ -207,43 +207,6 @@ def _run_async(coro):
     return asyncio.run(coro)
 
 
-# --- Shared connection pool (Bug 5 fix) ---
-
-_shared_http_client: Optional[Any] = None
-
-
-def _get_shared_http_client():
-    """Return a module-level httpx.AsyncClient (singleton connection pool).
-
-    Avoids creating a new TCP+TLS connection per tool invocation.
-    Uses atexit cleanup to close the pool when the process exits.
-    """
-    global _shared_http_client
-    if _shared_http_client is None or _shared_http_client.is_closed:
-        import httpx
-        _shared_http_client = httpx.AsyncClient(timeout=30.0)
-        import atexit
-        atexit.register(_close_shared_http_client)
-    return _shared_http_client
-
-
-def _close_shared_http_client():
-    """Close the shared httpx client at process exit (atexit handler).
-
-    httpx.AsyncClient.aclose() is async, so we use asyncio.run()
-    in a best-effort fashion.  If an event loop is already running,
-    we skip — the OS will reclaim sockets anyway.
-    """
-    global _shared_http_client
-    if _shared_http_client is None or _shared_http_client.is_closed:
-        return
-    try:
-        asyncio.run(_shared_http_client.aclose())
-    except RuntimeError:
-        pass
-    _shared_http_client = None
-
-
 # --- Async implementations (shared by all handlers) ---
 
 
