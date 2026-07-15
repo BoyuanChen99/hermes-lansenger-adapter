@@ -216,8 +216,8 @@ async def _create_ephemeral_adapter():
     Pre-loads persisted appToken so the ephemeral adapter can reuse it
     without calling /v1/apptoken/create on every invocation.
 
-    Uses the shared httpx connection pool to avoid per-invocation
-    TCP+TLS overhead.
+    Creates a fresh httpx.AsyncClient per invocation to avoid event-loop
+    binding issues across gateway lifecycles.
     """
     LansengerAdapter = _get_adapter_class()
     env_config = _check_env()
