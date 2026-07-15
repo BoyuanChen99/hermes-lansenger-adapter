@@ -8,6 +8,8 @@
 2. **lansenger-messaging** — 教 Agent 選擇正確藍信工具的技能
 3. **lansenger-setup** — 教 Agent 設定藍信插件的技能
 
+> ⚠️ **不要手動執行 `hermes plugins enable lansenger-platform` 或 `hermes plugins enable lansenger-tools`** — Bundle 在網關重啟時會自動展開並啟用兩個子插件。
+
 ## 設定
 
 ### 方式 A：互動式設定向導（推薦）
@@ -191,6 +193,7 @@ hermes -p bot-test gateway start
 │  lansenger_revoke_message     │  —           │  —           │  —           │
 │  lansenger_query_groups       │  —           │  —           │  —           │
 └───────────────────────────────┴──────────────┴──────────────┴──────────────┘
+```
 
 @提及說明：
 - send_text：群聊中可用；私聊支援但沒必要（只有一個對話者）

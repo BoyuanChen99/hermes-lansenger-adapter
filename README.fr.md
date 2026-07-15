@@ -139,6 +139,7 @@ Ces outils permettent à l’Agent d’envoyer des messages, fichiers, images, c
 | `lansenger_get_group_info` | `group_id` | Obtenir les informations détaillées d'un groupe (nom, membres, état) |
 | `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | Obtenir la liste des membres d'un groupe avec pagination |
 | `lansenger_check_in_group` | `group_id`, `staff_id`? | Vérifier si un utilisateur ou un robot est dans un groupe |
+| `lansenger_download_media` | `media_id` | Télécharger un fichier multimédia par media_id (re-télécharger les fichiers perdus au redémarrage) |
 
 **Exemples d’utilisation (prompts de l’Agent) :**
 
@@ -178,7 +179,7 @@ hermes plugins install → clone to ~/.hermes/plugins/hermes-lansenger-adapter/
                           │   ├── schemas.py                   # descriptions d’outils pour le LLM
                           │   └── tools.py                     # implémentations des gestionnaires
                           ├── skills/                          # Compétence de décision de l’Agent
-                          │   └── lansenger-messaging/           # répertoire skill (SKILL.md + references) d’outils + docs token
+                          │   └── lansenger-messaging/           # répertoire skill (SKILL.md + references/)
                           ├── README.md
                           ├── LICENSE
                           ├── VERSION

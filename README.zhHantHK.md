@@ -40,7 +40,7 @@
 - **lansenger_send_app_articles** — 發送 appArticles 多文章卡片
 - **lansenger_send_app_card** — 發送 appCard 富卡片，可選動態更新
 - **lansenger_send_approve_card** — 發送帶可點擊按鈕的 approveCard 審批卡片
-- **lansenger_update_dynamic_card** — 原地更新動態 appCard 瀏覽狀態
+- **lansenger_update_dynamic_card** — 原地更新動態 appCard 狀態
 - **lansenger_query_groups** — 查詢機械人的群 ID 列表
 - **lansenger_get_group_info** — 獲取群詳細資訊（名稱、人數、狀態）
 - **lansenger_get_group_members** — 獲取群成員列表（支援分頁）
@@ -139,6 +139,7 @@ platforms:
 | `lansenger_get_group_info` | `group_id` | 獲取群詳細資訊（名稱、人數、狀態） |
 | `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | 獲取群成員列表（支援分頁） |
 | `lansenger_check_in_group` | `group_id`, `staff_id`? | 檢查某人/機械人是否在指定群中 |
+| `lansenger_download_media` | `media_id` | 透過 media_id 下載媒體檔案（重新下載重啟時遺失的檔案） |
 
 **使用範例（Agent 提示）：**
 

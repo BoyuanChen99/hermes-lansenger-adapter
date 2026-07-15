@@ -191,9 +191,9 @@ Chaque profil possède son propre config.yaml, sessions, mémoires, compétences
 │  lansenger_revoke_message     │  —           │  —           │  —           │
 │  lansenger_query_groups       │  —           │  —           │  —           │
 └───────────────────────────────┴──────────────┴──────────────┴──────────────┘
+```
 
 @mention notes :
 - send_text : fonctionne en chat groupe ; chat privé supporte mais inutile (un seul participant)
 - send_markdown : capacité API plus récente ; anciennes versions acceptent
   sans notification. En chat groupe, recommandé d'inclure @姓名 dans le texte.
-```

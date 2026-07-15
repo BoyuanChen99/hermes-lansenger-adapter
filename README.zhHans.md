@@ -139,6 +139,7 @@ platforms:
 | `lansenger_get_group_info` | `group_id` | 获取群详细信息（名称、人数、状态） |
 | `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | 获取群成员列表（支持分页） |
 | `lansenger_check_in_group` | `group_id`, `staff_id`? | 检查某人/机器人是否在指定群中 |
+| `lansenger_download_media` | `media_id` | 通过 media_id 下载媒体文件（重新下载重启时丢失的文件） |
 
 **使用示例（Agent 提示）：**
 

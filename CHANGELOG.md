@@ -315,7 +315,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - **WebSocket reconnect hangs after keepalive ping timeout**. When the Lansenger server sends a `1011 (keepalive ping timeout)` close frame, the adapter reconnects with a new ticket but `websockets.connect()` hangs indefinitely during the HTTP upgrade handshake — the server accepts TCP but stalls the 101 response. Added `asyncio.wait_for(timeout=15)` safety net around `websockets.connect()` so a stalled handshake triggers `TimeoutError` and falls through to the reconnect loop instead of hanging forever. Also added explicit `open_timeout=10` parameter to `websockets.connect()`.
 
-### Bug Fixes (Issue #1 — Code Audit))
+### Bug Fixes (Issue #1 — Code Audit)
 
 - **Bug 1: `_run_async` thread pool deadlock** (tools.py). Replaced `ThreadPoolExecutor(max_workers=1)` fallback with `asyncio.run_coroutine_threadsafe(coro, loop)` — injects coroutines into the gateway's existing event loop instead of spinning a new thread+loop per tool call. Eliminates single-worker queue deadlock and 30s timeout on large file uploads. Timeout raised to 120s.
 - **Bug 2: `_chat_type_map` routing failure for unknown chat IDs**. Added `_is_group_chat(chat_id)` helper with heuristic fallback: `group:` prefix → group, otherwise → DM (with warning log). Replaced all 6 `self._chat_type_map.get(chat_id) == "group"` checks.

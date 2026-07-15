@@ -85,7 +85,7 @@ hermes gateway restart
 
 將以下內容加入 `~/.hermes/.env`：
 
-| 變數 | 說明 |範例 |
+| 變數 | 說明 | 範例 |
 |----------|-------------|---------|
 | `LANSENGER_APP_ID` | 機器人 App ID | `your-app-id` |
 | `LANSENGER_APP_SECRET` | 機器人 App Secret | `your-app-secret` |
@@ -139,6 +139,7 @@ platforms:
 | `lansenger_get_group_info` | `group_id` | 獲取群詳細資訊（名稱、人數、狀態） |
 | `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | 獲取群成員列表（支援分頁） |
 | `lansenger_check_in_group` | `group_id`, `staff_id`? | 檢查某人/機器人是否在指定群中 |
+| `lansenger_download_media` | `media_id` | 透過 media_id 下載媒體檔案（重新下載重啟時遺失的檔案） |
 
 **使用範例（Agent 提示）：**
 

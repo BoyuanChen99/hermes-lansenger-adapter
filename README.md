@@ -139,6 +139,7 @@ These tools let the Agent send messages, files, images, cards, revoke messages, 
 | `lansenger_get_group_info` | `group_id` | Get detailed group information (name, members, state) |
 | `lansenger_get_group_members` | `group_id`, `page_offset`?, `page_size`? | Get a group's member list with pagination |
 | `lansenger_check_in_group` | `group_id`, `staff_id`? | Check whether a staff/bot is in a group |
+| `lansenger_download_media` | `media_id` | Download a media file by media_id (re-download files lost on restart) |
 
 **Usage examples (Agent prompts):**
 

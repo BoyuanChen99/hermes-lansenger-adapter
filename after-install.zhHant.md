@@ -165,18 +165,16 @@ platforms:
 
 ## 多 Workspace（Profiles）
 
-支援多組藍信憑證透過 Hermes profiles 管理：
+Hermes 支援多個隔離的工作區，透過 Profiles 管理：
 
 ```bash
-hermes profile create my-org \
-  --set platforms.lansenger.enabled=true \
-  --set platforms.lansenger.extra.app_id=YOUR_APP_ID \
-  --set platforms.lansenger.extra.app_secret=YOUR_APP_SECRET
+hermes profile create bot-prod
+hermes profile create bot-test
+hermes -p bot-prod gateway start
+hermes -p bot-test gateway start
 ```
 
-```bash
-hermes profile use my-org
-```
+每個 profile 都擁有獨立的 config.yaml、sessions、memories、skills、日誌及數據檔案（token、chat_type、owner）。
 
 ## 工具總覽
 
@@ -195,6 +193,7 @@ hermes profile use my-org
 │  lansenger_revoke_message     │  —           │  —           │  —           │
 │  lansenger_query_groups       │  —           │  —           │  —           │
 └───────────────────────────────┴──────────────┴──────────────┴──────────────┘
+```
 
 @提及說明：
 - send_text：群聊中可用；私聊支援但沒必要（只有一個對話者）
