@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.15] - 2026-07-15
+
+### Changed
+- **`LANSENGER_API_GATEWAY_URL` is now required**: the previous default URL (`https://open.e.lanxin.cn/open/apigw`) was never a valid endpoint. Users must now provide their API Gateway URL explicitly via env var or config.
+- All documentation, skills, and config examples now use `https://your-api-gateway-url` as a placeholder instead of exposing real endpoint addresses.
+
+### Fixed
+- 14 documentation issues: typos (French "Rebots"→"Robots", double parenthesis), translation errors (zhHant/HK "瀏覽狀態"→"狀態"), unclosed code blocks (after-install.fr/zhHant/zhHantHK), missing sub-plugin warnings (after-install.fr/zhHantHK), inconsistent Multi-Workspace section (after-install.zhHant), missing `lansenger_download_media` tool in all 5 README tool tables.
+
 ## [2.9.14] - 2026-07-15
 
 ### Fixed
