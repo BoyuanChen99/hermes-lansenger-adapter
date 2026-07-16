@@ -1,5 +1,5 @@
 name: lansenger-tools
-version: 2.9.15
+version: 2.9.16
 description: Lansenger messaging tools — send text/markdown/files/images, revoke messages, send linkCard/appArticles/appCard/approveCard cards, update dynamic cards, query groups, get group info/members, check in group
 author: Lanxin Mobile (Beijing) Technology Co., ltd.
 provides_tools:

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.9.16] - 2026-07-16
+
+### Fixed
+- **Encoding crash on Chinese Windows**: 6 file read/write calls in `adapter.py` (owner ID, chat type map, `.env` config) were missing `encoding="utf-8"`, causing `UnicodeDecodeError` on systems where the default encoding is GBK. All file I/O now explicitly uses UTF-8.
+
 ## [2.9.15] - 2026-07-15
 
 ### Changed

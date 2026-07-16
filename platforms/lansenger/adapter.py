@@ -269,7 +269,7 @@ class LansengerAdapter(
         """Load owner ID from file."""
         try:
             if self._owner_id_file.exists():
-                data = json.loads(self._owner_id_file.read_text())
+                data = json.loads(self._owner_id_file.read_text(encoding="utf-8"))
                 self._owner_id = data.get("owner_id")
                 if self._owner_id:
                     logger.info("[Lansenger] Loaded owner ID: %s", self._owner_id[:20] if self._owner_id else None)
@@ -280,7 +280,7 @@ class LansengerAdapter(
         """Save owner ID to file."""
         try:
             self._owner_id_file.parent.mkdir(parents=True, exist_ok=True)
-            self._owner_id_file.write_text(json.dumps({"owner_id": self._owner_id}, indent=2))
+            self._owner_id_file.write_text(json.dumps({"owner_id": self._owner_id}, indent=2), encoding="utf-8")
             logger.info("[Lansenger] Saved owner ID: %s", self._owner_id[:20] if self._owner_id else None)
         except Exception as e:
             logger.error("[Lansenger] Failed to save owner ID: %s", e)
@@ -372,7 +372,7 @@ class LansengerAdapter(
     def _load_chat_type_map(self) -> None:
         try:
             if self._chat_type_file.exists():
-                data = json.loads(self._chat_type_file.read_text())
+                data = json.loads(self._chat_type_file.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
                     self._chat_type_map.update(data)
                     logger.info("[Lansenger] Loaded %d chat type mappings from file", len(data))
@@ -385,7 +385,7 @@ class LansengerAdapter(
         self._chat_type_map_dirty = False
         try:
             self._chat_type_file.parent.mkdir(parents=True, exist_ok=True)
-            self._chat_type_file.write_text(json.dumps(self._chat_type_map, indent=2))
+            self._chat_type_file.write_text(json.dumps(self._chat_type_map, indent=2), encoding="utf-8")
             logger.debug("[Lansenger] Persisted %d chat type mappings", len(self._chat_type_map))
         except Exception as e:
             logger.error("[Lansenger] Failed to persist chat type map: %s", e)
@@ -937,7 +937,7 @@ def _interactive_setup():
     existing_lines = []
     existing_values = {}
     if env_file.exists():
-        with open(env_file) as f:
+        with open(env_file, encoding="utf-8") as f:
             existing_lines = f.readlines()
         for line in existing_lines:
             if "=" in line and not line.startswith("#"):
@@ -1001,7 +1001,7 @@ def _interactive_setup():
             if key not in keys_replaced:
                 output_lines.append(f"{key}={value}\n")
         
-        with open(env_file, "w") as f:
+        with open(env_file, "w", encoding="utf-8") as f:
             f.writelines(output_lines)
         
         print()
